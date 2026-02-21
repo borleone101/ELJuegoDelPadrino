@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <!-- PÁGINA PRINCIPAL -->
+  <url>
+    <loc>https://borleone101.github.io/ELJuegoDelPadrino/</loc>
+    <lastmod>2026-02-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- LOGIN -->
+  <url>
+    <loc>https://borleone101.github.io/ELJuegoDelPadrino/auth/login.html</loc>
+    <lastmod>2026-02-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- REGISTRO -->
+  <url>
+    <loc>https://borleone101.github.io/ELJuegoDelPadrino/auth/register.html</loc>
+    <lastmod>2026-02-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+</urlset>

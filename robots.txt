@@ -1,0 +1,16 @@
+# ================================================
+# robots.txt – El Padrino Sorteos
+# Este archivo le dice a Google y otros buscadores
+# qué páginas pueden rastrear e indexar.
+# ================================================
+
+# Permitir a TODOS los robots rastrear el sitio
+User-agent: *
+Allow: /
+
+# Bloquear carpetas que no deben aparecer en Google
+Disallow: /assets/
+Disallow: /node_modules/
+
+# Ubicación del sitemap (hoja de ruta del sitio)
+Sitemap: https://borleone101.github.io/ELJuegoDelPadrino/sitemap.xml
