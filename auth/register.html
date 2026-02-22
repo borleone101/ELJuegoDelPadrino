@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registro | El Padrino</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Libre+Baskerville:ital,wght@0,400;1,400&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<style>
+  :root{
+    --ink:#0c0a07;
+    --paper:#f5ede0;
+    --red:#8b1a1a;
+    --red2:#b52020;
+    --gold:#d4a017;
+    --muted:#7a6a56;
+    --border:rgba(139,26,26,.18);
+    --input-bg:#fffbf5;
+  }
+
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+
+  body{
+    font-family:'Source Sans 3',sans-serif;
+    min-height:100vh;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    background:var(--ink);
+  }
+
+  /* ── LEFT PANEL ── */
+  .left{
+    position:relative;
+    display:flex;flex-direction:column;justify-content:center;align-items:center;
+    padding:4rem 3rem;
+    background:var(--ink);overflow:hidden;
+  }
+
+  .left::before{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 40%,rgba(139,26,26,.18),transparent 70%),
+      repeating-linear-gradient(90deg,rgba(212,160,23,.025) 0,rgba(212,160,23,.025) 1px,transparent 1px,transparent 55px);
+  }
+
+  .left-content{position:relative;text-align:center;max-width:340px}
+
+  .brand-logo{
+    font-family:'Oswald',sans-serif;font-weight:700;font-size:2.6rem;
+    letter-spacing:.1em;color:var(--gold);margin-bottom:.3rem;
+    display:flex;align-items:center;justify-content:center;gap:.6rem;
+  }
+
+  .brand-tagline{
+    font-family:'Libre Baskerville',serif;font-style:italic;
+    font-size:1rem;color:rgba(245,237,224,.45);margin-bottom:3rem;
+    letter-spacing:.04em;
+  }
+
+  .ornament{
+    display:flex;align-items:center;justify-content:center;gap:.9rem;margin-bottom:3rem;
+  }
+  .ornament-line{flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(212,160,23,.3))}
+  .ornament-line.r{background:linear-gradient(90deg,rgba(212,160,23,.3),transparent)}
+  .ornament-diamond{width:8px;height:8px;background:var(--red);transform:rotate(45deg);flex-shrink:0}
+
+  /* steps list */
+  .steps{text-align:left;list-style:none}
+  .steps li{
+    display:flex;align-items:flex-start;gap:1rem;
+    padding:.95rem 0;border-bottom:1px solid rgba(212,160,23,.1);
+  }
+  .steps li:last-child{border-bottom:none}
+  .step-num{
+    font-family:'Oswald',sans-serif;font-weight:700;font-size:1.2rem;
+    color:var(--red2);flex-shrink:0;margin-top:.05rem;min-width:24px;
+  }
+  .step-text{font-size:.97rem;color:rgba(245,237,224,.65);line-height:1.55}
+  .step-text strong{color:rgba(245,237,224,.9);font-weight:600}
+
+  /* ── RIGHT PANEL ── */
+  .right{
+    background:var(--paper);
+    display:flex;flex-direction:column;justify-content:center;
+    padding:3.5rem clamp(2rem,6vw,5rem);
+    overflow-y:auto;
+  }
+
+  .form-header{margin-bottom:2.5rem}
+  .form-tag{
+    font-family:'Oswald',sans-serif;font-size:.78rem;letter-spacing:.28em;
+    text-transform:uppercase;color:var(--red2);margin-bottom:.5rem;
+  }
+  .form-title{
+    font-family:'Oswald',sans-serif;font-weight:700;font-size:2.4rem;
+    letter-spacing:.03em;color:var(--ink);line-height:1;
+  }
+
+  /* FIELDS */
+  .field{margin-bottom:1.8rem}
+  .field label{
+    display:block;
+    font-family:'Oswald',sans-serif;font-weight:600;font-size:.9rem;
+    letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+    margin-bottom:.7rem;
+  }
+
+  .field input{
+    display:block;width:100%;
+    background:var(--input-bg);
+    border:none;border-bottom:2px solid rgba(139,26,26,.2);border-radius:0;
+    padding:.85rem 0;
+    font-family:'Source Sans 3',sans-serif;font-size:1.1rem;color:var(--ink);
+    outline:none;transition:border-color .22s;
+    -webkit-appearance:none;
+  }
+  .field input:focus{border-bottom-color:var(--red2)}
+  .field input::placeholder{color:rgba(90,74,54,.35)}
+
+  .input-wrap{position:relative}
+  .input-wrap input{padding-right:2.5rem}
+  .toggle-pw{
+    position:absolute;right:0;top:50%;transform:translateY(-50%);
+    background:none;border:none;cursor:pointer;
+    color:var(--muted);font-size:1.1rem;padding:.3rem;
+    transition:color .2s;
+  }
+  .toggle-pw:hover{color:var(--red2)}
+
+  .hint{font-size:.85rem;color:var(--muted);margin-top:.45rem}
+
+  /* SUBMIT */
+  .btn-submit{
+    display:block;width:100%;
+    font-family:'Oswald',sans-serif;font-weight:700;font-size:1.15rem;
+    letter-spacing:.12em;text-transform:uppercase;
+    background:var(--red);color:#fff;border:none;
+    padding:1.05rem;border-radius:6px;
+    cursor:pointer;transition:all .25s;
+    box-shadow:0 6px 22px rgba(139,26,26,.32);
+    margin-top:.5rem;
+  }
+  .btn-submit:hover{background:var(--red2);transform:translateY(-2px);box-shadow:0 10px 30px rgba(139,26,26,.45)}
+  .btn-submit:active{transform:translateY(0)}
+
+  /* LOADING STATE */
+  .btn-submit:disabled{
+    opacity:.7;cursor:not-allowed;transform:none;
+  }
+
+  .form-footer{
+    text-align:center;margin-top:2rem;
+    font-size:1rem;color:var(--muted);
+  }
+  .form-footer a{
+    color:var(--red);text-decoration:none;font-weight:600;
+    transition:color .2s;
+  }
+  .form-footer a:hover{color:var(--red2)}
+
+  /* ── MOBILE ── */
+  @media(max-width:700px){
+    body{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+    .left{padding:2.5rem 1.5rem 2rem;min-height:auto}
+    .steps,.ornament{display:none}
+    .brand-tagline{margin-bottom:0}
+    .brand-logo{font-size:2rem}
+    .right{padding:2.5rem 1.5rem 3rem}
+    .form-title{font-size:1.9rem}
+    .field{margin-bottom:1.5rem}
+  }
+
+  @media(min-width:1200px){
+    .right{padding:4rem 6rem}
+  }
+</style>
+</head>
+<body>
+
+<!-- LEFT -->
+<div class="left">
+  <div class="left-content">
+    <div class="brand-logo">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#d4a017" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L4 7v5c0 5 3.5 9.74 8 11 4.5-1.26 8-6 8-11V7L12 2z"/>
+      </svg>
+      EL PADRINO
+    </div>
+    <div class="brand-tagline">Sorteos Digitales · Est. 2026</div>
+
+    <div class="ornament">
+      <div class="ornament-line"></div>
+      <div class="ornament-diamond"></div>
+      <div class="ornament-line r"></div>
+    </div>
+
+    <ul class="steps">
+      <li>
+        <span class="step-num">01</span>
+        <span class="step-text">Crea tu cuenta <strong>gratis</strong> en segundos</span>
+      </li>
+      <li>
+        <span class="step-num">02</span>
+        <span class="step-text">Únete a un sorteo y <strong>toma tu cupo</strong></span>
+      </li>
+      <li>
+        <span class="step-num">03</span>
+        <span class="step-text">El sistema elige al <strong>ganador automáticamente</strong></span>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- RIGHT -->
+<div class="right">
+  <div class="form-header">
+    <div class="form-tag">Únete a la familia</div>
+    <div class="form-title">Crear cuenta</div>
+  </div>
+
+  <form id="registerForm" novalidate>
+
+    <div class="field">
+      <label for="username">Nombre de usuario</label>
+      <input type="text" id="username" placeholder="mi_usuario" required autocomplete="username" minlength="3">
+      <div class="hint">Mínimo 3 caracteres. Sin espacios.</div>
+    </div>
+
+    <div class="field">
+      <label for="email">Correo electrónico</label>
+      <input type="email" id="email" placeholder="correo@ejemplo.com" required autocomplete="email">
+    </div>
+
+    <div class="field">
+      <label for="password">Contraseña</label>
+      <div class="input-wrap">
+        <input type="password" id="password" placeholder="Mínimo 6 caracteres" required autocomplete="new-password">
+        <button type="button" class="toggle-pw" aria-label="Mostrar contraseña">
+          <i class="bi bi-eye"></i>
+        </button>
+      </div>
+      <div class="hint">Al menos 6 caracteres.</div>
+    </div>
+
+    <button type="submit" class="btn-submit" id="btnSubmit">Crear mi cuenta</button>
+  </form>
+
+  <p class="form-footer">¿Ya tienes cuenta? <a href="login.html">Inicia sesión</a></p>
+</div>
+
+<script type="module">
+import { supabase } from "../assets/js/supabase.js";
+
+/* ── Toggle password visibility ── */
+document.querySelector(".toggle-pw").addEventListener("click", () => {
+  const input = document.getElementById("password");
+  const icon  = document.querySelector(".toggle-pw i");
+  input.type = input.type === "password" ? "text" : "password";
+  icon.classList.toggle("bi-eye");
+  icon.classList.toggle("bi-eye-slash");
+});
+
+/* ── Register form ── */
+document.getElementById("registerForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const username = document.getElementById("username").value.trim();
+  const email    = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const btn      = document.getElementById("btnSubmit");
+
+  /* ── Validaciones del lado cliente ── */
+  if (username.length < 3) {
+    Swal.fire("Error", "El usuario debe tener al menos 3 caracteres.", "error"); return;
+  }
+  if (/\s/.test(username)) {
+    Swal.fire("Error", "El nombre de usuario no puede tener espacios.", "error"); return;
+  }
+  if (password.length < 6) {
+    Swal.fire("Error", "La contraseña debe tener al menos 6 caracteres.", "error"); return;
+  }
+
+  btn.disabled    = true;
+  btn.textContent = "Creando cuenta…";
+
+  try {
+    /* ── Verificar username único en profiles ── */
+    const { data: existing, error: checkErr } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username", username)
+      .maybeSingle();           // maybeSingle → null si no existe (sin lanzar error)
+
+    if (checkErr) throw checkErr;
+
+    if (existing) {
+      Swal.fire("Error", "Ese nombre de usuario ya está en uso.", "error");
+      return;
+    }
+
+    /* ── Crear usuario en Supabase Auth ── */
+    const { data: authData, error: authErr } = await supabase.auth.signUp({ email, password });
+
+    if (authErr) {
+      // Mensaje amigable para email duplicado
+      const msg = authErr.message.includes("already registered")
+        ? "Ese correo ya tiene una cuenta registrada."
+        : authErr.message;
+      Swal.fire("Error", msg, "error");
+      return;
+    }
+
+    /* ── Insertar perfil en tabla profiles (schema v2) ──
+         Campos: id, username, email, saldo (default 0), rol, estado, avatar_url (null)
+         created_at se genera automáticamente con DEFAULT now()
+    ── */
+    const { error: profileErr } = await supabase.from("profiles").insert({
+      id:         authData.user.id,
+      username,
+      email,
+      saldo:      0,          // saldo inicial en 0
+      rol:        "usuario",  // rol por defecto del schema
+      estado:     "activo",   // estado por defecto del schema
+      avatar_url: null        // sin avatar al crear cuenta
+    });
+
+    if (profileErr) {
+      // Si falla el perfil, borrar el usuario de auth para no dejar huérfanos
+      await supabase.auth.admin?.deleteUser(authData.user.id).catch(() => {});
+      Swal.fire("Error", "No se pudo crear el perfil. Intenta de nuevo.", "error");
+      return;
+    }
+
+    /* ── Éxito ── */
+    await Swal.fire({
+      title: "¡Bienvenido a la familia!",
+      text: "Revisa tu correo y confirma tu cuenta para poder ingresar.",
+      icon: "success",
+      confirmButtonColor: "#8b1a1a",
+      confirmButtonText: "Entendido"
+    });
+
+    document.getElementById("registerForm").reset();
+    window.location.href = "login.html";   // redirige al login tras registro
+
+  } catch (err) {
+    console.error("Register error:", err);
+    Swal.fire("Error inesperado", "Intenta de nuevo más tarde.", "error");
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = "Crear mi cuenta";
+  }
+});
+</script>
+
+</body>
+</html>
