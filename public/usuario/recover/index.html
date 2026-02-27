@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>El Padrino — Mi Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<style>
+:root{
+  --ink:#0c0a07;--ink2:#131009;--ink3:#1b1610;--ink4:#241c12;
+  --red:#8b1a1a;--red2:#b52020;--red3:#d42828;
+  --gold:#b8860b;--gold2:#d4a017;--gold3:#e8c04a;
+  --cream:#e6dcc8;--muted:#8a7a62;--dim:#4a3c2a;
+  --border:rgba(139,26,26,.22);--bord-g:rgba(212,160,23,.15);
+  --sw:220px;--nav-h:60px;--bot-h:64px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-tap-highlight-color:transparent}
+body{font-family:'Source Sans 3',sans-serif;background:var(--ink);color:var(--cream);min-height:100vh}
+button,a{font-family:inherit;cursor:pointer;text-decoration:none}
+input,select{font-family:inherit}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--ink2)}
+::-webkit-scrollbar-thumb{background:var(--dim);border-radius:4px}
+
+/* ══ TOPBAR ══ */
+.topbar{
+  position:fixed;top:0;left:0;right:0;height:var(--nav-h);z-index:500;
+  background:rgba(13,10,7,.97);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 1rem;
+}
+.tb-left{display:flex;align-items:center;gap:.75rem}
+.tb-brand{font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:700;color:var(--gold2);letter-spacing:.12em;display:flex;align-items:center;gap:.4rem}
+.tb-brand svg{flex-shrink:0}
+.hamburger{display:none;background:none;border:none;color:var(--gold2);font-size:1.35rem;padding:.1rem .3rem}
+.tb-right{display:flex;align-items:center;gap:.5rem}
+.tb-chip{display:flex;align-items:center;gap:.38rem;background:var(--ink3);border:1px solid var(--bord-g);border-radius:20px;padding:.28rem .7rem .28rem .38rem}
+.tb-avatar{width:26px;height:26px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--red),var(--gold2));display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:700;color:#fff}
+.tb-name{font-size:.82rem;font-weight:600;color:var(--cream);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn-exit{width:33px;height:33px;border-radius:8px;background:rgba(139,26,26,.18);border:1px solid rgba(139,26,26,.3);color:#f87171;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:background .2s}
+.btn-exit:hover{background:rgba(139,26,26,.38)}
+
+/* ══ LAYOUT ══ */
+.app-layout{display:flex;padding-top:var(--nav-h);min-height:100vh}
+
+/* ══ SIDEBAR ══ */
+.sidebar{
+  width:var(--sw);flex-shrink:0;
+  position:fixed;top:var(--nav-h);left:0;bottom:0;
+  background:var(--ink2);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;
+  transition:transform .26s ease;z-index:400;
+}
+.sb-user-card{padding:1.3rem 1rem 1rem;border-bottom:1px solid var(--border);text-align:center}
+.sb-av{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--gold2));display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;color:#fff;margin:0 auto .55rem;border:2px solid rgba(212,160,23,.25)}
+.sb-username{font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:600;color:#fff;margin-bottom:.18rem}
+.sb-saldo{font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:700;color:var(--gold2)}
+.sb-saldo-lbl{font-size:.67rem;color:var(--muted);text-transform:uppercase;letter-spacing:.14em;margin-top:.05rem}
+.sb-sec{padding:.7rem 1rem .2rem;font-family:'Oswald',sans-serif;font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
+.nav-item{display:flex;align-items:center;gap:.62rem;width:calc(100% - .8rem);margin:.1rem .4rem;padding:.6rem .85rem;border-radius:7px;background:transparent;border:1px solid transparent;color:var(--cream);font-size:.92rem;transition:all .18s}
+.nav-item i{font-size:.95rem;color:var(--gold);flex-shrink:0;width:17px;text-align:center}
+.nav-item:hover{background:rgba(212,160,23,.06);border-color:var(--bord-g)}
+.nav-item.active{background:rgba(139,26,26,.22);border-color:var(--border);color:var(--gold2)}
+.nav-item.active i{color:var(--gold2)}
+.sb-footer{margin-top:auto;padding:.8rem .6rem;border-top:1px solid var(--border)}
+.sb-logout{display:flex;align-items:center;justify-content:center;gap:.4rem;width:100%;padding:.5rem;border-radius:7px;background:rgba(139,26,26,.15);color:#f87171;border:1px solid rgba(139,26,26,.28);font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:600;letter-spacing:.07em;transition:background .2s}
+.sb-logout:hover{background:rgba(139,26,26,.32)}
+.sb-overlay{display:none;position:fixed;inset:0;z-index:390;background:rgba(0,0,0,.55)}
+
+/* ══ MAIN ══ */
+.main-content{flex:1;margin-left:var(--sw);min-height:calc(100vh - var(--nav-h));padding:1.5rem 1.8rem 2.5rem}
+
+/* ══ SECTIONS ══ */
+.section{display:none;animation:fadeUp .25s ease}
+.section.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+
+/* ══ PAGE HEADER ══ */
+.page-header{margin-bottom:1.2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem}
+.page-title{font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;letter-spacing:.03em;color:#fff;display:flex;align-items:center;gap:.42rem}
+.page-title i{color:var(--gold2)}
+.page-sub{font-size:.82rem;color:var(--muted);margin-top:.25rem}
+
+/* ══ PANELS ══ */
+.panel{background:var(--ink2);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:1.2rem}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1.1rem;border-bottom:1px solid var(--border);background:rgba(0,0,0,.15)}
+.panel-title{font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:600;color:#fff;display:flex;align-items:center;gap:.38rem}
+.panel-title i{color:var(--gold2)}
+.panel-body{padding:1rem 1.1rem}
+
+/* ══ QR GATE BANNER ══ */
+.qr-gate-banner{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;background:rgba(212,160,23,.06);border:1.5px solid rgba(212,160,23,.3);border-radius:12px;padding:1rem 1.2rem;margin-bottom:1.3rem}
+.qr-gate-banner.qgb-pending{background:rgba(245,158,11,.05);border-color:rgba(245,158,11,.25)}
+.qgb-icon{font-size:2.2rem;color:var(--gold2);flex-shrink:0}
+.qgb-icon .bi-hourglass-split{color:#f59e0b}
+.qgb-body{flex:1;min-width:180px}
+.qgb-title{font-family:'Oswald',sans-serif;font-size:.97rem;font-weight:600;color:#fff;margin-bottom:.2rem}
+.qgb-sub{font-size:.81rem;color:var(--muted)}
+
+/* ══ SORTEO ITEMS ══ */
+.sorteo-item{background:var(--ink3);border:1px solid var(--border);border-radius:11px;overflow:hidden;transition:border-color .2s,transform .18s;margin-bottom:.9rem}
+.sorteo-item:hover{border-color:rgba(212,160,23,.28);transform:translateY(-2px)}
+.si-head{padding:1rem 1.1rem .7rem;display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem}
+.si-nombre{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;color:#fff}
+.si-sub{font-size:.8rem;color:var(--muted);margin-top:.15rem}
+.si-precio{font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:700;color:var(--gold2);flex-shrink:0;white-space:nowrap;text-align:right}
+.si-precio span{font-size:.7rem;color:var(--muted);font-weight:400}
+.si-prog{padding:0 1.1rem .7rem}
+.prog-label{display:flex;justify-content:space-between;margin-bottom:.3rem;font-size:.77rem;color:var(--muted)}
+.prog-bg{height:6px;background:rgba(255,255,255,.05);border-radius:10px;overflow:hidden}
+.prog-fill{height:100%;border-radius:10px;transition:width .5s ease;background:linear-gradient(90deg,var(--red),var(--gold2))}
+.prog-fill.full{background:linear-gradient(90deg,#2a6a2a,#4ade80)}
+.si-foot{padding:.7rem 1.1rem;background:var(--ink2);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap}
+.mi-boletos{font-size:.85rem;color:var(--muted);display:flex;align-items:center;gap:.3rem}
+.mi-boletos i,.mi-boletos strong{color:var(--gold2)}
+
+/* ══ ITEM LIST ══ */
+.item-list{display:flex;flex-direction:column;gap:.65rem}
+.list-item{background:var(--ink2);border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;display:flex;align-items:center;gap:.8rem;transition:border-color .18s}
+.list-item:hover{border-color:var(--bord-g)}
+.li-icon{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem}
+.li-icon.ic-win{background:rgba(58,138,58,.14);color:#4ade80}
+.li-icon.ic-bad{background:rgba(139,26,26,.18);color:#f87171}
+.li-icon.ic-pend{background:rgba(212,160,23,.12);color:var(--gold2)}
+.li-body{flex:1;min-width:0}
+.li-title{font-family:'Oswald',sans-serif;font-size:.93rem;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li-sub{font-size:.76rem;color:var(--muted);margin-top:.1rem}
+.li-right{flex-shrink:0;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:.22rem}
+.li-amount{font-family:'Oswald',sans-serif;font-size:.93rem;color:var(--gold2)}
+.li-date{font-size:.7rem;color:var(--dim)}
+
+/* ══ PREMIOS RESUMEN ══ */
+.premios-resumen{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem}
+.pr-box{background:var(--ink3);border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;display:flex;align-items:center;gap:.75rem}
+.pr-ico{font-size:1.5rem;color:#f59e0b;flex-shrink:0}
+.pr-val{font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:#fff}
+.pr-lbl{font-size:.72rem;color:var(--muted);margin-top:.1rem}
+
+/* ══ PERFIL ══ */
+.perfil-card{background:linear-gradient(145deg,#1e150c,#130f08)!important;position:relative;overflow:hidden}
+.perfil-card::before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 60% 100% at -5% 50%,rgba(139,26,26,.18),transparent 65%)}
+.perfil-header{display:flex;align-items:center;gap:1.2rem;padding:1.3rem 1.3rem;position:relative;z-index:1}
+.perfil-avatar-wrap{position:relative;flex-shrink:0}
+.perfil-avatar{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--gold2));display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:1.8rem;font-weight:700;color:#fff;border:3px solid rgba(212,160,23,.35)}
+.perfil-avatar-ring{position:absolute;inset:-4px;border-radius:50%;border:1px solid rgba(212,160,23,.18)}
+.perfil-info .perfil-username{font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:700;color:#fff;letter-spacing:.04em}
+.perfil-info .perfil-email,.perfil-info .perfil-since{font-size:.78rem;color:var(--muted);margin-top:.2rem;display:flex;align-items:center;gap:.3rem}
+.perfil-info .perfil-email i,.perfil-info .perfil-since i{color:var(--gold);font-size:.72rem}
+
+/* ══ STATS GRID ══ */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:.65rem}
+.stat-box{background:var(--ink3);border:1px solid var(--border);border-radius:9px;padding:.75rem .9rem}
+.stat-box.stat-win .stat-val{color:#4ade80}
+.stat-box.stat-gold .stat-val{color:var(--gold2)}
+.stat-val{font-family:'Oswald',sans-serif;font-size:1.25rem;font-weight:700;color:#fff}
+.stat-lbl{font-size:.72rem;color:var(--muted);margin-top:.18rem;display:flex;align-items:center;gap:.25rem}
+.stat-lbl i{font-size:.68rem}
+
+/* ══ QR PERFIL ══ */
+.qr-empty-state{text-align:center;padding:1.5rem}
+.qes-icon{font-size:2.5rem;color:var(--dim);margin-bottom:.5rem}
+.qes-title{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;color:#fff;margin-bottom:.25rem}
+.qes-sub{font-size:.82rem;color:var(--muted)}
+.qr-perfil-wrap{display:flex;flex-direction:column;align-items:center;gap:.85rem}
+.qr-img-container{position:relative;width:100%;max-width:220px;cursor:pointer}
+.qr-img-container:hover .qr-img-overlay{opacity:1}
+.qr-img-overlay{position:absolute;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;gap:.3rem;font-size:.8rem;font-family:'Oswald',sans-serif;color:#fff;border-radius:10px;opacity:0;transition:opacity .2s}
+.qr-details-grid{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;width:100%;max-width:380px}
+.qr-detail-box{background:var(--ink3);border:1px solid var(--border);border-radius:8px;padding:.55rem .8rem}
+.qdb-label{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.2rem}
+.qdb-val{font-size:.88rem;color:#fff}
+.qr-pending-notice,.qr-ok-notice{display:flex;align-items:flex-start;gap:.65rem;width:100%;max-width:380px;padding:.7rem .9rem;border-radius:9px}
+.qr-pending-notice{background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2)}
+.qr-ok-notice{background:rgba(58,138,58,.06);border:1px solid rgba(58,138,58,.2)}
+
+/* ══ ACCOUNT ROWS ══ */
+.account-rows{display:flex;flex-direction:column;gap:.5rem}
+.account-row{display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.account-row:last-child{border-bottom:none}
+.ar-label{font-size:.82rem;color:var(--muted);display:flex;align-items:center;gap:.35rem}
+.ar-label i{color:var(--gold);font-size:.78rem}
+.ar-val{font-size:.88rem;color:#fff;font-weight:600}
+
+/* ══ BOTONES ══ */
+.btn{font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.07em;border:none;border-radius:6px;cursor:pointer;transition:all .18s;display:inline-flex;align-items:center;gap:.3rem}
+.btn:disabled{opacity:.42;cursor:not-allowed}
+.btn-sm{font-size:.77rem;padding:.28rem .7rem}
+.btn-md{font-size:.88rem;padding:.47rem 1.1rem}
+.btn-ghost{background:rgba(212,160,23,.08);color:var(--gold2);border:1px solid var(--bord-g)}.btn-ghost:hover:not(:disabled){background:rgba(212,160,23,.18)}
+.btn-red{background:var(--red);color:#fff}.btn-red:hover:not(:disabled){background:var(--red2)}
+.btn-gold{background:rgba(212,160,23,.15);color:var(--gold2);border:1px solid rgba(212,160,23,.3)}.btn-gold:hover{background:rgba(212,160,23,.28)}
+
+/* ══ BADGES ══ */
+.bdg{display:inline-flex;align-items:center;gap:.2rem;font-family:'Oswald',sans-serif;font-size:.68rem;font-weight:600;letter-spacing:.07em;padding:.18rem .58rem;border-radius:20px;white-space:nowrap}
+.bdg-p{background:rgba(212,160,23,.14);color:var(--gold2);border:1px solid rgba(212,160,23,.28)}
+.bdg-ok{background:rgba(58,138,58,.14);color:#4ade80;border:1px solid rgba(58,138,58,.28)}
+.bdg-bad{background:rgba(139,26,26,.2);color:#f87171;border:1px solid rgba(139,26,26,.32)}
+.bdg-win{background:linear-gradient(135deg,rgba(139,26,26,.18),rgba(184,134,11,.18));color:var(--gold2);border:1px solid rgba(212,160,23,.3)}
+
+/* ══ EMPTY / SPIN ══ */
+.empty{text-align:center;padding:2.8rem 1rem}
+.empty i{font-size:2.4rem;color:var(--dim);display:block;margin-bottom:.55rem}
+.empty p{color:var(--muted);font-size:.9rem;line-height:1.5}
+.spin-wrap{display:flex;align-items:center;justify-content:center;padding:3rem}
+.spinner{width:30px;height:30px;border:3px solid rgba(212,160,23,.1);border-top-color:var(--gold2);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ══ METODO CARD ══ */
+.metodo-card input[type=radio]{display:none}
+.metodo-card:hover{border-color:rgba(212,160,23,.35)!important}
+
+/* ══ SWAL THEME ══ */
+.swal2-popup{background:#131009!important;border:1px solid rgba(139,26,26,.25)!important;color:#e6dcc8!important;font-family:'Source Sans 3',sans-serif!important;border-radius:16px!important;box-shadow:0 24px 64px rgba(0,0,0,.6)!important}
+.swal2-title{color:#fff!important;font-family:'Oswald',sans-serif!important;letter-spacing:.04em!important}
+.swal2-html-container{color:#8a7a62!important;font-size:.92rem!important;line-height:1.6!important}
+.swal2-confirm{background:var(--red)!important;font-family:'Oswald',sans-serif!important;font-weight:600!important;letter-spacing:.08em!important;border-radius:7px!important;padding:.52rem 1.4rem!important}
+.swal2-cancel{background:#221c14!important;color:#8a7a62!important;border:1px solid rgba(139,26,26,.22)!important;font-family:'Oswald',sans-serif!important;border-radius:7px!important}
+.swal2-confirm:hover{background:var(--red2)!important}
+.swal2-input{background:#1b1610!important;border:1px solid rgba(139,26,26,.28)!important;color:#e6dcc8!important;border-radius:8px!important;font-size:.97rem!important}
+.swal2-input:focus{border-color:#d4a017!important;box-shadow:none!important}
+
+/* ══ FIELD LABEL helper ══ */
+.field label{display:block;font-family:'Oswald',sans-serif;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:.3rem}
+
+/* ══ BOTTOM NAV ══ */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:500;background:rgba(13,10,7,.97);backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:.28rem 0 env(safe-area-inset-bottom,.28rem)}
+.bn-grid{display:grid;grid-template-columns:repeat(5,1fr)}
+.bn-item{display:flex;flex-direction:column;align-items:center;gap:.16rem;background:none;border:none;color:var(--muted);font-family:'Oswald',sans-serif;font-size:.6rem;letter-spacing:.06em;padding:.38rem .25rem;transition:color .18s}
+.bn-item i{font-size:1.1rem}
+.bn-item.active{color:var(--gold2)}
+
+/* ══ HERO MOBILE ══ */
+.hero-mobile{display:none}
+.hero-card{background:linear-gradient(145deg,#1e150c,#130f08);border:1px solid var(--border);border-radius:14px;padding:1.2rem 1.2rem 1rem;position:relative;overflow:hidden;margin-bottom:1.2rem}
+.hero-card::before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 60% 100% at -5% 50%,rgba(139,26,26,.18),transparent 65%)}
+.hero-deco{position:absolute;right:.6rem;bottom:-.3rem;font-size:4.5rem;opacity:.05;pointer-events:none}
+.hero-inner{position:relative;z-index:1}
+.hero-lbl{font-family:'Oswald',sans-serif;font-size:.65rem;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin-bottom:.3rem}
+.hero-amt{font-family:'Oswald',sans-serif;font-size:2.4rem;font-weight:700;color:var(--gold2);line-height:1}
+.hero-amt sup{font-size:.95rem;color:var(--muted);font-weight:400;margin-right:.15rem}
+
+/* ══ RESPONSIVE ══ */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .sb-overlay.open{display:block}
+  .hamburger{display:block}
+  .main-content{margin-left:0;padding:1rem 1rem calc(var(--bot-h) + 1.2rem)}
+  .hero-mobile{display:block}
+  .bottom-nav{display:block}
+  .tb-name{max-width:70px}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .premios-resumen{grid-template-columns:1fr 1fr}
+  .qr-details-grid{grid-template-columns:1fr 1fr}
+}
+@media(min-width:769px){
+  .sb-overlay{display:none!important}
+  .bottom-nav{display:none!important}
+  .hero-mobile{display:none!important}
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="tb-left">
+    <button class="hamburger" id="hamburgerBtn"><i class="bi bi-list"></i></button>
+    <div class="tb-brand">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#d4a017" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L4 7v5c0 5 3.5 9.74 8 11 4.5-1.26 8-6 8-11V7L12 2z"/>
+      </svg>
+      EL PADRINO
+    </div>
+  </div>
+  <div class="tb-right">
+    <div class="tb-chip">
+      <div class="tb-avatar" id="tbAvatar">?</div>
+      <span class="tb-name" id="tbName">—</span>
+    </div>
+    <button class="btn-exit" id="logoutBtn" title="Salir"><i class="bi bi-box-arrow-right"></i></button>
+  </div>
+</header>
+
+<div class="app-layout">
+  <div class="sb-overlay" id="sbOverlay"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-user-card">
+      <div class="sb-av" id="sbAvatar">?</div>
+      <div class="sb-username" id="sbName">—</div>
+      <div class="sb-saldo-lbl">Saldo disponible</div>
+      <div class="sb-saldo"><span>Bs </span><span id="sbSaldo">0.00</span></div>
+    </div>
+    <div class="sb-sec">Menú</div>
+    <button class="nav-item active" data-sec="sorteos"><i class="bi bi-ticket-perforated-fill"></i>Sorteos activos</button>
+    <button class="nav-item" data-sec="historial"><i class="bi bi-clock-history"></i>Mi historial</button>
+    <button class="nav-item" data-sec="pagos"><i class="bi bi-receipt"></i>Mis pagos</button>
+    <button class="nav-item" data-sec="premios"><i class="bi bi-cash-coin"></i>Mis premios</button>
+    <button class="nav-item" data-sec="perfil"><i class="bi bi-person-circle"></i>Mi perfil</button>
+    <div class="sb-footer">
+      <button class="sb-logout" id="logoutBtn2"><i class="bi bi-box-arrow-right"></i>Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- Hero mobile -->
+    <div class="hero-mobile">
+      <div class="hero-card">
+        <div class="hero-deco">🎩</div>
+        <div class="hero-inner">
+          <div class="hero-lbl">Mi saldo</div>
+          <div class="hero-amt"><sup>Bs</sup><span id="heroSaldo">0.00</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SORTEOS ── -->
+    <div class="section active" id="sec-sorteos">
+      <div class="page-header">
+        <div>
+          <div class="page-title"><i class="bi bi-ticket-perforated-fill"></i>Sorteos disponibles</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btnRefresh"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+      </div>
+      <!-- Banner QR gate -->
+      <div id="qrGateBanner"></div>
+      <div id="sorteosList"><div class="spin-wrap"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- ── HISTORIAL ── -->
+    <div class="section" id="sec-historial">
+      <div class="page-header">
+        <div class="page-title"><i class="bi bi-clock-history"></i>Mi historial</div>
+      </div>
+      <div id="historialList"><div class="spin-wrap"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- ── PAGOS ── -->
+    <div class="section" id="sec-pagos">
+      <div class="page-header">
+        <div class="page-title"><i class="bi bi-receipt"></i>Mis comprobantes</div>
+      </div>
+      <div id="pagosList"><div class="spin-wrap"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- ── PREMIOS ── -->
+    <div class="section" id="sec-premios">
+      <div class="page-header">
+        <div>
+          <div class="page-title"><i class="bi bi-cash-coin"></i>Mis premios</div>
+          <div class="page-sub">Premios que el administrador te ha enviado</div>
+        </div>
+      </div>
+      <div id="premiosList"><div class="spin-wrap"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- ── PERFIL ── -->
+    <div class="section" id="sec-perfil">
+      <div class="page-header">
+        <div class="page-title"><i class="bi bi-person-circle"></i>Mi perfil</div>
+      </div>
+      <div id="perfilContent"><div class="spin-wrap"><div class="spinner"></div></div></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- BOTTOM NAV MOBILE — 5 ítems -->
+<nav class="bottom-nav">
+  <div class="bn-grid">
+    <button class="bn-item active" data-sec="sorteos"><i class="bi bi-ticket-perforated-fill"></i>Sorteos</button>
+    <button class="bn-item" data-sec="historial"><i class="bi bi-clock-history"></i>Historial</button>
+    <button class="bn-item" data-sec="pagos"><i class="bi bi-receipt"></i>Pagos</button>
+    <button class="bn-item" data-sec="premios"><i class="bi bi-cash-coin"></i>Premios</button>
+    <button class="bn-item" data-sec="perfil"><i class="bi bi-person-circle"></i>Perfil</button>
+  </div>
+</nav>
+
+<script>
+const sidebar   = document.getElementById('sidebar');
+const sbOverlay = document.getElementById('sbOverlay');
+const hamburger = document.getElementById('hamburgerBtn');
+hamburger.addEventListener('click', () => {
+  sidebar.classList.toggle('open');
+  sbOverlay.classList.toggle('open');
+});
+sbOverlay.addEventListener('click', () => {
+  sidebar.classList.remove('open');
+  sbOverlay.classList.remove('open');
+});
+</script>
+
+<script type="module" src="../../assets/js/usuario.js"></script>
+</body>
+</html>

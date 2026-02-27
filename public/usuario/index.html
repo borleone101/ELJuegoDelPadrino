@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>El Padrino — Mi Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+:root{
+  --ink:#0c0a07;--ink2:#131009;--ink3:#1b1610;--ink4:#241c12;
+  --red:#8b1a1a;--red2:#b52020;--red3:#d42828;
+  --gold:#b8860b;--gold2:#d4a017;--gold3:#e8c04a;
+  --cream:#e6dcc8;--muted:#8a7a62;--dim:#4a3c2a;
+  --green:#166534;--green2:#22c55e;
+  --border:rgba(139,26,26,.22);--bord-g:rgba(212,160,23,.15);
+  --sw:220px;--nav-h:60px;--bot-h:64px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-tap-highlight-color:transparent}
+body{font-family:'Source Sans 3',sans-serif;background:var(--ink);color:var(--cream);min-height:100vh}
+button,a{font-family:inherit;cursor:pointer;text-decoration:none}
+input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--ink2)}
+::-webkit-scrollbar-thumb{background:var(--dim);border-radius:4px}
+
+/* ── TOPBAR ── */
+.topbar{position:fixed;top:0;left:0;right:0;height:var(--nav-h);z-index:500;background:rgba(13,10,7,.97);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 1rem}
+.tb-left{display:flex;align-items:center;gap:.75rem}
+.tb-brand{font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:700;color:var(--gold2);letter-spacing:.12em;display:flex;align-items:center;gap:.4rem}
+.hamburger{display:none;background:none;border:none;color:var(--gold2);font-size:1.35rem;padding:.1rem .3rem}
+.tb-right{display:flex;align-items:center;gap:.5rem}
+.tb-chip{display:flex;align-items:center;gap:.38rem;background:var(--ink3);border:1px solid var(--bord-g);border-radius:20px;padding:.28rem .7rem .28rem .38rem}
+.tb-avatar{width:26px;height:26px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--red),var(--gold2));display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:700;color:#fff}
+.tb-name{font-size:.82rem;font-weight:600;color:var(--cream);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn-exit{width:33px;height:33px;border-radius:8px;background:rgba(139,26,26,.18);border:1px solid rgba(139,26,26,.3);color:#f87171;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:background .2s}
+.btn-exit:hover{background:rgba(139,26,26,.38)}
+
+/* ── LAYOUT ── */
+.app-layout{display:flex;padding-top:var(--nav-h);min-height:100vh}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sw);flex-shrink:0;position:fixed;top:var(--nav-h);left:0;bottom:0;background:var(--ink2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;transition:transform .26s ease;z-index:400}
+.sb-user-card{padding:1.3rem 1rem 1rem;border-bottom:1px solid var(--border);text-align:center}
+.sb-av{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--gold2));display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;color:#fff;margin:0 auto .55rem;border:2px solid rgba(212,160,23,.25)}
+.sb-username{font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:600;color:#fff;margin-bottom:.18rem}
+.sb-saldo{font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:700;color:var(--gold2)}
+.sb-saldo-lbl{font-size:.67rem;color:var(--muted);text-transform:uppercase;letter-spacing:.14em;margin-top:.05rem}
+.sb-sec{padding:.7rem 1rem .2rem;font-family:'Oswald',sans-serif;font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
+.nav-item{display:flex;align-items:center;gap:.62rem;width:calc(100% - .8rem);margin:.1rem .4rem;padding:.6rem .85rem;border-radius:7px;background:transparent;border:1px solid transparent;color:var(--cream);font-size:.92rem;transition:all .18s}
+.nav-item i{font-size:.95rem;color:var(--gold);flex-shrink:0;width:17px;text-align:center}
+.nav-item:hover{background:rgba(212,160,23,.06);border-color:var(--bord-g)}
+.nav-item.active{background:rgba(139,26,26,.22);border-color:var(--border);color:var(--gold2)}
+.nav-item.active i{color:var(--gold2)}
+.sb-footer{margin-top:auto;padding:.8rem .6rem;border-top:1px solid var(--border)}
+.sb-logout{display:flex;align-items:center;justify-content:center;gap:.4rem;width:100%;padding:.5rem;border-radius:7px;background:rgba(139,26,26,.15);color:#f87171;border:1px solid rgba(139,26,26,.28);font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:600;letter-spacing:.07em;transition:background .2s}
+.sb-logout:hover{background:rgba(139,26,26,.32)}
+.sb-overlay{display:none;position:fixed;inset:0;z-index:390;background:rgba(0,0,0,.55)}
+
+/* ── MAIN ── */
+.main-content{flex:1;margin-left:var(--sw);min-height:calc(100vh - var(--nav-h));padding:1.5rem 1.8rem 2.5rem}
+
+/* ── SECTIONS ── */
+.section{display:none;animation:fadeUp .25s ease}
+.section.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── PAGE HEADER ── */
+.page-header{margin-bottom:1.2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem}
+.page-title{font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;letter-spacing:.03em;color:#fff;display:flex;align-items:center;gap:.42rem}
+.page-title i{color:var(--gold2)}
+.page-sub{font-size:.82rem;color:var(--muted);margin-top:.25rem}
+
+/* ── PANELS ── */
+.panel{background:var(--ink2);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:1.2rem}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1.1rem;border-bottom:1px solid var(--border);background:rgba(0,0,0,.15)}
+.panel-title{font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:600;color:#fff;display:flex;align-items:center;gap:.38rem}
+.panel-title i{color:var(--gold2)}
+.panel-body{padding:1rem 1.1rem}
+
+/* ── QR GATE BANNER ── */
+.qr-gate-banner{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;background:rgba(212,160,23,.06);border:1.5px solid rgba(212,160,23,.3);border-radius:12px;padding:1rem 1.2rem;margin-bottom:1.3rem}
+.qr-gate-banner.qgb-pending{background:rgba(245,158,11,.05);border-color:rgba(245,158,11,.25)}
+.qgb-icon{font-size:2.2rem;color:var(--gold2);flex-shrink:0}
+.qgb-body{flex:1;min-width:160px}
+.qgb-title{font-family:'Oswald',sans-serif;font-size:.97rem;font-weight:600;color:#fff;margin-bottom:.2rem}
+.qgb-sub{font-size:.81rem;color:var(--muted)}
+
+/* ── SORTEO ITEMS ── */
+.sorteo-item{background:var(--ink3);border:1px solid var(--border);border-radius:11px;overflow:hidden;transition:border-color .2s,transform .18s;margin-bottom:.9rem}
+.sorteo-item:hover{border-color:rgba(212,160,23,.28);transform:translateY(-2px)}
+.si-head{padding:1rem 1.1rem .7rem;display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem}
+.si-nombre{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:600;color:#fff}
+.si-sub{font-size:.8rem;color:var(--muted);margin-top:.15rem}
+.si-precio{font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:700;color:var(--gold2);flex-shrink:0;white-space:nowrap;text-align:right}
+.si-precio span{font-size:.7rem;color:var(--muted);font-weight:400}
+.si-prog{padding:0 1.1rem .7rem}
+.prog-label{display:flex;justify-content:space-between;margin-bottom:.3rem;font-size:.77rem;color:var(--muted)}
+.prog-bg{height:6px;background:rgba(255,255,255,.05);border-radius:10px;overflow:hidden}
+.prog-fill{height:100%;border-radius:10px;transition:width .5s ease;background:linear-gradient(90deg,var(--red),var(--gold2))}
+.prog-fill.full{background:linear-gradient(90deg,#166534,#22c55e)}
+.si-foot{padding:.7rem 1.1rem;background:var(--ink2);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap}
+.mi-boletos{font-size:.85rem;color:var(--muted);display:flex;align-items:center;gap:.3rem}
+.mi-boletos i,.mi-boletos strong{color:var(--gold2)}
+
+/* ── CHANCES BAR ── */
+.chances-bar{padding:0 1.1rem .85rem}
+.cb-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem}
+.cb-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+.cb-pct{font-family:'Oswald',sans-serif;font-size:.8rem;font-weight:700;color:var(--gold2)}
+.cb-track{height:4px;background:rgba(255,255,255,.04);border-radius:10px;overflow:hidden}
+.cb-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,var(--gold),var(--gold3));transition:width .4s ease}
+.cb-tier{font-size:.7rem;color:var(--dim);margin-top:.3rem;display:flex;align-items:center;gap:.3rem}
+.cb-tier i{color:var(--gold)}
+
+/* ── ITEM LIST ── */
+.item-list{display:flex;flex-direction:column;gap:.65rem}
+.list-item{background:var(--ink2);border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;display:flex;align-items:center;gap:.8rem;transition:border-color .18s}
+.list-item:hover{border-color:var(--bord-g)}
+.li-icon{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem}
+.li-icon.ic-win{background:rgba(34,197,94,.12);color:#22c55e}
+.li-icon.ic-bad{background:rgba(139,26,26,.18);color:#f87171}
+.li-icon.ic-pend{background:rgba(212,160,23,.12);color:var(--gold2)}
+.li-icon.ic-ref{background:rgba(99,102,241,.14);color:#818cf8}
+.li-body{flex:1;min-width:0}
+.li-title{font-family:'Oswald',sans-serif;font-size:.93rem;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li-sub{font-size:.76rem;color:var(--muted);margin-top:.1rem}
+.li-right{flex-shrink:0;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:.22rem}
+.li-amount{font-family:'Oswald',sans-serif;font-size:.93rem;color:var(--gold2)}
+.li-date{font-size:.7rem;color:var(--dim)}
+
+/* ── PREMIOS RESUMEN ── */
+.premios-resumen{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem}
+.pr-box{background:var(--ink3);border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;display:flex;align-items:center;gap:.75rem}
+.pr-ico{font-size:1.5rem;color:#f59e0b;flex-shrink:0}
+.pr-val{font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:#fff}
+.pr-lbl{font-size:.72rem;color:var(--muted);margin-top:.1rem}
+
+/* ── PERFIL ── */
+.perfil-card{background:linear-gradient(145deg,#1e150c,#130f08)!important;position:relative;overflow:hidden}
+.perfil-card::before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 60% 100% at -5% 50%,rgba(139,26,26,.18),transparent 65%)}
+.perfil-header{display:flex;align-items:center;gap:1.2rem;padding:1.3rem 1.3rem;position:relative;z-index:1}
+.perfil-avatar-wrap{position:relative;flex-shrink:0}
+.perfil-avatar{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--gold2));display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:1.8rem;font-weight:700;color:#fff;border:3px solid rgba(212,160,23,.35)}
+.perfil-info .perfil-username{font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:700;color:#fff;letter-spacing:.04em}
+.perfil-info .perfil-email,.perfil-info .perfil-since{font-size:.78rem;color:var(--muted);margin-top:.2rem;display:flex;align-items:center;gap:.3rem;flex-wrap:wrap}
+.perfil-info .perfil-email i,.perfil-info .perfil-since i{color:var(--gold);font-size:.72rem}
+
+/* ── NIVEL / TIER ── */
+.nivel-badge{display:inline-flex;align-items:center;gap:.4rem;padding:.35rem .8rem;border-radius:20px;font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:600;letter-spacing:.08em;margin-top:.4rem}
+.nivel-novato{background:rgba(107,114,128,.14);color:#9ca3af;border:1px solid rgba(107,114,128,.25)}
+.nivel-jugador{background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.25)}
+.nivel-contendiente{background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.25)}
+.nivel-patron{background:rgba(212,160,23,.14);color:var(--gold2);border:1px solid rgba(212,160,23,.3)}
+.nivel-padrino{background:linear-gradient(135deg,rgba(139,26,26,.2),rgba(212,160,23,.2));color:var(--gold3);border:1px solid rgba(212,160,23,.4)}
+
+/* ── STATS GRID ── */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:.65rem}
+.stat-box{background:var(--ink3);border:1px solid var(--border);border-radius:9px;padding:.75rem .9rem}
+.stat-box.stat-win .stat-val{color:#22c55e}
+.stat-box.stat-gold .stat-val{color:var(--gold2)}
+.stat-val{font-family:'Oswald',sans-serif;font-size:1.25rem;font-weight:700;color:#fff}
+.stat-lbl{font-size:.72rem;color:var(--muted);margin-top:.18rem;display:flex;align-items:center;gap:.25rem}
+.stat-lbl i{font-size:.68rem}
+
+/* ── REFERIDOS ── */
+.ref-code-box{background:var(--ink3);border:1.5px dashed rgba(212,160,23,.3);border-radius:10px;padding:1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1rem;flex-wrap:wrap}
+.ref-code{font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;color:var(--gold2);letter-spacing:.18em}
+.ref-link{font-size:.72rem;color:var(--muted);margin-top:.2rem;font-family:monospace;word-break:break-all}
+.ref-stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.55rem;margin-bottom:1rem}
+.ref-stat{background:var(--ink3);border:1px solid var(--border);border-radius:8px;padding:.7rem;text-align:center}
+.ref-stat-val{font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:#fff}
+.ref-stat-lbl{font-size:.68rem;color:var(--muted);margin-top:.1rem}
+.ref-item{background:var(--ink3);border:1px solid var(--border);border-radius:9px;padding:.7rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.45rem;flex-wrap:wrap}
+.ref-item-left{flex:1;min-width:120px}
+.ref-item-name{font-family:'Oswald',sans-serif;font-size:.88rem;color:#fff}
+.ref-item-sub{font-size:.72rem;color:var(--muted);margin-top:.1rem;display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+
+/* ── FIDELIDAD / PROMOCIONES ── */
+.promo-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem}
+.promo-card{background:var(--ink3);border:1px solid var(--border);border-radius:11px;padding:1rem;position:relative;overflow:hidden;transition:border-color .2s,transform .18s;cursor:default}
+.promo-card:hover{border-color:rgba(212,160,23,.3);transform:translateY(-1px)}
+.promo-card.promo-activa{border-color:rgba(34,197,94,.25);background:rgba(34,197,94,.03)}
+.promo-card.promo-bloqueada{opacity:.55}
+.promo-icon{font-size:1.5rem;color:var(--gold2);margin-bottom:.45rem}
+.promo-nombre{font-family:'Oswald',sans-serif;font-size:.93rem;font-weight:600;color:#fff;margin-bottom:.2rem}
+.promo-desc{font-size:.75rem;color:var(--muted);line-height:1.45}
+.promo-progreso{margin-top:.6rem}
+.promo-prog-bar{height:4px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;margin-top:.3rem}
+.promo-prog-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--green),var(--green2))}
+.promo-prog-label{font-size:.7rem;color:var(--muted);display:flex;justify-content:space-between;margin-top:.25rem}
+.promo-tag{position:absolute;top:.6rem;right:.6rem}
+
+/* ── BOLETO GRATIS BANNER ── */
+.boleto-gratis-banner{display:flex;align-items:center;gap:.8rem;background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.22);border-radius:10px;padding:.8rem 1rem;margin-bottom:1rem;flex-wrap:wrap}
+.bfb-icon{font-size:1.6rem;color:#22c55e;flex-shrink:0}
+.bfb-title{font-family:'Oswald',sans-serif;font-size:.92rem;font-weight:600;color:#22c55e}
+.bfb-sub{font-size:.78rem;color:var(--muted);margin-top:.1rem}
+
+/* ── ACCOUNT ROWS ── */
+.account-rows{display:flex;flex-direction:column;gap:.5rem}
+.account-row{display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid rgba(255,255,255,.04);flex-wrap:wrap;gap:.3rem}
+.account-row:last-child{border-bottom:none}
+.ar-label{font-size:.82rem;color:var(--muted);display:flex;align-items:center;gap:.35rem}
+.ar-label i{color:var(--gold);font-size:.78rem}
+.ar-val{font-size:.88rem;color:#fff;font-weight:600;display:flex;align-items:center;gap:.3rem;flex-wrap:wrap}
+
+/* ── QR ── */
+.qr-empty-state{text-align:center;padding:1.5rem}
+.qes-icon{font-size:2.5rem;color:var(--dim);margin-bottom:.5rem}
+.qes-title{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;color:#fff;margin-bottom:.25rem}
+.qes-sub{font-size:.82rem;color:var(--muted)}
+.qr-perfil-wrap{display:flex;flex-direction:column;align-items:center;gap:.85rem}
+.qr-details-grid{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;width:100%;max-width:380px}
+.qr-detail-box{background:var(--ink3);border:1px solid var(--border);border-radius:8px;padding:.55rem .8rem}
+.qdb-label{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.2rem}
+.qdb-val{font-size:.88rem;color:#fff}
+
+/* ── BOTONES ── */
+.btn{font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.07em;border:none;border-radius:6px;cursor:pointer;transition:all .18s;display:inline-flex;align-items:center;gap:.3rem}
+.btn:disabled{opacity:.42;cursor:not-allowed}
+.btn-sm{font-size:.77rem;padding:.28rem .7rem}
+.btn-md{font-size:.88rem;padding:.47rem 1.1rem}
+.btn-ghost{background:rgba(212,160,23,.08);color:var(--gold2);border:1px solid var(--bord-g)}.btn-ghost:hover:not(:disabled){background:rgba(212,160,23,.18)}
+.btn-red{background:var(--red);color:#fff}.btn-red:hover:not(:disabled){background:var(--red2)}
+.btn-gold{background:rgba(212,160,23,.15);color:var(--gold2);border:1px solid rgba(212,160,23,.3)}.btn-gold:hover:not(:disabled){background:rgba(212,160,23,.28)}
+.btn-green{background:rgba(34,197,94,.12);color:#22c55e;border:1px solid rgba(34,197,94,.28)}.btn-green:hover:not(:disabled){background:rgba(34,197,94,.2)}
+
+/* ── BADGES ── */
+.bdg{display:inline-flex;align-items:center;gap:.2rem;font-family:'Oswald',sans-serif;font-size:.68rem;font-weight:600;letter-spacing:.07em;padding:.18rem .58rem;border-radius:20px;white-space:nowrap}
+.bdg-p{background:rgba(212,160,23,.14);color:var(--gold2);border:1px solid rgba(212,160,23,.28)}
+.bdg-ok{background:rgba(34,197,94,.14);color:#22c55e;border:1px solid rgba(34,197,94,.28)}
+.bdg-bad{background:rgba(139,26,26,.2);color:#f87171;border:1px solid rgba(139,26,26,.32)}
+.bdg-win{background:linear-gradient(135deg,rgba(139,26,26,.18),rgba(184,134,11,.18));color:var(--gold2);border:1px solid rgba(212,160,23,.3)}
+.bdg-free{background:rgba(34,197,94,.1);color:#4ade80;border:1px solid rgba(34,197,94,.22)}
+
+/* ── EMPTY / SPIN ── */
+.empty{text-align:center;padding:2.8rem 1rem}
+.empty i{font-size:2.4rem;color:var(--dim);display:block;margin-bottom:.55rem}
+.empty p{color:var(--muted);font-size:.9rem;line-height:1.5}
+.spin-wrap{display:flex;align-items:center;justify-content:center;padding:3rem}
+.spinner{width:30px;height:30px;border:3px solid rgba(212,160,23,.1);border-top-color:var(--gold2);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── SWAL THEME ── */
+.swal2-popup{background:#131009!important;border:1px solid rgba(139,26,26,.25)!important;color:#e6dcc8!important;font-family:'Source Sans 3',sans-serif!important;border-radius:16px!important;box-shadow:0 24px 64px rgba(0,0,0,.6)!important}
+.swal2-title{color:#fff!important;font-family:'Oswald',sans-serif!important;letter-spacing:.04em!important}
+.swal2-html-container{color:#8a7a62!important;font-size:.92rem!important;line-height:1.6!important}
+.swal2-confirm{background:var(--red)!important;font-family:'Oswald',sans-serif!important;font-weight:600!important;letter-spacing:.08em!important;border-radius:7px!important;padding:.52rem 1.4rem!important}
+.swal2-cancel{background:#221c14!important;color:#8a7a62!important;border:1px solid rgba(139,26,26,.22)!important;font-family:'Oswald',sans-serif!important;border-radius:7px!important}
+.swal2-confirm:hover{background:var(--red2)!important}
+.swal2-input{background:#1b1610!important;border:1px solid rgba(139,26,26,.28)!important;color:#e6dcc8!important;border-radius:8px!important;font-size:.97rem!important}
+.swal2-input:focus{border-color:#d4a017!important;box-shadow:none!important}
+/* CORRECCIÓN: modales con scroll interno en móvil */
+.swal2-html-container{max-height:60vh;overflow-y:auto!important}
+
+/* ── FIELD ── */
+.field label{display:block;font-family:'Oswald',sans-serif;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:.3rem}
+
+/* ── BOTTOM NAV ── */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:500;background:rgba(13,10,7,.97);backdrop-filter:blur(12px);border-top:1px solid var(--border);padding:.28rem 0 env(safe-area-inset-bottom,.28rem)}
+.bn-grid{display:grid;grid-template-columns:repeat(5,1fr)}
+.bn-item{display:flex;flex-direction:column;align-items:center;gap:.16rem;background:none;border:none;color:var(--muted);font-family:'Oswald',sans-serif;font-size:.58rem;letter-spacing:.06em;padding:.38rem .25rem;transition:color .18s}
+.bn-item i{font-size:1.05rem}
+.bn-item.active{color:var(--gold2)}
+
+/* ── HERO MOBILE ── */
+.hero-mobile{display:none}
+.hero-card{background:linear-gradient(145deg,#1e150c,#130f08);border:1px solid var(--border);border-radius:14px;padding:1.2rem 1.2rem 1rem;position:relative;overflow:hidden;margin-bottom:1.2rem}
+.hero-inner{position:relative;z-index:1}
+.hero-row{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+.hero-block{padding:.6rem}
+.hero-lbl{font-family:'Oswald',sans-serif;font-size:.6rem;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin-bottom:.2rem}
+.hero-amt{font-family:'Oswald',sans-serif;font-size:1.7rem;font-weight:700;color:var(--gold2);line-height:1}
+.hero-amt.green{color:#22c55e}
+.hero-amt-sm{font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:var(--cream);line-height:1}
+
+/* ── FONDO ADVERTENCIA ── */
+.fondo-warn{display:flex;align-items:flex-start;gap:.6rem;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:.65rem .9rem;font-size:.78rem;color:var(--muted);margin:.5rem 0}
+.fondo-warn i{color:#f59e0b;flex-shrink:0;margin-top:.05rem}
+
+/* ── CASO SORTEO BADGE ── */
+.caso-badge{display:inline-flex;align-items:center;gap:.3rem;font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.08em;padding:.22rem .65rem;border-radius:20px}
+.caso-estandar{background:rgba(99,102,241,.12);color:#818cf8;border:1px solid rgba(99,102,241,.25)}
+.caso-patron{background:rgba(212,160,23,.14);color:var(--gold2);border:1px solid rgba(212,160,23,.3)}
+.caso-padrino{background:linear-gradient(135deg,rgba(139,26,26,.2),rgba(212,160,23,.2));color:var(--gold3);border:1px solid rgba(212,160,23,.4)}
+
+/* ── FILTER BAR ── */
+.filter-bar{display:flex;flex-direction:column;gap:.55rem;margin-bottom:1rem;background:var(--ink2);border:1px solid var(--border);border-radius:10px;padding:.75rem .85rem}
+.fb-search{position:relative;display:flex;align-items:center}
+.fb-search-icon{position:absolute;left:.75rem;color:var(--muted);font-size:.85rem;pointer-events:none}
+.fb-input{width:100%;background:var(--ink3);border:1px solid var(--border);color:var(--cream);border-radius:7px;padding:.45rem .8rem .45rem 2.1rem;font-size:.88rem;outline:none;transition:border-color .18s}
+.fb-input:focus{border-color:var(--gold2)}
+.fb-input::placeholder{color:var(--dim)}
+.fb-controls{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap}
+.fb-select{background:var(--ink3);border:1px solid var(--border);color:var(--cream);border-radius:7px;padding:.38rem .65rem;font-size:.8rem;outline:none;cursor:pointer;transition:border-color .18s;flex:1;min-width:120px}
+.fb-select:focus{border-color:var(--gold2)}
+.fb-count{margin-left:auto;font-family:'Oswald',sans-serif;font-size:.7rem;color:var(--muted);white-space:nowrap;letter-spacing:.06em;flex-shrink:0}
+.fb-total-row{display:flex;align-items:center;gap:.4rem;margin-top:.6rem;padding:.55rem .8rem;background:rgba(212,160,23,.05);border:1px solid rgba(212,160,23,.12);border-radius:8px;font-size:.82rem;color:var(--muted)}
+.fb-total-row i{color:var(--gold2)}
+.fb-total-row strong{color:var(--cream)}
+
+/* ══════════════════════════════
+   RESPONSIVE
+══════════════════════════════ */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .sb-overlay.open{display:block}
+  .hamburger{display:block}
+  .main-content{margin-left:0;padding:1rem 1rem calc(var(--bot-h) + 1.2rem)}
+  .hero-mobile{display:block}
+  .bottom-nav{display:block}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .premios-resumen{grid-template-columns:1fr 1fr}
+  .qr-details-grid{grid-template-columns:1fr 1fr}
+  .fb-controls{flex-direction:column;align-items:stretch}
+  .fb-select{min-width:unset;width:100%}
+  .fb-count{margin-left:0}
+  .promo-grid{grid-template-columns:1fr}
+  .ref-code-box{flex-direction:column;align-items:flex-start}
+  .ref-code-box>div:last-child{display:flex;flex-direction:row;gap:.4rem;width:100%}
+  .ref-code-box>div:last-child .btn{flex:1;justify-content:center}
+}
+
+/* CORRECCIÓN: pantallas muy pequeñas (<360px) */
+@media(max-width:360px){
+  .ref-stats-row{grid-template-columns:1fr 1fr}
+  .ref-stats-row .ref-stat:last-child{grid-column:span 2}
+  .stats-grid{grid-template-columns:1fr}
+  .premios-resumen{grid-template-columns:1fr}
+  .tb-name{display:none}
+  .hero-amt{font-size:1.3rem}
+}
+
+@media(min-width:769px){
+  .sb-overlay{display:none!important}
+  .bottom-nav{display:none!important}
+  .hero-mobile{display:none!important}
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="tb-left">
+    <button class="hamburger" id="hamburgerBtn" aria-label="Menú"><i class="bi bi-list"></i></button>
+    <div class="tb-brand">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#d4a017" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L4 7v5c0 5 3.5 9.74 8 11 4.5-1.26 8-6 8-11V7L12 2z"/>
+      </svg>
+      EL PADRINO
+    </div>
+  </div>
+  <div class="tb-right">
+    <div class="tb-chip">
+      <div class="tb-avatar" id="tbAvatar">?</div>
+      <span class="tb-name" id="tbName">—</span>
+    </div>
+    <button class="btn-exit" id="logoutBtn" title="Cerrar sesión" aria-label="Cerrar sesión">
+      <i class="bi bi-box-arrow-right"></i>
+    </button>
+  </div>
+</header>
+
+<div class="app-layout">
+  <div class="sb-overlay" id="sbOverlay"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-user-card">
+      <div class="sb-av" id="sbAvatar">?</div>
+      <div class="sb-username" id="sbName">—</div>
+      <div class="sb-saldo-lbl">Ganancias acumuladas</div>
+      <div class="sb-saldo" style="color:#b8860b"><span>Bs </span><span id="sbSaldo">0.00</span></div>
+      <div style="margin-top:.4rem;font-size:.68rem;color:var(--muted)">Total ganado hasta hoy</div>
+    </div>
+    <div class="sb-sec">Menú principal</div>
+    <button class="nav-item active" data-sec="sorteos"><i class="bi bi-ticket-perforated-fill"></i>Sorteos activos</button>
+    <button class="nav-item" data-sec="historial"><i class="bi bi-clock-history"></i>Mi historial</button>
+    <button class="nav-item" data-sec="pagos"><i class="bi bi-receipt"></i>Mis pagos</button>
+    <button class="nav-item" data-sec="premios"><i class="bi bi-cash-coin"></i>Mis premios</button>
+    <div class="sb-sec">Beneficios</div>
+    <button class="nav-item" data-sec="referidos"><i class="bi bi-people-fill"></i>Mis referidos</button>
+    <button class="nav-item" data-sec="fidelidad"><i class="bi bi-star-fill"></i>Fidelidad</button>
+    <button class="nav-item" data-sec="perfil"><i class="bi bi-person-circle"></i>Mi perfil</button>
+    <div class="sb-footer">
+      <button class="sb-logout" id="logoutBtn2"><i class="bi bi-box-arrow-right"></i>Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+
+    <!-- Hero mobile -->
+    <div class="hero-mobile">
+      <div class="hero-card">
+        <div class="hero-inner">
+          <div class="hero-row">
+            <div class="hero-block">
+              <div class="hero-lbl">Ganancias</div>
+              <div class="hero-amt green">Bs <span id="heroSaldo">0.00</span></div>
+            </div>
+            <div class="hero-block" style="border-left:1px solid var(--border)">
+              <div class="hero-lbl">Boletos gratis</div>
+              <div class="hero-amt-sm" id="heroBoletosFree">0 disponibles</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SORTEOS -->
+    <div class="section active" id="sec-sorteos">
+      <div class="page-header">
+        <div>
+          <div class="page-title"><i class="bi bi-ticket-perforated-fill"></i>Sorteos disponibles</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btnRefresh"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+      </div>
+      <div id="qrGateBanner"></div>
+      <div id="sorteosList"><div class="spin-wrap"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div class="section" id="sec-historial">
+      <div class="page-header">
+        <div class="page-title"><i class="bi bi-clock-history"></i>Mi historial</div>
+      </div>
+      <div id="historialList"><div class="spin-wrap"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- PAGOS -->
+    <div class="section" id="sec-pagos">
+      <div class="page-header">
+        <div class="page-title"><i class="bi bi-receipt"></i>Mis comprobantes</div>
+      </div>
+      <div id="pagosList"><div class="spin-wrap"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- PREMIOS -->
+    <div class="section" id="sec-premios">
+      <div class="page-header">
+        <div>
+          <div class="page-title"><i class="bi bi-cash-coin"></i>Mis premios</div>
+          <div class="page-sub">Premios que el administrador te ha enviado</div>
+        </div>
+      </div>
+      <div id="premiosList"><div class="spin-wrap"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- REFERIDOS -->
+    <div class="section" id="sec-referidos">
+      <div class="page-header">
+        <div>
+          <div class="page-title"><i class="bi bi-people-fill"></i>Mis referidos</div>
+          <div class="page-sub">Invita amigos y gana boletos gratis cuando compren</div>
+        </div>
+      </div>
+      <div id="referidosList"><div class="spin-wrap"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- FIDELIDAD -->
+    <div class="section" id="sec-fidelidad">
+      <div class="page-header">
+        <div>
+          <div class="page-title"><i class="bi bi-star-fill"></i>Fidelidad y promociones</div>
+          <div class="page-sub">Recompensas por tu lealtad</div>
+        </div>
+      </div>
+      <div id="fidelidadContent"><div class="spin-wrap"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- PERFIL -->
+    <div class="section" id="sec-perfil">
+      <div class="page-header">
+        <div class="page-title"><i class="bi bi-person-circle"></i>Mi perfil</div>
+      </div>
+      <div id="perfilContent"><div class="spin-wrap"><div class="spinner"></div></div></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- BOTTOM NAV (solo móvil) -->
+<nav class="bottom-nav" aria-label="Navegación principal">
+  <div class="bn-grid">
+    <button class="bn-item active" data-sec="sorteos"><i class="bi bi-ticket-perforated-fill"></i>Sorteos</button>
+    <button class="bn-item" data-sec="historial"><i class="bi bi-clock-history"></i>Historial</button>
+    <button class="bn-item" data-sec="referidos"><i class="bi bi-people-fill"></i>Referidos</button>
+    <button class="bn-item" data-sec="fidelidad"><i class="bi bi-star-fill"></i>Premios</button>
+    <button class="bn-item" data-sec="perfil"><i class="bi bi-person-circle"></i>Perfil</button>
+  </div>
+</nav>
+
+<script>
+  const sidebar   = document.getElementById('sidebar');
+  const sbOverlay = document.getElementById('sbOverlay');
+  const hamburger = document.getElementById('hamburgerBtn');
+
+  hamburger.addEventListener('click', () => {
+    sidebar.classList.toggle('open');
+    sbOverlay.classList.toggle('open');
+  });
+  sbOverlay.addEventListener('click', () => {
+    sidebar.classList.remove('open');
+    sbOverlay.classList.remove('open');
+  });
+
+  // Cerrar sidebar con Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      sidebar.classList.remove('open');
+      sbOverlay.classList.remove('open');
+    }
+  });
+</script>
+
+<script type="module" src="../../assets/js/usuario.js"></script>
+</body>
+</html>
