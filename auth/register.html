@@ -43,6 +43,7 @@
   .hint{font-size:.85rem;color:var(--muted);margin-top:.45rem}
   .ref-badge{display:none;align-items:center;gap:.5rem;background:rgba(139,26,26,.08);border:1px solid rgba(139,26,26,.2);border-radius:6px;padding:.5rem .9rem;margin-top:.6rem;font-size:.9rem;color:var(--red);font-weight:600}
   .ref-badge.show{display:flex}
+  .ref-badge.invalid{background:rgba(200,50,50,.08);border-color:rgba(200,50,50,.3);color:#b52020}
   .btn-submit{display:block;width:100%;font-family:'Oswald',sans-serif;font-weight:700;font-size:1.15rem;letter-spacing:.12em;text-transform:uppercase;background:var(--red);color:#fff;border:none;padding:1.05rem;border-radius:6px;cursor:pointer;transition:all .25s;box-shadow:0 6px 22px rgba(139,26,26,.32);margin-top:.5rem}
   .btn-submit:hover{background:var(--red2);transform:translateY(-2px);box-shadow:0 10px 30px rgba(139,26,26,.45)}
   .btn-submit:active{transform:translateY(0)}
@@ -112,7 +113,10 @@
     <div class="field">
       <label for="referido">Código de referido <span style="color:var(--muted);font-size:.8rem;letter-spacing:0;text-transform:none">(opcional)</span></label>
       <input type="text" id="referido" placeholder="ABC12345" maxlength="20" autocomplete="off" style="text-transform:uppercase">
-      <div class="ref-badge" id="refBadge"><i class="bi bi-gift-fill"></i><span id="refMsg">Código válido</span></div>
+      <div class="ref-badge" id="refBadge">
+        <i class="bi bi-gift-fill" id="refIcon"></i>
+        <span id="refMsg">Código válido</span>
+      </div>
     </div>
     <button type="submit" class="btn-submit" id="btnSubmit">Crear mi cuenta</button>
   </form>
@@ -123,8 +127,9 @@
 import { supabase } from "../assets/js/supabase.js";
 
 const showErr = (title, text) =>
-  Swal.fire({ icon:"error", title, text, confirmButtonColor:"#8b1a1a" });
+  Swal.fire({ icon: "error", title, text, confirmButtonColor: "#8b1a1a" });
 
+// Toggle contraseña
 document.querySelector(".toggle-pw").addEventListener("click", () => {
   const inp  = document.getElementById("password");
   const icon = document.querySelector(".toggle-pw i");
@@ -135,86 +140,183 @@ document.querySelector(".toggle-pw").addEventListener("click", () => {
 
 // Pre-fill código referido desde URL (?ref=ABC123)
 const urlRef = new URLSearchParams(window.location.search).get("ref");
-if (urlRef) document.getElementById("referido").value = urlRef.toUpperCase();
+if (urlRef) {
+  const refInput = document.getElementById("referido");
+  refInput.value = urlRef.toUpperCase();
+  // Disparar validación automática si viene desde URL
+  refInput.dispatchEvent(new Event("input"));
+}
+
+// Estado del código referido — se guarda para no re-validar al submit
+let refValidado = null; // null = no validado, string = username del referidor, false = inválido
 
 // Validar código referido en tiempo real
 let refTimer = null;
 document.getElementById("referido").addEventListener("input", (e) => {
   const badge = document.getElementById("refBadge");
+  const icon  = document.getElementById("refIcon");
+  const msg   = document.getElementById("refMsg");
   const code  = e.target.value.trim().toUpperCase();
   e.target.value = code;
-  badge.classList.remove("show");
+
+  // Reset
+  refValidado = null;
+  badge.classList.remove("show", "invalid");
   clearTimeout(refTimer);
-  if (code.length < 6) return;
+
+  if (code.length < 4) return;
+
   refTimer = setTimeout(async () => {
-    const { data } = await supabase.rpc("get_username_by_codigo_referido", { p_codigo: code });
-    if (data) {
-      document.getElementById("refMsg").textContent = `Referido por: ${data}`;
-      badge.classList.add("show");
+    try {
+      const { data, error } = await supabase
+        .rpc("get_username_by_codigo_referido", { p_codigo: code });
+
+      if (error) {
+        console.warn("RPC get_username_by_codigo_referido error:", error);
+        // Si la RPC falla, simplemente no mostramos nada — no bloqueamos el registro
+        return;
+      }
+
+      if (data) {
+        refValidado = data; // guardamos el username
+        icon.className  = "bi bi-gift-fill";
+        msg.textContent = `Referido por: ${data}`;
+        badge.classList.remove("invalid");
+        badge.classList.add("show");
+      } else {
+        refValidado = false;
+        icon.className  = "bi bi-x-circle-fill";
+        msg.textContent = "Código no encontrado";
+        badge.classList.add("show", "invalid");
+      }
+    } catch (err) {
+      console.warn("Error validando referido:", err);
+      // Fallo silencioso — no bloqueamos el flujo
     }
   }, 500);
 });
 
+// Submit
 document.getElementById("registerForm").addEventListener("submit", async (e) => {
   e.preventDefault();
+
   const username  = document.getElementById("username").value.trim();
   const email     = document.getElementById("email").value.trim();
   const password  = document.getElementById("password").value;
   const codigoRef = document.getElementById("referido").value.trim().toUpperCase();
   const btn       = document.getElementById("btnSubmit");
 
-  // Validaciones
-  if (username.length < 3)                   { showErr("Error","El usuario debe tener al menos 3 caracteres."); return; }
-  if (/\s/.test(username))                    { showErr("Error","El nombre de usuario no puede tener espacios."); return; }
-  if (!/^[a-zA-Z0-9_.\-]+$/.test(username)) { showErr("Error","Solo letras, números, guiones y puntos."); return; }
-  if (password.length < 6)                    { showErr("Error","La contraseña debe tener al menos 6 caracteres."); return; }
+  // ── Validaciones del lado cliente ──
+  if (username.length < 3) {
+    showErr("Error", "El usuario debe tener al menos 3 caracteres."); return;
+  }
+  if (/\s/.test(username)) {
+    showErr("Error", "El nombre de usuario no puede tener espacios."); return;
+  }
+  if (!/^[a-zA-Z0-9_.\-]+$/.test(username)) {
+    showErr("Error", "Solo letras, números, guiones y puntos."); return;
+  }
+  if (!email || !email.includes("@")) {
+    showErr("Error", "Ingresa un correo electrónico válido."); return;
+  }
+  if (password.length < 6) {
+    showErr("Error", "La contraseña debe tener al menos 6 caracteres."); return;
+  }
+
+  // Si hay código referido escrito pero validado como inválido, advertir (no bloquear)
+  if (codigoRef && refValidado === false) {
+    const confirm = await Swal.fire({
+      icon: "warning",
+      title: "Código no encontrado",
+      text: "El código de referido que ingresaste no es válido. ¿Continuar sin referido?",
+      showCancelButton: true,
+      confirmButtonText: "Sí, continuar",
+      cancelButtonText: "Corregir",
+      confirmButtonColor: "#8b1a1a",
+    });
+    if (!confirm.isConfirmed) return;
+  }
 
   btn.disabled    = true;
   btn.textContent = "Creando cuenta…";
 
   try {
-    // 1. Verificar username único (RPC no requiere auth)
-    const { data: existe } = await supabase
+    // ── 1. Verificar username único ──
+    const { data: existe, error: checkErr } = await supabase
       .rpc("check_username_exists", { p_username: username.toLowerCase() });
-    if (existe) { showErr("Error","Ese nombre de usuario ya está en uso."); return; }
 
-    // 2. Crear usuario en Auth
-    //    El TRIGGER fn_crear_perfil_nuevo_usuario() crea el perfil automáticamente
-    //    NO hacemos INSERT en profiles desde el cliente
+    if (checkErr) {
+      console.error("check_username_exists error:", checkErr);
+      // Si la RPC falla, continuamos — la constraint de BD lo atrapará
+    } else if (existe) {
+      showErr("Usuario no disponible", "Ese nombre de usuario ya está en uso. Elige otro.");
+      return;
+    }
+
+    // ── 2. Crear usuario en Auth (el trigger fn_crear_perfil crea el perfil) ──
     const { data: authData, error: authErr } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { username: username.toLowerCase() }  // el trigger lee esto
+        data: { username: username.toLowerCase() }
       }
     });
 
     if (authErr) {
-      const msg = authErr.message.toLowerCase().includes("already registered")
-        ? "Ese correo ya tiene una cuenta registrada."
-        : authErr.message;
-      showErr("Error", msg);
+      console.error("signUp error:", authErr);
+      let msg = "No se pudo crear la cuenta. Intenta de nuevo.";
+      if (authErr.message.toLowerCase().includes("already registered") ||
+          authErr.message.toLowerCase().includes("already been registered") ||
+          authErr.message.toLowerCase().includes("user already")) {
+        msg = "Ese correo ya tiene una cuenta registrada.";
+      } else if (authErr.message.toLowerCase().includes("invalid email")) {
+        msg = "El correo electrónico no es válido.";
+      } else if (authErr.message.toLowerCase().includes("password")) {
+        msg = "La contraseña no cumple los requisitos mínimos.";
+      } else {
+        msg = authErr.message; // mostrar mensaje real de Supabase
+      }
+      showErr("Error al crear cuenta", msg);
       return;
     }
 
-    if (!authData?.user) {
-      showErr("Error","No se pudo crear la cuenta. Intenta de nuevo.");
+    // Supabase a veces devuelve user null sin error cuando el email ya existe
+    // y tiene confirmación pendiente — lo detectamos así:
+    if (!authData?.user?.id) {
+      showErr(
+        "Correo ya registrado",
+        "Ya existe una cuenta con ese correo. Si aún no la confirmaste, revisa tu bandeja de entrada."
+      );
       return;
     }
 
-    // 3. Registrar referido si aplica (RPC SECURITY DEFINER, no necesita auth activa)
-    if (codigoRef) {
-      await supabase.rpc("fn_registrar_referido", {
-        p_codigo_referido:  codigoRef,
-        p_nuevo_usuario_id: authData.user.id,
-      }).catch(err => console.warn("Referido no crítico:", err));
+    const newUserId = authData.user.id;
+
+    // ── 3. Registrar referido si hay código válido ──
+    // Solo intentamos si el código fue validado como válido O si nunca se validó
+    // (podría haberse escrito después del debounce)
+    if (codigoRef && refValidado !== false) {
+      try {
+        const { error: refErr } = await supabase.rpc("fn_registrar_referido", {
+          p_codigo_referido:  codigoRef,
+          p_nuevo_usuario_id: newUserId,
+        });
+
+        if (refErr) {
+          // El referido falló pero la cuenta ya fue creada — no es crítico
+          console.warn("fn_registrar_referido error (no crítico):", refErr);
+          // Mostramos advertencia suave pero continuamos
+        }
+      } catch (refCatch) {
+        console.warn("fn_registrar_referido catch (no crítico):", refCatch);
+      }
     }
 
-    // 4. Éxito
+    // ── 4. Éxito ──
     await Swal.fire({
       icon: "success",
       title: "¡Bienvenido a la familia!",
-      html:  "Revisa tu correo y <strong>confirma tu cuenta</strong> para poder ingresar.",
+      html: `Revisa tu correo <strong>${email}</strong> y <strong>confirma tu cuenta</strong> para poder ingresar.`,
       confirmButtonColor: "#8b1a1a",
       confirmButtonText:  "Entendido",
     });
@@ -223,8 +325,12 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
     window.location.href = "login.html";
 
   } catch (err) {
-    console.error("Register error:", err);
-    showErr("Error inesperado","Intenta de nuevo más tarde.");
+    // Este catch solo debería atrapar errores de red inesperados
+    console.error("Register unexpected error:", err);
+    showErr(
+      "Error de conexión",
+      "No se pudo conectar al servidor. Verifica tu conexión e intenta de nuevo."
+    );
   } finally {
     btn.disabled    = false;
     btn.textContent = "Crear mi cuenta";
