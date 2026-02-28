@@ -12,6 +12,8 @@
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body{font-family:'Source Sans 3',sans-serif;min-height:100vh;display:grid;grid-template-columns:1fr 1fr;background:var(--ink)}
+
+  /* ── LEFT ── */
   .left{position:relative;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:4rem 3rem;background:var(--ink);overflow:hidden}
   .left::before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 50% 40%,rgba(139,26,26,.18),transparent 70%),repeating-linear-gradient(90deg,rgba(212,160,23,.025) 0,rgba(212,160,23,.025) 1px,transparent 1px,transparent 55px)}
   .left-content{position:relative;text-align:center;max-width:340px}
@@ -27,10 +29,14 @@
   .step-num{font-family:'Oswald',sans-serif;font-weight:700;font-size:1.2rem;color:var(--red2);flex-shrink:0;margin-top:.05rem;min-width:24px}
   .step-text{font-size:.97rem;color:rgba(245,237,224,.65);line-height:1.55}
   .step-text strong{color:rgba(245,237,224,.9);font-weight:600}
+
+  /* ── RIGHT ── */
   .right{background:var(--paper);display:flex;flex-direction:column;justify-content:center;padding:3.5rem clamp(2rem,6vw,5rem);overflow-y:auto}
   .form-header{margin-bottom:2.5rem}
   .form-tag{font-family:'Oswald',sans-serif;font-size:.78rem;letter-spacing:.28em;text-transform:uppercase;color:var(--red2);margin-bottom:.5rem}
   .form-title{font-family:'Oswald',sans-serif;font-weight:700;font-size:2.4rem;letter-spacing:.03em;color:var(--ink);line-height:1}
+
+  /* ── FIELDS ── */
   .field{margin-bottom:1.8rem}
   .field label{display:block;font-family:'Oswald',sans-serif;font-weight:600;font-size:.9rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.7rem}
   .field input{display:block;width:100%;background:var(--input-bg);border:none;border-bottom:2px solid rgba(139,26,26,.2);border-radius:0;padding:.85rem 0;font-family:'Source Sans 3',sans-serif;font-size:1.1rem;color:var(--ink);outline:none;transition:border-color .22s;-webkit-appearance:none}
@@ -41,16 +47,53 @@
   .toggle-pw{position:absolute;right:0;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:1.1rem;padding:.3rem;transition:color .2s}
   .toggle-pw:hover{color:var(--red2)}
   .hint{font-size:.85rem;color:var(--muted);margin-top:.45rem}
+
+  /* ── BADGE REFERIDO ── */
   .ref-badge{display:none;align-items:center;gap:.5rem;background:rgba(139,26,26,.08);border:1px solid rgba(139,26,26,.2);border-radius:6px;padding:.5rem .9rem;margin-top:.6rem;font-size:.9rem;color:var(--red);font-weight:600}
   .ref-badge.show{display:flex}
   .ref-badge.invalid{background:rgba(200,50,50,.08);border-color:rgba(200,50,50,.3);color:#b52020}
+
+  /* ── DIVISOR ── */
+  .divider{display:flex;align-items:center;gap:.8rem;margin:0 0 1.6rem}
+  .divider-line{flex:1;height:1px;background:rgba(139,26,26,.15)}
+  .divider-text{font-family:'Oswald',sans-serif;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+
+  /* ── BOTÓN GOOGLE ── */
+  .btn-google{
+    display:flex;align-items:center;justify-content:center;gap:12px;
+    width:100%;height:48px;padding:0 16px;margin-bottom:1.6rem;
+    background:#fff;color:#1f1f1f;
+    border:1px solid #dadce0;border-radius:4px;
+    font-family:'Source Sans 3',sans-serif;font-size:1rem;font-weight:600;letter-spacing:.01em;
+    cursor:pointer;
+    transition:background .18s,box-shadow .18s,transform .18s;
+    box-shadow:0 1px 3px rgba(0,0,0,.12),0 1px 2px rgba(0,0,0,.08);
+    -webkit-font-smoothing:antialiased;
+  }
+  .btn-google:hover{background:#f8f8f8;box-shadow:0 2px 8px rgba(0,0,0,.18);transform:translateY(-1px)}
+  .btn-google:active{transform:translateY(0)}
+  .btn-google:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}
+  .btn-google .g-icon{width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .g-spinner{width:18px;height:18px;border:2.5px solid #dadce0;border-top-color:#4285f4;border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ── BOTÓN PRINCIPAL ── */
   .btn-submit{display:block;width:100%;font-family:'Oswald',sans-serif;font-weight:700;font-size:1.15rem;letter-spacing:.12em;text-transform:uppercase;background:var(--red);color:#fff;border:none;padding:1.05rem;border-radius:6px;cursor:pointer;transition:all .25s;box-shadow:0 6px 22px rgba(139,26,26,.32);margin-top:.5rem}
   .btn-submit:hover{background:var(--red2);transform:translateY(-2px);box-shadow:0 10px 30px rgba(139,26,26,.45)}
   .btn-submit:active{transform:translateY(0)}
   .btn-submit:disabled{opacity:.7;cursor:not-allowed;transform:none}
+
+  /* ── OVERLAY ── */
+  .redirect-overlay{display:none;position:fixed;inset:0;z-index:9999;background:rgba(12,10,7,.9);backdrop-filter:blur(6px);flex-direction:column;align-items:center;justify-content:center;gap:1.4rem}
+  .redirect-overlay.show{display:flex}
+  .ro-spinner{width:48px;height:48px;border:3px solid rgba(212,160,23,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+  .ro-logo{font-family:'Oswald',sans-serif;font-weight:700;font-size:1.5rem;letter-spacing:.12em;color:var(--gold);opacity:.9}
+  .ro-text{font-family:'Oswald',sans-serif;font-size:.85rem;letter-spacing:.2em;text-transform:uppercase;color:rgba(245,237,224,.5)}
+
   .form-footer{text-align:center;margin-top:2rem;font-size:1rem;color:var(--muted)}
   .form-footer a{color:var(--red);text-decoration:none;font-weight:600;transition:color .2s}
   .form-footer a:hover{color:var(--red2)}
+
   @media(max-width:700px){
     body{grid-template-columns:1fr;grid-template-rows:auto 1fr}
     .left{padding:2.5rem 1.5rem 2rem;min-height:auto}
@@ -65,6 +108,14 @@
 </style>
 </head>
 <body>
+
+<!-- Overlay -->
+<div class="redirect-overlay" id="redirectOverlay">
+  <div class="ro-logo">EL PADRINO</div>
+  <div class="ro-spinner"></div>
+  <div class="ro-text" id="roText">Procesando…</div>
+</div>
+
 <div class="left">
   <div class="left-content">
     <div class="brand-logo">
@@ -90,11 +141,33 @@
     <div class="form-tag">Únete a la familia</div>
     <div class="form-title">Crear cuenta</div>
   </div>
+
+  <!-- Registro con Google -->
+  <button class="btn-google" id="btnGoogle" type="button">
+    <span class="g-icon" id="gIcon">
+      <svg width="20" height="20" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+        <g fill="none" fill-rule="evenodd">
+          <path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+          <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+          <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+          <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+        </g>
+      </svg>
+    </span>
+    <span id="gLabel">Registrarse con Google</span>
+  </button>
+
+  <div class="divider">
+    <div class="divider-line"></div>
+    <span class="divider-text">o con correo</span>
+    <div class="divider-line"></div>
+  </div>
+
   <form id="registerForm" novalidate>
     <div class="field">
       <label for="username">Nombre de usuario</label>
       <input type="text" id="username" placeholder="mi_usuario" required autocomplete="username" minlength="3">
-      <div class="hint">Mínimo 3 caracteres. Sin espacios.</div>
+      <div class="hint">Mínimo 3 caracteres. Solo letras, números, _ y -</div>
     </div>
     <div class="field">
       <label for="email">Correo electrónico</label>
@@ -120,16 +193,62 @@
     </div>
     <button type="submit" class="btn-submit" id="btnSubmit">Crear mi cuenta</button>
   </form>
+
   <p class="form-footer">¿Ya tienes cuenta? <a href="login.html">Inicia sesión</a></p>
 </div>
 
 <script type="module">
 import { supabase } from "../assets/js/supabase.js";
 
-const showErr = (title, text) =>
-  Swal.fire({ icon: "error", title, text, confirmButtonColor: "#8b1a1a" });
+// ─── Constantes ─────────────────────────────────────────────────────────
+const BASE = "https://borleone101.github.io/ELJuegoDelPadrino";
+const GOOGLE_SVG = `<svg width="20" height="20" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd"><path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/></g></svg>`;
 
-// Toggle contraseña
+// ─── UI helpers ──────────────────────────────────────────────────────────
+const overlay   = document.getElementById("redirectOverlay");
+const roText    = document.getElementById("roText");
+const btnGoogle = document.getElementById("btnGoogle");
+const gIcon     = document.getElementById("gIcon");
+const gLabel    = document.getElementById("gLabel");
+
+const showOverlay = (txt) => { roText.textContent = txt; overlay.classList.add("show"); };
+const hideOverlay = ()    => overlay.classList.remove("show");
+
+const showErr = (title, text) =>
+  Swal.fire({ icon:"error", title, text, confirmButtonColor:"#8b1a1a" });
+
+const resetGoogle = () => {
+  btnGoogle.disabled = false;
+  gIcon.innerHTML    = GOOGLE_SVG;
+  gLabel.textContent = "Registrarse con Google";
+};
+
+// ─── Botón Google (registro/login unificado por OAuth) ───────────────────
+btnGoogle.addEventListener("click", async () => {
+  btnGoogle.disabled = true;
+  gIcon.innerHTML    = `<div class="g-spinner"></div>`;
+  gLabel.textContent = "Conectando…";
+  showOverlay("Conectando con Google…");
+
+  // Guardamos código referido en sessionStorage para recuperarlo tras el redirect
+  const codigoRef = document.getElementById("referido").value.trim().toUpperCase();
+  if (codigoRef) sessionStorage.setItem("pendingRef", codigoRef);
+
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${BASE}/auth/login.html`,
+    },
+  });
+
+  if (error) {
+    hideOverlay();
+    showErr("Error con Google", error.message);
+    resetGoogle();
+  }
+});
+
+// ─── Toggle contraseña ───────────────────────────────────────────────────
 document.querySelector(".toggle-pw").addEventListener("click", () => {
   const inp  = document.getElementById("password");
   const icon = document.querySelector(".toggle-pw i");
@@ -138,20 +257,18 @@ document.querySelector(".toggle-pw").addEventListener("click", () => {
   icon.classList.toggle("bi-eye-slash");
 });
 
-// Pre-fill código referido desde URL (?ref=ABC123)
+// ─── Pre-fill referido desde URL ─────────────────────────────────────────
 const urlRef = new URLSearchParams(window.location.search).get("ref");
 if (urlRef) {
   const refInput = document.getElementById("referido");
   refInput.value = urlRef.toUpperCase();
-  // Disparar validación automática si viene desde URL
   refInput.dispatchEvent(new Event("input"));
 }
 
-// Estado del código referido — se guarda para no re-validar al submit
-let refValidado = null; // null = no validado, string = username del referidor, false = inválido
+// ─── Validación en tiempo real del código referido ───────────────────────
+let refValidado = null;
+let refTimer    = null;
 
-// Validar código referido en tiempo real
-let refTimer = null;
 document.getElementById("referido").addEventListener("input", (e) => {
   const badge = document.getElementById("refBadge");
   const icon  = document.getElementById("refIcon");
@@ -159,7 +276,6 @@ document.getElementById("referido").addEventListener("input", (e) => {
   const code  = e.target.value.trim().toUpperCase();
   e.target.value = code;
 
-  // Reset
   refValidado = null;
   badge.classList.remove("show", "invalid");
   clearTimeout(refTimer);
@@ -171,32 +287,27 @@ document.getElementById("referido").addEventListener("input", (e) => {
       const { data, error } = await supabase
         .rpc("get_username_by_codigo_referido", { p_codigo: code });
 
-      if (error) {
-        console.warn("RPC get_username_by_codigo_referido error:", error);
-        // Si la RPC falla, simplemente no mostramos nada — no bloqueamos el registro
-        return;
-      }
+      if (error) { console.warn("RPC ref error:", error); return; }
 
       if (data) {
-        refValidado = data; // guardamos el username
+        refValidado     = data;
         icon.className  = "bi bi-gift-fill";
         msg.textContent = `Referido por: ${data}`;
         badge.classList.remove("invalid");
         badge.classList.add("show");
       } else {
-        refValidado = false;
+        refValidado     = false;
         icon.className  = "bi bi-x-circle-fill";
         msg.textContent = "Código no encontrado";
         badge.classList.add("show", "invalid");
       }
     } catch (err) {
       console.warn("Error validando referido:", err);
-      // Fallo silencioso — no bloqueamos el flujo
     }
   }, 500);
 });
 
-// Submit
+// ─── Submit registro ─────────────────────────────────────────────────────
 document.getElementById("registerForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -206,33 +317,19 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
   const codigoRef = document.getElementById("referido").value.trim().toUpperCase();
   const btn       = document.getElementById("btnSubmit");
 
-  // ── Validaciones del lado cliente ──
-  if (username.length < 3) {
-    showErr("Error", "El usuario debe tener al menos 3 caracteres."); return;
-  }
-  if (/\s/.test(username)) {
-    showErr("Error", "El nombre de usuario no puede tener espacios."); return;
-  }
-  if (!/^[a-zA-Z0-9_.\-]+$/.test(username)) {
-    showErr("Error", "Solo letras, números, guiones y puntos."); return;
-  }
-  if (!email || !email.includes("@")) {
-    showErr("Error", "Ingresa un correo electrónico válido."); return;
-  }
-  if (password.length < 6) {
-    showErr("Error", "La contraseña debe tener al menos 6 caracteres."); return;
-  }
+  // ── Validaciones cliente ──
+  if (username.length < 3) { showErr("Error","El usuario debe tener al menos 3 caracteres."); return; }
+  if (/\s/.test(username))  { showErr("Error","El nombre de usuario no puede tener espacios."); return; }
+  if (!/^[a-zA-Z0-9_\-]+$/.test(username)) { showErr("Error","Solo letras, números, _ y -"); return; }
+  if (!email || !email.includes("@")) { showErr("Error","Ingresa un correo electrónico válido."); return; }
+  if (password.length < 6) { showErr("Error","La contraseña debe tener al menos 6 caracteres."); return; }
 
-  // Si hay código referido escrito pero validado como inválido, advertir (no bloquear)
   if (codigoRef && refValidado === false) {
     const confirm = await Swal.fire({
-      icon: "warning",
-      title: "Código no encontrado",
-      text: "El código de referido que ingresaste no es válido. ¿Continuar sin referido?",
-      showCancelButton: true,
-      confirmButtonText: "Sí, continuar",
-      cancelButtonText: "Corregir",
-      confirmButtonColor: "#8b1a1a",
+      icon:"warning", title:"Código no encontrado",
+      text:"El código de referido no es válido. ¿Continuar sin referido?",
+      showCancelButton:true, confirmButtonText:"Sí, continuar",
+      cancelButtonText:"Corregir", confirmButtonColor:"#8b1a1a",
     });
     if (!confirm.isConfirmed) return;
   }
@@ -245,15 +342,14 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
     const { data: existe, error: checkErr } = await supabase
       .rpc("check_username_exists", { p_username: username.toLowerCase() });
 
-    if (checkErr) {
-      console.error("check_username_exists error:", checkErr);
-      // Si la RPC falla, continuamos — la constraint de BD lo atrapará
-    } else if (existe) {
-      showErr("Usuario no disponible", "Ese nombre de usuario ya está en uso. Elige otro.");
+    if (!checkErr && existe) {
+      showErr("Usuario no disponible","Ese nombre de usuario ya está en uso. Elige otro.");
       return;
     }
 
-    // ── 2. Crear usuario en Auth (el trigger fn_crear_perfil crea el perfil) ──
+    // ── 2. Crear usuario en Auth ──
+    // El trigger fn_crear_perfil_nuevo_usuario maneja el perfil automáticamente.
+    // Pasamos el username en metadata para que el trigger lo use.
     const { data: authData, error: authErr } = await supabase.auth.signUp({
       email,
       password,
@@ -263,74 +359,53 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
     });
 
     if (authErr) {
-      console.error("signUp error:", authErr);
-      let msg = "No se pudo crear la cuenta. Intenta de nuevo.";
-      if (authErr.message.toLowerCase().includes("already registered") ||
-          authErr.message.toLowerCase().includes("already been registered") ||
-          authErr.message.toLowerCase().includes("user already")) {
+      let msg = authErr.message;
+      if (msg.toLowerCase().includes("already registered") ||
+          msg.toLowerCase().includes("already been registered") ||
+          msg.toLowerCase().includes("user already")) {
         msg = "Ese correo ya tiene una cuenta registrada.";
-      } else if (authErr.message.toLowerCase().includes("invalid email")) {
+      } else if (msg.toLowerCase().includes("invalid email")) {
         msg = "El correo electrónico no es válido.";
-      } else if (authErr.message.toLowerCase().includes("password")) {
+      } else if (msg.toLowerCase().includes("password")) {
         msg = "La contraseña no cumple los requisitos mínimos.";
-      } else {
-        msg = authErr.message; // mostrar mensaje real de Supabase
       }
       showErr("Error al crear cuenta", msg);
       return;
     }
 
-    // Supabase a veces devuelve user null sin error cuando el email ya existe
-    // y tiene confirmación pendiente — lo detectamos así:
     if (!authData?.user?.id) {
-      showErr(
-        "Correo ya registrado",
-        "Ya existe una cuenta con ese correo. Si aún no la confirmaste, revisa tu bandeja de entrada."
-      );
+      showErr("Correo ya registrado",
+        "Ya existe una cuenta con ese correo. Si aún no la confirmaste, revisa tu bandeja.");
       return;
     }
 
     const newUserId = authData.user.id;
 
-    // ── 3. Registrar referido si hay código válido ──
-    // Solo intentamos si el código fue validado como válido O si nunca se validó
-    // (podría haberse escrito después del debounce)
+    // ── 3. Registrar referido (no crítico) ──
     if (codigoRef && refValidado !== false) {
       try {
-        const { error: refErr } = await supabase.rpc("fn_registrar_referido", {
+        await supabase.rpc("fn_registrar_referido", {
           p_codigo_referido:  codigoRef,
           p_nuevo_usuario_id: newUserId,
         });
-
-        if (refErr) {
-          // El referido falló pero la cuenta ya fue creada — no es crítico
-          console.warn("fn_registrar_referido error (no crítico):", refErr);
-          // Mostramos advertencia suave pero continuamos
-        }
-      } catch (refCatch) {
-        console.warn("fn_registrar_referido catch (no crítico):", refCatch);
+      } catch (refErr) {
+        console.warn("fn_registrar_referido (no crítico):", refErr);
       }
     }
 
     // ── 4. Éxito ──
     await Swal.fire({
-      icon: "success",
-      title: "¡Bienvenido a la familia!",
-      html: `Revisa tu correo <strong>${email}</strong> y <strong>confirma tu cuenta</strong> para poder ingresar.`,
-      confirmButtonColor: "#8b1a1a",
-      confirmButtonText:  "Entendido",
+      icon:"success", title:"¡Bienvenido a la familia!",
+      html:`Revisa tu correo <strong>${email}</strong> y <strong>confirma tu cuenta</strong> para ingresar.`,
+      confirmButtonColor:"#8b1a1a", confirmButtonText:"Entendido",
     });
 
     document.getElementById("registerForm").reset();
     window.location.href = "login.html";
 
   } catch (err) {
-    // Este catch solo debería atrapar errores de red inesperados
     console.error("Register unexpected error:", err);
-    showErr(
-      "Error de conexión",
-      "No se pudo conectar al servidor. Verifica tu conexión e intenta de nuevo."
-    );
+    showErr("Error de conexión","No se pudo conectar. Verifica tu conexión e intenta de nuevo.");
   } finally {
     btn.disabled    = false;
     btn.textContent = "Crear mi cuenta";
