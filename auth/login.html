@@ -10,7 +10,7 @@
 <style>
   :root{--ink:#0c0a07;--paper:#f5ede0;--red:#8b1a1a;--red2:#b52020;--gold:#d4a017;--muted:#7a6a56;--input-bg:#fffbf5}
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
+  html,body{height:100%;min-height:100%}
   body{font-family:'Source Sans 3',sans-serif;min-height:100vh;display:grid;grid-template-columns:1fr 1fr;background:var(--ink)}
 
   /* ── LEFT ── */
@@ -91,15 +91,32 @@
   .form-footer a{color:var(--red);text-decoration:none;font-weight:600;transition:color .2s}
   .form-footer a:hover{color:var(--red2)}
 
-  @media(max-width:700px){
-    body{grid-template-columns:1fr;grid-template-rows:auto 1fr}
-    .left{padding:2.5rem 1.5rem 2rem;min-height:auto}
+  @media(max-width:820px){
+    body{
+      grid-template-columns:1fr;
+      grid-template-rows:auto 1fr;
+      min-height:100vh;
+      height:auto;
+    }
+    html,body{height:auto}
+    .left{
+      padding:2rem 1.5rem 1.8rem;
+      min-height:auto;
+    }
     .left-quote,.left-quote-author,.ornament{display:none}
     .brand-tagline{margin-bottom:0}
-    .brand-logo{font-size:2rem}
-    .right{padding:2.5rem 1.5rem 3rem}
-    .form-title{font-size:1.9rem}
-    .field{margin-bottom:1.6rem}
+    .brand-logo{font-size:1.9rem}
+    .right{
+      padding:2.2rem 1.4rem 3rem;
+      min-height:auto;
+    }
+    .form-header{margin-bottom:2rem}
+    .form-title{font-size:1.75rem}
+    .field{margin-bottom:1.5rem}
+    .field input{font-size:1rem;padding:.75rem 0}
+    .btn-submit{font-size:1rem;padding:.9rem}
+    .btn-google{font-size:.98rem;min-height:48px}
+    .form-footer{margin-top:1.5rem}
   }
   @media(min-width:1200px){.right{padding:4rem 6rem}}
 </style>
