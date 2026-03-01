@@ -54,27 +54,27 @@
   .ref-badge.invalid{background:rgba(200,50,50,.08);border-color:rgba(200,50,50,.3);color:#b52020}
 
   /* ── DIVISOR ── */
-  .divider{display:flex;align-items:center;gap:.8rem;margin:0 0 1.6rem}
+  .divider{display:flex;align-items:center;gap:.8rem;margin:1.6rem 0}
   .divider-line{flex:1;height:1px;background:rgba(139,26,26,.15)}
   .divider-text{font-family:'Oswald',sans-serif;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
 
   /* ── BOTÓN GOOGLE ── */
   .btn-google{
     display:flex;align-items:center;justify-content:center;gap:12px;
-    width:100%;height:48px;padding:0 16px;margin-bottom:1.6rem;
-    background:#fff;color:#1f1f1f;
-    border:1px solid #dadce0;border-radius:4px;
-    font-family:'Source Sans 3',sans-serif;font-size:1rem;font-weight:600;letter-spacing:.01em;
+    width:100%;min-height:52px;padding:0 20px;
+    background:#ffffff;color:#1f1f1f;
+    border:1.5px solid #c8c8c8;border-radius:6px;
+    font-family:'Source Sans 3',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:.01em;
     cursor:pointer;
-    transition:background .18s,box-shadow .18s,transform .18s;
-    box-shadow:0 1px 3px rgba(0,0,0,.12),0 1px 2px rgba(0,0,0,.08);
+    transition:background .18s,box-shadow .18s,transform .18s,border-color .18s;
+    box-shadow:0 2px 6px rgba(0,0,0,.14),0 1px 2px rgba(0,0,0,.1);
     -webkit-font-smoothing:antialiased;
   }
-  .btn-google:hover{background:#f8f8f8;box-shadow:0 2px 8px rgba(0,0,0,.18);transform:translateY(-1px)}
-  .btn-google:active{transform:translateY(0)}
+  .btn-google:hover{background:#f5f5f5;border-color:#aaa;box-shadow:0 4px 12px rgba(0,0,0,.18);transform:translateY(-2px)}
+  .btn-google:active{transform:translateY(0);box-shadow:0 1px 3px rgba(0,0,0,.12)}
   .btn-google:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}
-  .btn-google .g-icon{width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
-  .g-spinner{width:18px;height:18px;border:2.5px solid #dadce0;border-top-color:#4285f4;border-radius:50%;animation:spin .7s linear infinite}
+  .btn-google .g-icon{width:22px;height:22px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .g-spinner{width:20px;height:20px;border:2.5px solid #dadce0;border-top-color:#4285f4;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
   @keyframes spin{to{transform:rotate(360deg)}}
 
   /* ── BOTÓN PRINCIPAL ── */
@@ -142,7 +142,7 @@
     <div class="form-title">Crear cuenta</div>
   </div>
 
-  <!-- Registro con Google -->
+  <!-- ✅ Botón Google — abre la pantalla de Google que viste en las imágenes -->
   <button class="btn-google" id="btnGoogle" type="button">
     <span class="g-icon" id="gIcon">
       <svg width="20" height="20" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
@@ -223,20 +223,31 @@ const resetGoogle = () => {
   gLabel.textContent = "Registrarse con Google";
 };
 
-// ─── Botón Google (registro/login unificado por OAuth) ───────────────────
+// ─── Redirigir al usuario a su panel ────────────────────────────────────
+// Con Google no sabemos el rol aún, siempre va a usuario primero
+// El trigger de Supabase crea el perfil automáticamente
+function irAUsuario() {
+  window.location.href = `${BASE}/public/usuario/index.html`;
+}
+
+// ─── ✅ Botón Google ─────────────────────────────────────────────────────
+// Al hacer clic → abre la pantalla de Google que viste en las imágenes
+// El usuario elige su cuenta de Gmail → Google redirige a login.html
+// login.html detecta la sesión con onAuthStateChange y redirige según rol
 btnGoogle.addEventListener("click", async () => {
   btnGoogle.disabled = true;
   gIcon.innerHTML    = `<div class="g-spinner"></div>`;
   gLabel.textContent = "Conectando…";
-  showOverlay("Conectando con Google…");
+  showOverlay("Abriendo Google…");
 
-  // Guardamos código referido en sessionStorage para recuperarlo tras el redirect
+  // Guardamos código referido para recuperarlo después del redirect
   const codigoRef = document.getElementById("referido").value.trim().toUpperCase();
   if (codigoRef) sessionStorage.setItem("pendingRef", codigoRef);
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
+      // ✅ Redirige a login.html — ahí onAuthStateChange captura SIGNED_IN
       redirectTo: `${BASE}/auth/login.html`,
     },
   });
@@ -245,6 +256,27 @@ btnGoogle.addEventListener("click", async () => {
     hideOverlay();
     showErr("Error con Google", error.message);
     resetGoogle();
+  }
+  // Sin error → el navegador abre accounts.google.com automáticamente
+});
+
+// ─── ✅ onAuthStateChange — procesa si Google redirige de vuelta aquí ───
+// Aunque el redirectTo apunta a login.html, por si acaso cae aquí
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (event === "SIGNED_IN" && session?.user) {
+    // Aplicar referido pendiente si existe
+    const pendingRef = sessionStorage.getItem("pendingRef");
+    if (pendingRef) {
+      sessionStorage.removeItem("pendingRef");
+      try {
+        await supabase.rpc("fn_registrar_referido", {
+          p_codigo_referido:  pendingRef,
+          p_nuevo_usuario_id: session.user.id,
+        });
+      } catch (e) { console.warn("ref error (no crítico):", e); }
+    }
+    showOverlay("¡Bienvenido! Entrando…");
+    irAUsuario();
   }
 });
 
@@ -307,7 +339,7 @@ document.getElementById("referido").addEventListener("input", (e) => {
   }, 500);
 });
 
-// ─── Submit registro ─────────────────────────────────────────────────────
+// ─── Submit registro con correo ──────────────────────────────────────────
 document.getElementById("registerForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -318,11 +350,11 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
   const btn       = document.getElementById("btnSubmit");
 
   // ── Validaciones cliente ──
-  if (username.length < 3) { showErr("Error","El usuario debe tener al menos 3 caracteres."); return; }
-  if (/\s/.test(username))  { showErr("Error","El nombre de usuario no puede tener espacios."); return; }
+  if (username.length < 3)              { showErr("Error","El usuario debe tener al menos 3 caracteres."); return; }
+  if (/\s/.test(username))              { showErr("Error","El nombre de usuario no puede tener espacios."); return; }
   if (!/^[a-zA-Z0-9_\-]+$/.test(username)) { showErr("Error","Solo letras, números, _ y -"); return; }
-  if (!email || !email.includes("@")) { showErr("Error","Ingresa un correo electrónico válido."); return; }
-  if (password.length < 6) { showErr("Error","La contraseña debe tener al menos 6 caracteres."); return; }
+  if (!email || !email.includes("@"))   { showErr("Error","Ingresa un correo electrónico válido."); return; }
+  if (password.length < 6)             { showErr("Error","La contraseña debe tener al menos 6 caracteres."); return; }
 
   if (codigoRef && refValidado === false) {
     const confirm = await Swal.fire({
@@ -347,15 +379,14 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
       return;
     }
 
-    // ── 2. Crear usuario en Auth ──
-    // El trigger fn_crear_perfil_nuevo_usuario maneja el perfil automáticamente.
-    // Pasamos el username en metadata para que el trigger lo use.
+    // ── 2. Crear usuario en Supabase Auth ──
+    // El trigger fn_crear_perfil_nuevo_usuario crea el perfil automáticamente
     const { data: authData, error: authErr } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { username: username.toLowerCase() }
-      }
+        data: { username: username.toLowerCase() },
+      },
     });
 
     if (authErr) {
@@ -393,11 +424,13 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
       }
     }
 
-    // ── 4. Éxito ──
+    // ── 4. Éxito → pedir confirmación de correo ──
     await Swal.fire({
-      icon:"success", title:"¡Bienvenido a la familia!",
-      html:`Revisa tu correo <strong>${email}</strong> y <strong>confirma tu cuenta</strong> para ingresar.`,
-      confirmButtonColor:"#8b1a1a", confirmButtonText:"Entendido",
+      icon: "success",
+      title: "¡Bienvenido a la familia!",
+      html: `Revisa tu correo <strong>${email}</strong> y <strong>confirma tu cuenta</strong> para ingresar.`,
+      confirmButtonColor: "#8b1a1a",
+      confirmButtonText: "Entendido",
     });
 
     document.getElementById("registerForm").reset();
