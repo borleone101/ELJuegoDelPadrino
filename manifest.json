@@ -1,4 +1,5 @@
 {
+  "id": "/ELJuegoDelPadrino/",
   "name": "El Padrino Sorteos",
   "short_name": "El Padrino",
   "description": "Sorteos digitales automáticos y transparentes",
@@ -9,18 +10,13 @@
   "background_color": "#0c0a07",
   "theme_color": "#8b1a1a",
   "lang": "es",
+
   "icons": [
     {
       "src": "https://res.cloudinary.com/daxmlrngo/image/upload/v1772022052/9c927cfe-c983-4252-8945-a70b24c03eb1_rtrp4u.jpg",
-      "sizes": "192x192",
+      "sizes": "1024x1024",
       "type": "image/jpeg",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/v1772022052/9c927cfe-c983-4252-8945-a70b24c03eb1_rtrp4u.jpg",
-      "sizes": "512x512",
-      "type": "image/jpeg",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }
