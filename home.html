@@ -1,155 +1,208 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Descargar El Padrino</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Manifest -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#8b1a1a">
+<title>El Padrino | Sorteos Digitales</title>
 
-  <!-- Bootstrap 5 -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0c0a07">
 
-  <!-- Bootstrap Icons -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 
-  <style>
-    :root{
-      --ink:#0c0a07;
-      --paper:#f5ede0;
-      --paper2:#ede3d4;
-      --red:#8b1a1a;
-      --red2:#b52020;
-      --gold:#b8860b;
-      --gold2:#d4a017;
-      --white:#fff;
-      --text:#1a1209;
-      --muted:#5a4a36;
-      --border:rgba(139,26,26,.22);
-    }
+<style>
+:root{
+  --ink:#0c0a07;
+  --paper:#f5ede0;
+  --paper2:#ede3d4;
+  --red:#8b1a1a;
+  --red2:#b52020;
+  --gold:#b8860b;
+  --gold2:#d4a017;
+  --white:#fff;
+  --text:#1a1209;
+  --muted:#5a4a36;
+  --border:rgba(139,26,26,.22);
+}
 
-    body{
-      background: linear-gradient(135deg,var(--ink),#1a1209);
-      color: var(--paper);
-      min-height:100vh;
-    }
+body{
+  margin:0;
+  background:var(--ink);
+  color:var(--paper);
+  font-family:Georgia, serif;
+}
 
-    .navbar{
-      background: var(--ink);
-      border-bottom: 2px solid var(--border);
-    }
+.navbar-custom{
+  background:#120d09;
+  border-bottom:1px solid var(--border);
+}
 
-    .navbar-brand{
-      color: var(--gold) !important;
-      font-weight: 700;
-      letter-spacing: 2px;
-    }
+.brand{
+  font-weight:bold;
+  color:var(--gold);
+  font-size:1.3rem;
+}
 
-    .btn-install{
-      background: linear-gradient(45deg,var(--gold),var(--gold2));
-      color: var(--ink);
-      border:none;
-      border-radius:50px;
-      padding:8px 20px;
-      font-weight:600;
-      transition:.3s;
-      display:none;
-    }
+.btn-gold{
+  background:var(--gold);
+  color:#000;
+  border:none;
+}
 
-    .btn-install:hover{
-      transform:scale(1.05);
-      box-shadow:0 5px 20px rgba(0,0,0,.3);
-    }
+.btn-gold:hover{
+  background:var(--gold2);
+}
 
-    .hero{
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      height:85vh;
-      text-align:center;
-    }
+.btn-red{
+  background:var(--red);
+  color:white;
+  border:none;
+}
 
-    .card-install{
-      background: var(--paper2);
-      color: var(--text);
-      border-radius:20px;
-      padding:40px;
-      box-shadow:0 20px 40px rgba(0,0,0,.4);
-      max-width:500px;
-      width:100%;
-    }
+.btn-red:hover{
+  background:var(--red2);
+}
 
-    .title{
-      color:var(--red);
-      font-weight:700;
-      letter-spacing:2px;
-    }
-  </style>
+.hero{
+  padding:100px 0;
+  text-align:center;
+}
+
+.hero h1{
+  font-size:2.5rem;
+  color:var(--gold);
+}
+
+.hero p{
+  color:var(--paper2);
+  max-width:600px;
+  margin:20px auto;
+}
+
+.section{
+  padding:60px 0;
+}
+
+.card-custom{
+  background:#1a120d;
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:30px;
+  text-align:center;
+}
+
+.card-custom i{
+  font-size:2rem;
+  color:var(--gold);
+  margin-bottom:15px;
+}
+
+footer{
+  padding:30px 0;
+  border-top:1px solid var(--border);
+  text-align:center;
+  color:var(--muted);
+}
+
+#installBtn{
+  display:none;
+}
+</style>
 </head>
+
 <body>
 
-<!-- NAVBAR -->
-<nav class="navbar navbar-expand-lg">
-  <div class="container">
-    <a class="navbar-brand" href="#">EL PADRINO</a>
+<nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
+  <div class="container d-flex justify-content-between">
+    <span class="brand">
+      <i class="bi bi-dice-5-fill"></i> El Padrino
+    </span>
 
-    <button id="installBtnNav" class="btn-install">
-      <i class="bi bi-download me-2"></i>Instalar App
-    </button>
+    <div class="d-flex gap-2">
+      <button id="installBtn" class="btn btn-gold btn-sm">
+        <i class="bi bi-download"></i> Instalar
+      </button>
+
+      <a href="login.html" class="btn btn-red btn-sm">
+        Ingresar
+      </a>
+    </div>
   </div>
 </nav>
 
-<!-- CONTENIDO -->
-<div class="container hero">
-  <div class="card-install">
-    <h1 class="title mb-3">Descarga Oficial</h1>
-    <p>
-      Instala la aplicación oficial para acceder a sorteos digitales automáticos y transparentes.
-    </p>
-  </div>
-</div>
+<section class="hero container">
+  <h1>Sorteos digitales automáticos</h1>
+  <p>
+    Transparencia, rapidez y control total.
+    Instala El Padrino como aplicación en tu dispositivo.
+  </p>
 
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <a href="register.html" class="btn btn-gold mt-3">
+    Crear cuenta
+  </a>
+</section>
+
+<section class="section bg-dark">
+  <div class="container">
+    <div class="row g-4">
+
+      <div class="col-md-4">
+        <div class="card-custom">
+          <i class="bi bi-lightning-charge-fill"></i>
+          <h5>Rápido</h5>
+          <p>Resultados automáticos en segundos.</p>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card-custom">
+          <i class="bi bi-shield-lock-fill"></i>
+          <h5>Seguro</h5>
+          <p>Datos protegidos y sistema confiable.</p>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card-custom">
+          <i class="bi bi-phone-fill"></i>
+          <h5>Instalable</h5>
+          <p>Funciona como app en tu celular.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<footer>
+  © 2026 El Padrino Sorteos
+</footer>
 
 <script>
-  let deferredPrompt;
-  const installBtn = document.getElementById('installBtnNav');
+// Registrar Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
 
-  // Registrar Service Worker
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js')
-      .then(() => console.log("SW activo"))
-      .catch(err => console.log(err));
+// Instalación
+let deferredPrompt;
+const installBtn = document.getElementById('installBtn');
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBtn.style.display = 'inline-block';
+});
+
+installBtn.addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt = null;
+    installBtn.style.display = 'none';
   }
-
-  // Evento instalable
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    installBtn.style.display = "inline-flex";
-  });
-
-  // Click instalar
-  installBtn.addEventListener('click', async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      deferredPrompt = null;
-      installBtn.style.display = "none";
-    }
-  });
-
-  // Si ya está instalada
-  window.addEventListener('appinstalled', () => {
-    installBtn.style.display = "none";
-  });
-
-  if (window.matchMedia('(display-mode: standalone)').matches) {
-    installBtn.style.display = "none";
-  }
+});
 </script>
 
 </body>
