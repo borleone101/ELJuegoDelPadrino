@@ -1,28 +1,27 @@
-const CACHE_NAME = "elpadrino-cache-v2";
+const CACHE_NAME = "elpadrino-cache-v4";
 
 const urlsToCache = [
+  "/ELJuegoDelPadrino/",
+  "/ELJuegoDelPadrino/index.html",
+  "/ELJuegoDelPadrino/manifest.json",
 
-  "./",
-  "./index.html",
-  "./manifest.json",
+  "/ELJuegoDelPadrino/auth/login.html",
+  "/ELJuegoDelPadrino/auth/register.html",
 
-  "./auth/login.html",
-  "./auth/register.html",
+  "/ELJuegoDelPadrino/public/admin/index.html",
+  "/ELJuegoDelPadrino/public/trabajador/index.html",
+  "/ELJuegoDelPadrino/public/usuario/index.html",
+  "/ELJuegoDelPadrino/public/usuario/recover/index.html",
 
-  "./public/admin/index.html",
-  "./public/trabajador/index.html",
-  "./public/usuario/index.html",
-  "./public/usuario/recover/index.html",
-
-  "./assets/js/admin.js",
-  "./assets/js/cloudinary.js",
-  "./assets/js/logica_juego.js",
-  "./assets/js/pagos.js",
-  "./assets/js/perfil.js",
-  "./assets/js/supabase.js",
-  "./assets/js/trabajador.js",
-  "./assets/js/usuario.js"
-
+  // JS
+  "/ELJuegoDelPadrino/assets/js/admin.js",
+  "/ELJuegoDelPadrino/assets/js/cloudinary.js",
+  "/ELJuegoDelPadrino/assets/js/logica_juego.js",
+  "/ELJuegoDelPadrino/assets/js/pagos.js",
+  "/ELJuegoDelPadrino/assets/js/perfil.js",
+  "/ELJuegoDelPadrino/assets/js/supabase.js",
+  "/ELJuegoDelPadrino/assets/js/trabajador.js",
+  "/ELJuegoDelPadrino/assets/js/usuario.js"
 ];
 
 self.addEventListener("install", event => {
