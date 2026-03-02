@@ -135,7 +135,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
-
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
   <!-- Favicon (reemplaza con los tuyos reales) -->
   <link rel="icon" href="https://res.cloudinary.com/daxmlrngo/image/upload/v1772022052/9c927cfe-c983-4252-8945-a70b24c03eb1_rtrp4u.jpg">
   <link rel="apple-touch-icon" href="https://res.cloudinary.com/daxmlrngo/image/upload/v1772022052/9c927cfe-c983-4252-8945-a70b24c03eb1_rtrp4u.jpg">
@@ -393,22 +394,52 @@
       .cta-deco{display:none}
       .trust{padding:2rem 1rem}
     }
+    /* BOTÓN PWA */
+    .btn-download{
+      border-color:rgba(212,160,23,.4);
+      color:var(--gold2);
+      background:transparent;
+      display:flex;
+      align-items:center;
+      gap:.4rem;
+    }
+
+    .btn-download:hover{
+      border-color:var(--gold2);
+      color:#fff;
+    }
+
+    /* En móvil solo icono */
+    @media(max-width:540px){
+      .install-text{
+        display:none;
+      }
+    }
   </style>
 </head>
 <body>
 
 <div class="stripe-top"></div>
 
+
 <!-- NAV -->
 <nav>
-  <a href="/" class="brand" aria-label="El Padrino – Inicio">
+  <a href="/ELJuegoDelPadrino/" class="brand" aria-label="El Padrino – Inicio">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d4a017" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M12 2L4 7v5c0 5 3.5 9.74 8 11 4.5-1.26 8-6 8-11V7L12 2z"/>
     </svg>
     EL PADRINO
   </a>
+
   <div class="nav-btns">
-    <a href="auth/login.html"    class="btn btn-ghost">Entrar</a>
+
+    <!-- BOTÓN PWA -->
+    <button id="installBtn" class="btn btn-download" style="display:none;">
+      <i class="bi bi-download"></i>
+      <span class="install-text">App</span>
+    </button>
+
+    <a href="auth/login.html" class="btn btn-ghost">Entrar</a>
     <a href="auth/register.html" class="btn btn-red">Registrarse</a>
   </div>
 </nav>
@@ -545,6 +576,38 @@
   </nav>
   <p>© 2026 El Padrino Sorteos · Todos los derechos reservados · Juega con responsabilidad</p>
 </footer>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/ELJuegoDelPadrino/sw.js');
+}
 
+
+let deferredPrompt;
+const installBtn = document.getElementById('installBtn');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBtn.style.display = "flex";
+});
+
+installBtn.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+
+  if (outcome === 'accepted') {
+    console.log('PWA instalada');
+  }
+
+  deferredPrompt = null;
+  installBtn.style.display = "none";
+});
+
+window.addEventListener('appinstalled', () => {
+  installBtn.style.display = "none";
+});
+</script>
 </body>
 </html>
