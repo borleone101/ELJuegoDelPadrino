@@ -44,8 +44,9 @@
   .divider{display:flex;align-items:center;gap:.8rem;margin:1.6rem 0}
   .divider-line{flex:1;height:1px;background:rgba(139,26,26,.15)}
   .divider-text{font-family:'Oswald',sans-serif;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
-  .btn-google{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;min-height:52px;padding:0 20px;background:#ffffff;color:#1f1f1f;border:1.5px solid #c8c8c8;border-radius:6px;font-family:'Source Sans 3',sans-serif;font-size:1.05rem;font-weight:600;cursor:pointer;transition:background .18s,box-shadow .18s,transform .18s,border-color .18s;box-shadow:0 2px 6px rgba(0,0,0,.14);-webkit-font-smoothing:antialiased}
+  .btn-google{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;min-height:52px;padding:0 20px;background:#ffffff;color:#1f1f1f;border:1.5px solid #c8c8c8;border-radius:6px;font-family:'Source Sans 3',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:.01em;cursor:pointer;transition:background .18s,box-shadow .18s,transform .18s,border-color .18s;box-shadow:0 2px 6px rgba(0,0,0,.14),0 1px 2px rgba(0,0,0,.1);-webkit-font-smoothing:antialiased}
   .btn-google:hover{background:#f5f5f5;border-color:#aaa;box-shadow:0 4px 12px rgba(0,0,0,.18);transform:translateY(-2px)}
+  .btn-google:active{transform:translateY(0);box-shadow:0 1px 3px rgba(0,0,0,.12)}
   .btn-google:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}
   .btn-google .g-icon{width:22px;height:22px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
   .g-spinner{width:20px;height:20px;border:2.5px solid #dadce0;border-top-color:#4285f4;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
@@ -55,8 +56,6 @@
   .ro-spinner{width:48px;height:48px;border:3px solid rgba(212,160,23,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
   .ro-logo{font-family:'Oswald',sans-serif;font-weight:700;font-size:1.5rem;letter-spacing:.12em;color:var(--gold);opacity:.9}
   .ro-text{font-family:'Oswald',sans-serif;font-size:.85rem;letter-spacing:.2em;text-transform:uppercase;color:rgba(245,237,224,.5)}
-  .ro-cancel{margin-top:.5rem;background:none;border:1px solid rgba(245,237,224,.2);color:rgba(245,237,224,.4);font-family:'Oswald',sans-serif;font-size:.78rem;letter-spacing:.15em;text-transform:uppercase;padding:.45rem 1.2rem;border-radius:4px;cursor:pointer;transition:all .2s;display:none}
-  .ro-cancel:hover{border-color:rgba(245,237,224,.5);color:rgba(245,237,224,.7)}
   .form-footer{text-align:center;margin-top:2rem;font-size:1rem;color:var(--muted)}
   .form-footer a{color:var(--red);text-decoration:none;font-weight:600;transition:color .2s}
   .form-footer a:hover{color:var(--red2)}
@@ -85,7 +84,6 @@
   <div class="ro-logo">EL PADRINO</div>
   <div class="ro-spinner"></div>
   <div class="ro-text" id="roText">Cargando…</div>
-  <button class="ro-cancel" id="roCancelBtn">Cancelar</button>
 </div>
 
 <div class="left">
@@ -98,7 +96,9 @@
     </div>
     <div class="brand-tagline">Sorteos Digitales · Est. 2026</div>
     <div class="ornament">
-      <div class="ornament-line"></div><div class="ornament-diamond"></div><div class="ornament-line r"></div>
+      <div class="ornament-line"></div>
+      <div class="ornament-diamond"></div>
+      <div class="ornament-line r"></div>
     </div>
     <p class="left-quote">"La suerte favorece<br>a los que se preparan."</p>
     <p class="left-quote-author">— La Familia</p>
@@ -110,17 +110,27 @@
     <div class="form-tag">Bienvenido de vuelta</div>
     <div class="form-title">Iniciar sesión</div>
   </div>
+
   <button class="btn-google" id="btnGoogle" type="button">
     <span class="g-icon" id="gIcon">
-      <svg width="20" height="20" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd"><path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/></g></svg>
+      <svg width="20" height="20" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+        <g fill="none" fill-rule="evenodd">
+          <path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+          <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+          <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+          <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+        </g>
+      </svg>
     </span>
     <span id="gLabel">Continuar con Google</span>
   </button>
+
   <div class="divider">
     <div class="divider-line"></div>
     <span class="divider-text">o con correo</span>
     <div class="divider-line"></div>
   </div>
+
   <form id="loginForm" novalidate>
     <div class="field">
       <label for="identifier">Usuario o correo</label>
@@ -130,11 +140,14 @@
       <label for="password">Contraseña</label>
       <div class="input-wrap">
         <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
-        <button type="button" class="toggle-pw" aria-label="Mostrar contraseña"><i class="bi bi-eye"></i></button>
+        <button type="button" class="toggle-pw" aria-label="Mostrar contraseña">
+          <i class="bi bi-eye"></i>
+        </button>
       </div>
     </div>
     <button type="submit" class="btn-submit" id="btnSubmit">Entrar</button>
   </form>
+
   <p class="form-footer">¿No tienes cuenta? <a href="register.html">Regístrate aquí</a></p>
 </div>
 
@@ -152,44 +165,22 @@ const GOOGLE_SVG = `<svg width="20" height="20" viewBox="0 0 18 18" xmlns="http:
 // ── UI ──────────────────────────────────────────────────────────────────
 const overlay   = document.getElementById("redirectOverlay");
 const roText    = document.getElementById("roText");
-const cancelBtn = document.getElementById("roCancelBtn");
 const btnGoogle = document.getElementById("btnGoogle");
 const gIcon     = document.getElementById("gIcon");
 const gLabel    = document.getElementById("gLabel");
 const btnSubmit = document.getElementById("btnSubmit");
-let safetyTimer = null;
 
-function showOverlay(txt) {
-  roText.textContent = txt;
-  overlay.classList.add("show");
-  cancelBtn.style.display = "none";
-  clearTimeout(safetyTimer);
-  safetyTimer = setTimeout(() => {
-    cancelBtn.style.display = "block";
-    roText.textContent = "Tardando más de lo esperado…";
-  }, 12000);
-}
-function hideOverlay() {
-  clearTimeout(safetyTimer);
-  overlay.classList.remove("show");
-  cancelBtn.style.display = "none";
-}
-cancelBtn.addEventListener("click", async () => {
-  hideOverlay();
-  resetForm();
-  try { await supabase.auth.signOut(); } catch(_) {}
-});
-function resetForm() {
-  btnSubmit.disabled    = false;
-  btnSubmit.textContent = "Entrar";
-  btnGoogle.disabled    = false;
-  gIcon.innerHTML       = GOOGLE_SVG;
-  gLabel.textContent    = "Continuar con Google";
-}
-const showErr = (title, text) =>
-  Swal.fire({ icon:"error", title, text, confirmButtonColor:"#8b1a1a" });
+const showOverlay = (txt) => { roText.textContent = txt; overlay.classList.add("show"); };
+const hideOverlay = () => overlay.classList.remove("show");
+const showErr = (title, text) => Swal.fire({ icon:"error", title, text, confirmButtonColor:"#8b1a1a" });
 
-// ── Redirigir ───────────────────────────────────────────────────────────
+const resetGoogle = () => {
+  btnGoogle.disabled = false;
+  gIcon.innerHTML    = GOOGLE_SVG;
+  gLabel.textContent = "Continuar con Google";
+};
+
+// ── Redirigir según rol ─────────────────────────────────────────────────
 async function redirigir(userId) {
   try {
     const { data: profile, error } = await supabase
@@ -203,70 +194,51 @@ async function redirigir(userId) {
     }
     window.location.replace(RUTAS[profile?.rol] ?? RUTAS.usuario);
   } catch(e) {
-    console.error("redirigir:", e);
+    console.error(e);
     window.location.replace(RUTAS.usuario);
   }
 }
 
-// ── Obtener sesión con reintentos ───────────────────────────────────────
-// Supabase en PWA puede tardar unos ciclos en procesar el token de OAuth
-// antes de que getSession() lo devuelva. Reintentamos hasta 5 veces.
-async function getSessionConReintentos(maxIntentos = 5, espera = 600) {
-  for (let i = 0; i < maxIntentos; i++) {
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (session?.user) return session;
-      if (error) console.warn(`getSession intento ${i+1}:`, error.message);
-    } catch(e) {
-      console.warn(`getSession intento ${i+1} excepcion:`, e);
-    }
-    if (i < maxIntentos - 1) await new Promise(r => setTimeout(r, espera));
-  }
-  return null;
-}
-
-// ── INIT ────────────────────────────────────────────────────────────────
+// ── Procesar token_hash (link de confirmación de correo) ────────────────
+// Este es el ÚNICO caso donde chequeamos la URL al cargar.
+// No hay auto-login ni onAuthStateChange.
 (async () => {
-
-  // Limpiar hash/params de OAuth de la URL sin recargar
-  if (window.location.hash || window.location.search) {
-    window.history.replaceState({}, "", window.location.pathname);
-  }
-
-  // Caso 1: confirmación de correo (token_hash en params antes de limpiar)
   const params    = new URLSearchParams(window.location.search);
   const tokenHash = params.get("token_hash");
   const type      = params.get("type");
-  if (tokenHash && type) {
-    showOverlay("Confirmando cuenta…");
-    const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
-    if (error) {
-      hideOverlay();
-      Swal.fire({ icon:"error", title:"Enlace inválido", html:"Este enlace ya fue usado o expiró.<br>Inicia sesión normalmente.", confirmButtonColor:"#8b1a1a" });
-      return;
-    }
-    if (data?.user) { showOverlay("¡Confirmado! Entrando…"); await redirigir(data.user.id); }
+  if (!tokenHash || !type) return; // nada que hacer, mostrar form directo
+
+  showOverlay("Confirmando cuenta…");
+  window.history.replaceState({}, "", window.location.pathname);
+
+  const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+  if (error) {
+    hideOverlay();
+    Swal.fire({
+      icon:"error", title:"Enlace inválido",
+      html:"Este enlace ya fue usado o expiró.<br>Inicia sesión normalmente.",
+      confirmButtonColor:"#8b1a1a"
+    });
     return;
   }
-
-  // Casos 2 y 3 unificados: sesión activa o regreso de Google OAuth
-  // En ambos casos Supabase ya tiene (o está procesando) la sesión.
-  // Usamos reintentos para darle tiempo si viene de OAuth.
-  showOverlay("Verificando sesión…");
-
-  const session = await getSessionConReintentos();
-
-  if (session) {
-    showOverlay("Sesión activa, entrando…");
-    await redirigir(session.user.id);
-  } else {
-    // Sin sesión → mostrar formulario normalmente
-    hideOverlay();
+  if (data?.user) {
+    showOverlay("¡Confirmado! Entrando…");
+    await redirigir(data.user.id);
   }
-
 })();
 
 // ── Google OAuth ────────────────────────────────────────────────────────
+// Cuando el usuario vuelve de Google, onAuthStateChange lo captura aquí.
+// Usamos una bandera para ignorar el disparo inicial del listener.
+let primerDisparo = true;
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (primerDisparo) { primerDisparo = false; return; } // ignorar init
+  if (event === "SIGNED_IN" && session?.user && !btnSubmit.disabled) {
+    showOverlay("Verificando cuenta…");
+    await redirigir(session.user.id);
+  }
+});
+
 btnGoogle.addEventListener("click", async () => {
   btnGoogle.disabled = true;
   gIcon.innerHTML    = `<div class="g-spinner"></div>`;
@@ -275,18 +247,14 @@ btnGoogle.addEventListener("click", async () => {
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: {
-      redirectTo: `${BASE}/auth/login.html`,
-      // skipBrowserRedirect: false  ← comportamiento por defecto, no cambiar
-    },
+    options: { redirectTo: `${BASE}/auth/login.html` },
   });
 
   if (error) {
     hideOverlay();
     showErr("Error con Google", error.message);
-    resetForm();
+    resetGoogle();
   }
-  // Si no hay error → el navegador sale hacia Google, overlay visible está bien
 });
 
 // ── Toggle contraseña ───────────────────────────────────────────────────
@@ -348,7 +316,8 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     hideOverlay();
     showErr("Error inesperado", "Intenta de nuevo más tarde.");
   } finally {
-    resetForm();
+    btnSubmit.disabled    = false;
+    btnSubmit.textContent = "Entrar";
   }
 });
 </script>
