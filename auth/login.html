@@ -44,9 +44,8 @@
   .divider{display:flex;align-items:center;gap:.8rem;margin:1.6rem 0}
   .divider-line{flex:1;height:1px;background:rgba(139,26,26,.15)}
   .divider-text{font-family:'Oswald',sans-serif;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
-  .btn-google{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;min-height:52px;padding:0 20px;background:#ffffff;color:#1f1f1f;border:1.5px solid #c8c8c8;border-radius:6px;font-family:'Source Sans 3',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:.01em;cursor:pointer;transition:background .18s,box-shadow .18s,transform .18s,border-color .18s;box-shadow:0 2px 6px rgba(0,0,0,.14),0 1px 2px rgba(0,0,0,.1);-webkit-font-smoothing:antialiased}
+  .btn-google{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;min-height:52px;padding:0 20px;background:#ffffff;color:#1f1f1f;border:1.5px solid #c8c8c8;border-radius:6px;font-family:'Source Sans 3',sans-serif;font-size:1.05rem;font-weight:600;cursor:pointer;transition:background .18s,box-shadow .18s,transform .18s,border-color .18s;box-shadow:0 2px 6px rgba(0,0,0,.14);-webkit-font-smoothing:antialiased}
   .btn-google:hover{background:#f5f5f5;border-color:#aaa;box-shadow:0 4px 12px rgba(0,0,0,.18);transform:translateY(-2px)}
-  .btn-google:active{transform:translateY(0);box-shadow:0 1px 3px rgba(0,0,0,.12)}
   .btn-google:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}
   .btn-google .g-icon{width:22px;height:22px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
   .g-spinner{width:20px;height:20px;border:2.5px solid #dadce0;border-top-color:#4285f4;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
@@ -158,33 +157,28 @@ const btnGoogle = document.getElementById("btnGoogle");
 const gIcon     = document.getElementById("gIcon");
 const gLabel    = document.getElementById("gLabel");
 const btnSubmit = document.getElementById("btnSubmit");
-
 let safetyTimer = null;
 
 function showOverlay(txt) {
   roText.textContent = txt;
   overlay.classList.add("show");
   cancelBtn.style.display = "none";
-  // Si tarda más de 10s mostrar cancelar
   clearTimeout(safetyTimer);
   safetyTimer = setTimeout(() => {
     cancelBtn.style.display = "block";
     roText.textContent = "Tardando más de lo esperado…";
-  }, 10000);
+  }, 12000);
 }
-
 function hideOverlay() {
   clearTimeout(safetyTimer);
   overlay.classList.remove("show");
   cancelBtn.style.display = "none";
 }
-
 cancelBtn.addEventListener("click", async () => {
   hideOverlay();
   resetForm();
   try { await supabase.auth.signOut(); } catch(_) {}
 });
-
 function resetForm() {
   btnSubmit.disabled    = false;
   btnSubmit.textContent = "Entrar";
@@ -192,7 +186,6 @@ function resetForm() {
   gIcon.innerHTML       = GOOGLE_SVG;
   gLabel.textContent    = "Continuar con Google";
 }
-
 const showErr = (title, text) =>
   Swal.fire({ icon:"error", title, text, confirmButtonColor:"#8b1a1a" });
 
@@ -200,90 +193,77 @@ const showErr = (title, text) =>
 async function redirigir(userId) {
   try {
     const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("rol, estado")
-      .eq("id", userId)
-      .single();
-
+      .from("profiles").select("rol, estado").eq("id", userId).single();
     if (error) throw error;
-
     if (profile?.estado === "suspendido") {
       await supabase.auth.signOut();
       hideOverlay();
       showErr("Cuenta suspendida", "Contacta al administrador.");
       return;
     }
-    // Redirigir — window.location reemplaza la página sin historial de login
     window.location.replace(RUTAS[profile?.rol] ?? RUTAS.usuario);
   } catch(e) {
-    console.error(e);
+    console.error("redirigir:", e);
     window.location.replace(RUTAS.usuario);
   }
 }
 
-// ── AUTO-LOGIN (única fuente de verdad) ─────────────────────────────────
-// Solo usamos getSession(). Si devuelve sesión válida → entrar directo.
-// Si el token expiró, Supabase lo refresca automáticamente internamente.
-// NO usamos onAuthStateChange para el auto-login — eso causa el bucle.
+// ── Obtener sesión con reintentos ───────────────────────────────────────
+// Supabase en PWA puede tardar unos ciclos en procesar el token de OAuth
+// antes de que getSession() lo devuelva. Reintentamos hasta 5 veces.
+async function getSessionConReintentos(maxIntentos = 5, espera = 600) {
+  for (let i = 0; i < maxIntentos; i++) {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (session?.user) return session;
+      if (error) console.warn(`getSession intento ${i+1}:`, error.message);
+    } catch(e) {
+      console.warn(`getSession intento ${i+1} excepcion:`, e);
+    }
+    if (i < maxIntentos - 1) await new Promise(r => setTimeout(r, espera));
+  }
+  return null;
+}
+
+// ── INIT ────────────────────────────────────────────────────────────────
 (async () => {
-  // Caso 1: viene del link de confirmación de correo
+
+  // Limpiar hash/params de OAuth de la URL sin recargar
+  if (window.location.hash || window.location.search) {
+    window.history.replaceState({}, "", window.location.pathname);
+  }
+
+  // Caso 1: confirmación de correo (token_hash en params antes de limpiar)
   const params    = new URLSearchParams(window.location.search);
   const tokenHash = params.get("token_hash");
   const type      = params.get("type");
-
   if (tokenHash && type) {
     showOverlay("Confirmando cuenta…");
-    window.history.replaceState({}, "", window.location.pathname);
-
     const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
     if (error) {
       hideOverlay();
       Swal.fire({ icon:"error", title:"Enlace inválido", html:"Este enlace ya fue usado o expiró.<br>Inicia sesión normalmente.", confirmButtonColor:"#8b1a1a" });
       return;
     }
-    if (data?.user) {
-      showOverlay("¡Confirmado! Entrando…");
-      await redirigir(data.user.id);
-    }
+    if (data?.user) { showOverlay("¡Confirmado! Entrando…"); await redirigir(data.user.id); }
     return;
   }
 
-  // Caso 2: viene de Google OAuth (hash en la URL)
-  const hash = window.location.hash;
-  if (hash && hash.includes("access_token")) {
-    showOverlay("Completando acceso con Google…");
-    window.history.replaceState({}, "", window.location.pathname);
-    // Dar tiempo a Supabase para procesar el hash y establecer la sesión
-    await new Promise(r => setTimeout(r, 800));
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      await redirigir(session.user.id);
-    } else {
-      hideOverlay();
-      showErr("Error de acceso", "No se pudo completar el acceso con Google. Intenta de nuevo.");
-    }
-    return;
-  }
-
-  // Caso 3: sesión activa normal (auto-login)
+  // Casos 2 y 3 unificados: sesión activa o regreso de Google OAuth
+  // En ambos casos Supabase ya tiene (o está procesando) la sesión.
+  // Usamos reintentos para darle tiempo si viene de OAuth.
   showOverlay("Verificando sesión…");
-  try {
-    const { data: { session }, error } = await supabase.auth.getSession();
 
-    if (error || !session) {
-      // Sin sesión → mostrar formulario
-      hideOverlay();
-      return;
-    }
+  const session = await getSessionConReintentos();
 
-    // Sesión válida → entrar directo sin recargar
+  if (session) {
     showOverlay("Sesión activa, entrando…");
     await redirigir(session.user.id);
-
-  } catch(e) {
-    console.warn("getSession:", e);
+  } else {
+    // Sin sesión → mostrar formulario normalmente
     hideOverlay();
   }
+
 })();
 
 // ── Google OAuth ────────────────────────────────────────────────────────
@@ -295,7 +275,10 @@ btnGoogle.addEventListener("click", async () => {
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: `${BASE}/auth/login.html` },
+    options: {
+      redirectTo: `${BASE}/auth/login.html`,
+      // skipBrowserRedirect: false  ← comportamiento por defecto, no cambiar
+    },
   });
 
   if (error) {
@@ -303,7 +286,7 @@ btnGoogle.addEventListener("click", async () => {
     showErr("Error con Google", error.message);
     resetForm();
   }
-  // Si no hay error el navegador sale de la página → overlay visible está bien
+  // Si no hay error → el navegador sale hacia Google, overlay visible está bien
 });
 
 // ── Toggle contraseña ───────────────────────────────────────────────────
@@ -315,7 +298,7 @@ document.querySelector(".toggle-pw").addEventListener("click", () => {
   icon.classList.toggle("bi-eye-slash");
 });
 
-// ── Login email/usuario ─────────────────────────────────────────────────
+// ── Login email / username ──────────────────────────────────────────────
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const identifier = document.getElementById("identifier").value.trim();
@@ -344,7 +327,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
 
     if (authErr) {
       if (authErr.message.includes("Email not confirmed")) {
-        Swal.fire({ icon:"warning", title:"Confirma tu correo", text:"Revisa tu bandeja y confirma tu cuenta antes de entrar.", confirmButtonColor:"#8b1a1a" });
+        Swal.fire({ icon:"warning", title:"Confirma tu correo", text:"Revisa tu bandeja y confirma tu cuenta.", confirmButtonColor:"#8b1a1a" });
       } else {
         showErr("Credenciales incorrectas", "Usuario o contraseña incorrectos.");
       }
