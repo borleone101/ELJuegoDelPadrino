@@ -1,18 +1,14 @@
 const CACHE_NAME = "elpadrino-cache-v4";
-
 const urlsToCache = [
   "/ELJuegoDelPadrino/",
   "/ELJuegoDelPadrino/index.html",
   "/ELJuegoDelPadrino/manifest.json",
-
   "/ELJuegoDelPadrino/auth/login.html",
   "/ELJuegoDelPadrino/auth/register.html",
-
   "/ELJuegoDelPadrino/public/admin/index.html",
   "/ELJuegoDelPadrino/public/trabajador/index.html",
   "/ELJuegoDelPadrino/public/usuario/index.html",
   "/ELJuegoDelPadrino/public/usuario/recover/index.html",
-
   // JS
   "/ELJuegoDelPadrino/assets/js/admin.js",
   "/ELJuegoDelPadrino/assets/js/cloudinary.js",
