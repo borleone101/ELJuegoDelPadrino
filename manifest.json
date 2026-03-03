@@ -12,23 +12,72 @@
   "lang": "es",
   "icons": [
     {
-      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/v1772540067/IMG_20260301_083104_120_xqmyrr.png",
-      "sizes": "512x512",
+      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/w_48,h_48,c_fill,q_auto,f_png/v1772540067/IMG_20260301_083104_120_xqmyrr.png",
+      "sizes": "48x48",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/v1772540067/IMG_20260301_083104_120_xqmyrr.png",
+      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/w_72,h_72,c_fill,q_auto,f_png/v1772540067/IMG_20260301_083104_120_xqmyrr.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/w_96,h_96,c_fill,q_auto,f_png/v1772540067/IMG_20260301_083104_120_xqmyrr.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/w_144,h_144,c_fill,q_auto,f_png/v1772540067/IMG_20260301_083104_120_xqmyrr.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/w_192,h_192,c_fill,q_auto,f_png/v1772540067/IMG_20260301_083104_120_xqmyrr.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/w_256,h_256,c_fill,q_auto,f_png/v1772540067/IMG_20260301_083104_120_xqmyrr.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/w_384,h_384,c_fill,q_auto,f_png/v1772540067/IMG_20260301_083104_120_xqmyrr.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/w_512,h_512,c_fill,q_auto,f_png/v1772540067/IMG_20260301_083104_120_xqmyrr.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/w_512,h_512,c_fill,q_auto,f_png,r_max/v1772540067/IMG_20260301_083104_120_xqmyrr.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/w_192,h_192,c_fill,q_auto,f_png,r_max/v1772540067/IMG_20260301_083104_120_xqmyrr.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "screenshots": [
     {
-      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/v1772540067/IMG_20260301_083104_120_xqmyrr.png",
-      "sizes": "512x512",
+      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/w_1080,h_1920,c_pad,b_rgb:0c0a07,q_auto,f_png/v1772540067/IMG_20260301_083104_120_xqmyrr.png",
+      "sizes": "1080x1920",
       "type": "image/png",
+      "form_factor": "narrow",
       "label": "El Padrino Sorteos"
     }
   ]
