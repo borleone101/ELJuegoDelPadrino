@@ -56,17 +56,7 @@
   .divider-text{font-family:'Oswald',sans-serif;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
 
   /* ── BOTÓN GOOGLE ── */
-  .btn-google{
-    display:flex;align-items:center;justify-content:center;gap:12px;
-    width:100%;min-height:52px;padding:0 20px;
-    background:#ffffff;color:#1f1f1f;
-    border:1.5px solid #c8c8c8;border-radius:6px;
-    font-family:'Source Sans 3',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:.01em;
-    cursor:pointer;
-    transition:background .18s,box-shadow .18s,transform .18s,border-color .18s;
-    box-shadow:0 2px 6px rgba(0,0,0,.14),0 1px 2px rgba(0,0,0,.1);
-    -webkit-font-smoothing:antialiased;
-  }
+  .btn-google{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;min-height:52px;padding:0 20px;background:#ffffff;color:#1f1f1f;border:1.5px solid #c8c8c8;border-radius:6px;font-family:'Source Sans 3',sans-serif;font-size:1.05rem;font-weight:600;letter-spacing:.01em;cursor:pointer;transition:background .18s,box-shadow .18s,transform .18s,border-color .18s;box-shadow:0 2px 6px rgba(0,0,0,.14),0 1px 2px rgba(0,0,0,.1);-webkit-font-smoothing:antialiased}
   .btn-google:hover{background:#f5f5f5;border-color:#aaa;box-shadow:0 4px 12px rgba(0,0,0,.18);transform:translateY(-2px)}
   .btn-google:active{transform:translateY(0);box-shadow:0 1px 3px rgba(0,0,0,.12)}
   .btn-google:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}
@@ -77,39 +67,28 @@
   @keyframes spin{to{transform:rotate(360deg)}}
 
   /* ── OVERLAY ── */
-  .redirect-overlay{
-    display:none;position:fixed;inset:0;z-index:9999;
-    background:rgba(12,10,7,.9);backdrop-filter:blur(6px);
-    flex-direction:column;align-items:center;justify-content:center;gap:1.4rem;
-  }
+  .redirect-overlay{display:none;position:fixed;inset:0;z-index:9999;background:rgba(12,10,7,.92);backdrop-filter:blur(6px);flex-direction:column;align-items:center;justify-content:center;gap:1.4rem}
   .redirect-overlay.show{display:flex}
   .ro-spinner{width:48px;height:48px;border:3px solid rgba(212,160,23,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
   .ro-logo{font-family:'Oswald',sans-serif;font-weight:700;font-size:1.5rem;letter-spacing:.12em;color:var(--gold);opacity:.9}
   .ro-text{font-family:'Oswald',sans-serif;font-size:.85rem;letter-spacing:.2em;text-transform:uppercase;color:rgba(245,237,224,.5)}
+
+  /* ── BOTÓN CANCELAR OVERLAY ── */
+  .ro-cancel{margin-top:.5rem;background:none;border:1px solid rgba(245,237,224,.2);color:rgba(245,237,224,.4);font-family:'Oswald',sans-serif;font-size:.78rem;letter-spacing:.15em;text-transform:uppercase;padding:.45rem 1.2rem;border-radius:4px;cursor:pointer;transition:all .2s}
+  .ro-cancel:hover{border-color:rgba(245,237,224,.5);color:rgba(245,237,224,.7)}
 
   .form-footer{text-align:center;margin-top:2rem;font-size:1rem;color:var(--muted)}
   .form-footer a{color:var(--red);text-decoration:none;font-weight:600;transition:color .2s}
   .form-footer a:hover{color:var(--red2)}
 
   @media(max-width:820px){
-    body{
-      grid-template-columns:1fr;
-      grid-template-rows:auto 1fr;
-      min-height:100vh;
-      height:auto;
-    }
+    body{grid-template-columns:1fr;grid-template-rows:auto 1fr;min-height:100vh;height:auto}
     html,body{height:auto}
-    .left{
-      padding:2rem 1.5rem 1.8rem;
-      min-height:auto;
-    }
+    .left{padding:2rem 1.5rem 1.8rem;min-height:auto}
     .left-quote,.left-quote-author,.ornament{display:none}
     .brand-tagline{margin-bottom:0}
     .brand-logo{font-size:1.9rem}
-    .right{
-      padding:2.2rem 1.4rem 3rem;
-      min-height:auto;
-    }
+    .right{padding:2.2rem 1.4rem 3rem;min-height:auto}
     .form-header{margin-bottom:2rem}
     .form-title{font-size:1.75rem}
     .field{margin-bottom:1.5rem}
@@ -128,6 +107,7 @@
   <div class="ro-logo">EL PADRINO</div>
   <div class="ro-spinner"></div>
   <div class="ro-text" id="roText">Cargando…</div>
+  <button class="ro-cancel" id="roCancelBtn" style="display:none">Cancelar</button>
 </div>
 
 <div class="left">
@@ -207,16 +187,49 @@ const RUTAS = {
 };
 const GOOGLE_SVG = `<svg width="20" height="20" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd"><path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/></g></svg>`;
 
-// ─── UI helpers ────────────────────────────────────────────────────────
-const overlay   = document.getElementById("redirectOverlay");
-const roText    = document.getElementById("roText");
-const btnGoogle = document.getElementById("btnGoogle");
-const gIcon     = document.getElementById("gIcon");
-const gLabel    = document.getElementById("gLabel");
-const btnSubmit = document.getElementById("btnSubmit");
+// ─── Estado global: evita que dos flujos corran en paralelo ───────────
+let navegando = false;
 
-const showOverlay = (txt) => { roText.textContent = txt; overlay.classList.add("show"); };
-const hideOverlay = ()    => overlay.classList.remove("show");
+// ─── UI helpers ────────────────────────────────────────────────────────
+const overlay    = document.getElementById("redirectOverlay");
+const roText     = document.getElementById("roText");
+const roCancelBtn= document.getElementById("roCancelBtn");
+const btnGoogle  = document.getElementById("btnGoogle");
+const gIcon      = document.getElementById("gIcon");
+const gLabel     = document.getElementById("gLabel");
+const btnSubmit  = document.getElementById("btnSubmit");
+
+let overlayTimeout = null;
+
+const showOverlay = (txt, cancelable = false) => {
+  if (overlayTimeout) clearTimeout(overlayTimeout);
+  roText.textContent = txt;
+  overlay.classList.add("show");
+  roCancelBtn.style.display = cancelable ? "block" : "none";
+
+  // Timeout de seguridad: si tarda más de 12s, ofrecer cancelar
+  overlayTimeout = setTimeout(() => {
+    roText.textContent = "Tardando más de lo normal…";
+    roCancelBtn.style.display = "block";
+  }, 12000);
+};
+
+const hideOverlay = () => {
+  if (overlayTimeout) clearTimeout(overlayTimeout);
+  overlay.classList.remove("show");
+  roCancelBtn.style.display = "none";
+  navegando = false;
+};
+
+// Botón cancelar del overlay — limpia sesión colgada y muestra el form
+roCancelBtn.addEventListener("click", async () => {
+  hideOverlay();
+  resetGoogle();
+  btnSubmit.disabled    = false;
+  btnSubmit.textContent = "Entrar";
+  // Limpiar sesión rota si existe
+  try { await supabase.auth.signOut(); } catch(_){}
+});
 
 const showErr = (title, text) =>
   Swal.fire({ icon:"error", title, text, confirmButtonColor:"#8b1a1a" });
@@ -246,84 +259,105 @@ async function redirigirSegunRol(userId) {
     }
 
     window.location.href = RUTAS[profile?.rol] ?? RUTAS.usuario;
+
   } catch (err) {
-    console.error("Error al obtener perfil:", err);
+    console.error("Error perfil:", err);
+    // Si falla obtener el perfil, igual enviamos al dashboard de usuario
     window.location.href = RUTAS.usuario;
   }
 }
 
-// ─── ✅ NUEVO: Procesar token_hash de confirmación de correo ───────────
-// Cuando el usuario hace clic en el email de confirmación, llega aquí con
-// ?token_hash=...&type=signup — hay que verificarlo manualmente con verifyOtp.
+// ─── INIT: lógica de arranque (token_hash o sesión activa) ─────────────
+// Se ejecuta UNA SOLA VEZ al cargar la página. Después de esto,
+// onAuthStateChange solo actúa si viene de Google OAuth.
 (async () => {
   const params    = new URLSearchParams(window.location.search);
   const tokenHash = params.get("token_hash");
-  const type      = params.get("type"); // "signup", "recovery", "invite", etc.
+  const type      = params.get("type");
 
+  // 1️⃣ Viene del link de confirmación de correo
   if (tokenHash && type) {
+    navegando = true;
     showOverlay("Confirmando cuenta…");
-
-    const { data, error } = await supabase.auth.verifyOtp({
-      token_hash: tokenHash,
-      type: type,
-    });
-
-    // Limpiamos la URL para evitar re-procesamiento si el usuario recarga
     window.history.replaceState({}, "", window.location.pathname);
+
+    const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
 
     if (error) {
       hideOverlay();
-      // El error más común es que el token ya se usó o expiró
       Swal.fire({
         icon: "error",
         title: "Enlace inválido",
-        html: "Este enlace ya fue usado o expiró.<br>Inicia sesión normalmente o solicita un nuevo correo.",
+        html: "Este enlace ya fue usado o expiró.<br>Inicia sesión normalmente.",
         confirmButtonColor: "#8b1a1a",
       });
       return;
     }
 
     if (data?.user) {
-      showOverlay("¡Cuenta confirmada! Entrando…");
+      roText.textContent = "¡Cuenta confirmada! Entrando…";
       await redirigirSegunRol(data.user.id);
     }
-    return; // No continuar con el resto del init si venimos del email
+    return;
   }
 
-  // ─── AUTO-LOGIN: si ya hay sesión activa, entrar directo ──────────────
+  // 2️⃣ Verificar sesión activa (auto-login tipo app)
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      showOverlay("Sesión activa, entrando…");
-      await redirigirSegunRol(session.user.id);
+    showOverlay("Verificando sesión…");
+
+    const { data: { session }, error } = await supabase.auth.getSession();
+
+    if (error || !session?.user) {
+      // Sin sesión válida → mostrar formulario normalmente
+      hideOverlay();
+      return;
     }
+
+    // Hay sesión activa → entrar directo, sin preguntar
+    navegando = true;
+    roText.textContent = "Sesión activa, entrando…";
+    await redirigirSegunRol(session.user.id);
+
   } catch (e) {
     console.warn("getSession error:", e);
+    hideOverlay();
   }
 })();
 
-// ─── Callback OAuth (regresa de Google con #access_token en hash) ──────
+// ─── onAuthStateChange: SOLO para el callback de Google OAuth ──────────
+// Usamos la bandera `navegando` para no interferir con el IIFE de arriba
+// ni con el submit del formulario.
+let oauthEscuchando = false;
 supabase.auth.onAuthStateChange(async (event, session) => {
-  if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session?.user) {
-    // No interferir si el form ya está procesando
-    if (btnSubmit.disabled) return;
-    showOverlay("Verificando cuenta…");
-    await redirigirSegunRol(session.user.id);
+  // Ignorar si ya estamos navegando o si es el disparo inicial
+  if (navegando) return;
+  if (event !== "SIGNED_IN") return;
+  if (!session?.user) return;
+  // Solo actuar si fue un OAuth (Google) — el form maneja su propio flujo
+  if (btnSubmit.disabled) return; // el form está activo, él lo gestiona
+
+  // Viene de Google redirect
+  if (!oauthEscuchando) {
+    oauthEscuchando = true;
+    return; // ignorar el primer disparo inicial al montar el listener
   }
+
+  navegando = true;
+  showOverlay("Verificando cuenta…");
+  await redirigirSegunRol(session.user.id);
 });
 
 // ─── Botón Google ──────────────────────────────────────────────────────
 btnGoogle.addEventListener("click", async () => {
+  if (navegando) return;
   btnGoogle.disabled = true;
   gIcon.innerHTML    = `<div class="g-spinner"></div>`;
   gLabel.textContent = "Conectando…";
-  showOverlay("Conectando con Google…");
+  showOverlay("Conectando con Google…", true);
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: {
-      redirectTo: `${BASE}/auth/login.html`,
-    },
+    options: { redirectTo: `${BASE}/auth/login.html` },
   });
 
   if (error) {
@@ -331,6 +365,7 @@ btnGoogle.addEventListener("click", async () => {
     showErr("Error con Google", error.message);
     resetGoogle();
   }
+  // Si no hay error, el navegador redirige a Google — el overlay queda visible OK
 });
 
 // ─── Toggle contraseña ─────────────────────────────────────────────────
@@ -345,6 +380,8 @@ document.querySelector(".toggle-pw").addEventListener("click", () => {
 // ─── Login con email / username ────────────────────────────────────────
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (navegando) return;
+
   const identifier = document.getElementById("identifier").value.trim();
   const password   = document.getElementById("password").value;
 
@@ -353,18 +390,19 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     return;
   }
 
+  navegando             = true;
   btnSubmit.disabled    = true;
   btnSubmit.textContent = "Verificando…";
 
   try {
     let email = identifier;
 
-    // Resolver username → email si no es un correo
     if (!identifier.includes("@")) {
       const { data: resolvedEmail, error: rpcErr } = await supabase
         .rpc("get_email_by_username", { p_username: identifier.toLowerCase() });
 
       if (rpcErr || !resolvedEmail) {
+        navegando = false;
         showErr("No encontrado", "Usuario no encontrado. Intenta con tu correo electrónico.");
         return;
       }
@@ -375,6 +413,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
       await supabase.auth.signInWithPassword({ email, password });
 
     if (authErr) {
+      navegando = false;
       if (authErr.message.includes("Email not confirmed")) {
         Swal.fire({
           icon: "warning",
@@ -390,6 +429,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
 
     if (!authData.user.email_confirmed_at) {
       await supabase.auth.signOut();
+      navegando = false;
       Swal.fire({
         icon: "warning",
         title: "Confirma tu correo",
@@ -404,6 +444,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
 
   } catch (err) {
     console.error("Login error:", err);
+    navegando = false;
     hideOverlay();
     showErr("Error inesperado", "Intenta de nuevo más tarde.");
   } finally {
