@@ -10,19 +10,26 @@
   "background_color": "#0c0a07",
   "theme_color": "#8b1a1a",
   "lang": "es",
-
   "icons": [
     {
-      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/v1772453389/9c927cfe-c983-4252-8945-a70b24c03eb1_rtrp4u.png",
+      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/v1772540067/IMG_20260301_083104_120_xqmyrr.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
-      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/v1772453389/9c927cfe-c983-4252-8945-a70b24c03eb1_rtrp4u.png",
+      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/v1772540067/IMG_20260301_083104_120_xqmyrr.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "https://res.cloudinary.com/daxmlrngo/image/upload/v1772540067/IMG_20260301_083104_120_xqmyrr.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "label": "El Padrino Sorteos"
     }
   ]
 }
