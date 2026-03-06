@@ -212,14 +212,18 @@ btnGoogle.addEventListener("click", async () => {
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: `${BASE}/auth/login.html` },
+    options: {
+      // Siempre vuelve a login.html del mismo dominio.
+      // login.html detecta la sesión con getSession() y redirige según rol.
+      redirectTo: `${window.location.origin}/auth/login.html`,
+    },
   });
 
   if (error) {
     showErr("Error con Google", error.message);
     resetGoogle();
   }
-  // Sin error → el navegador navega a Google; login.html maneja el resto
+  // Sin error → navegador va a Google; al volver, login.html maneja todo
 });
 
 // ── Toggle contraseña ────────────────────────────────────────────────────
