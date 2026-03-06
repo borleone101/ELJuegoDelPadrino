@@ -183,7 +183,7 @@ const hideOverlay = ()    => overlay.classList.remove("show");
 const showErr = (title, text) => Swal.fire({ icon:"error", title, text, confirmButtonColor:"#8b1a1a" });
 const resetGoogle = () => { btnGoogle.disabled = false; gIcon.innerHTML = GOOGLE_SVG; gLabel.textContent = "Continuar con Google"; };
 
-// ── Redirigir según rol ────────────────────────────────────────────────
+// ── Redirigir según rol — usa replace() para no dejar login en historial ─
 async function redirigirSegunRol(userId) {
   const { data: profile, error } = await supabase
     .from("profiles")
@@ -191,7 +191,7 @@ async function redirigirSegunRol(userId) {
     .eq("id", userId)
     .single();
 
-  if (error) { window.location.href = RUTAS.usuario; return; }
+  if (error) { window.location.replace(RUTAS.usuario); return; }
 
   if (profile?.estado === "suspendido") {
     await supabase.auth.signOut();
@@ -200,10 +200,10 @@ async function redirigirSegunRol(userId) {
     return;
   }
 
-  window.location.href = RUTAS[profile?.rol] ?? RUTAS.usuario;
+  window.location.replace(RUTAS[profile?.rol] ?? RUTAS.usuario);
 }
 
-// ── Procesar retorno OAuth de Google (token_hash o sesión activa) ──────
+// ── Procesar retorno OAuth / confirmación de correo al cargar la página ──
 (async () => {
   const params    = new URLSearchParams(window.location.search);
   const tokenHash = params.get("token_hash");
@@ -227,11 +227,14 @@ async function redirigirSegunRol(userId) {
     return;
   }
 
-  // Caso 2: viene del callback OAuth de Google (hay sesión en la URL)
-  // Supabase procesa automáticamente el fragment (#access_token) al llamar getSession
+  // Caso 2: callback OAuth de Google — Supabase deja el token en el hash de la URL
+  // getSession() lo procesa automáticamente y limpia el hash
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.user) {
-    // Verificar si viene de un flujo Google con referido pendiente
+    // Limpiar la URL (quita #access_token=... del historial)
+    window.history.replaceState({}, "", window.location.pathname);
+
+    // Aplicar referido pendiente si viene de register.html vía Google
     const pendingRef = sessionStorage.getItem("pendingRef");
     if (pendingRef) {
       sessionStorage.removeItem("pendingRef");
@@ -242,9 +245,11 @@ async function redirigirSegunRol(userId) {
         });
       } catch (e) { console.warn("ref error (no crítico):", e); }
     }
+
     showOverlay("Verificando cuenta…");
     await redirigirSegunRol(session.user.id);
   }
+  // Si no hay sesión → mostrar el formulario normalmente, sin hacer nada
 })();
 
 // ── Botón Google ────────────────────────────────────────────────────────
@@ -255,14 +260,18 @@ btnGoogle.addEventListener("click", async () => {
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: `${BASE}/auth/login.html` },
+    options: {
+      // Redirige siempre a login.html de este mismo dominio
+      redirectTo: `${window.location.origin}/auth/login.html`,
+    },
   });
 
   if (error) {
     showErr("Error con Google", error.message);
     resetGoogle();
   }
-  // Sin error → el navegador navega a Google; no hacemos nada más aquí
+  // Sin error → navegador va a Google; al volver cae aquí y el bloque
+  // de getSession() de arriba procesa la sesión automáticamente
 });
 
 // ── Toggle contraseña ───────────────────────────────────────────────────
