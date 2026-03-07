@@ -45,9 +45,12 @@
   .toggle-pw:hover{color:var(--red2)}
   .hint{font-size:.85rem;color:var(--muted);margin-top:.45rem}
 
-  .ref-badge{display:none;align-items:center;gap:.5rem;background:rgba(139,26,26,.08);border:1px solid rgba(139,26,26,.2);border-radius:6px;padding:.5rem .9rem;margin-top:.6rem;font-size:.9rem;color:var(--red);font-weight:600}
+  /* Badge referido con animación de entrada */
+  .ref-badge{display:none;align-items:center;gap:.5rem;border-radius:6px;padding:.5rem .9rem;margin-top:.6rem;font-size:.9rem;font-weight:600;animation:fadeIn .3s ease}
   .ref-badge.show{display:flex}
-  .ref-badge.invalid{background:rgba(200,50,50,.08);border-color:rgba(200,50,50,.3);color:#b52020}
+  .ref-badge.valid{background:rgba(34,139,34,.1);border:1px solid rgba(34,139,34,.3);color:#1a6b1a}
+  .ref-badge.invalid{background:rgba(200,50,50,.08);border:1px solid rgba(200,50,50,.3);color:#b52020}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 
   .divider{display:flex;align-items:center;gap:.8rem;margin:1.6rem 0}
   .divider-line{flex:1;height:1px;background:rgba(139,26,26,.15)}
@@ -170,11 +173,14 @@
       <div class="hint">Al menos 6 caracteres.</div>
     </div>
     <div class="field">
-      <label for="referido">Código de referido <span style="color:var(--muted);font-size:.8rem;letter-spacing:0;text-transform:none">(opcional)</span></label>
+      <label for="referido">
+        Código de referido
+        <span style="color:var(--muted);font-size:.8rem;letter-spacing:0;text-transform:none">(opcional)</span>
+      </label>
       <input type="text" id="referido" placeholder="ABC12345" maxlength="20" autocomplete="off" style="text-transform:uppercase">
       <div class="ref-badge" id="refBadge">
-        <i class="bi bi-gift-fill" id="refIcon"></i>
-        <span id="refMsg">Código válido</span>
+        <i class="bi" id="refIcon"></i>
+        <span id="refMsg"></span>
       </div>
     </div>
     <button type="submit" class="btn-submit" id="btnSubmit">Crear mi cuenta</button>
@@ -196,34 +202,63 @@ const gIcon     = document.getElementById("gIcon");
 const gLabel    = document.getElementById("gLabel");
 
 const showOverlay = (txt) => { roText.textContent = txt; overlay.classList.add("show"); };
+const hideOverlay = ()    => overlay.classList.remove("show");
 const showErr = (title, text) => Swal.fire({ icon:"error", title, text, confirmButtonColor:"#8b1a1a" });
-const resetGoogle = () => { btnGoogle.disabled = false; gIcon.innerHTML = GOOGLE_SVG; gLabel.textContent = "Registrarse con Google"; };
+const resetGoogle = () => {
+  btnGoogle.disabled = false;
+  gIcon.innerHTML    = GOOGLE_SVG;
+  gLabel.textContent = "Registrarse con Google";
+};
+
+// ── FIX 1: Pre-fill referido desde URL ──────────────────────────────────
+// Soporta tanto ?ref= directo como venido de redirección desde login.html
+(function initRefCode() {
+  const urlRef = new URLSearchParams(window.location.search).get("ref");
+  if (!urlRef) return;
+
+  const refInput = document.getElementById("referido");
+  refInput.value = urlRef.toUpperCase().trim();
+
+  // Limpiar el parámetro de la URL sin recargar (URL limpia en PWA)
+  window.history.replaceState({}, "", window.location.pathname);
+
+  // Disparar validación automática del código
+  refInput.dispatchEvent(new Event("input"));
+})();
 
 // ── Botón Google ─────────────────────────────────────────────────────────
-// Guarda el código referido en sessionStorage antes del redirect.
-// login.html lo leerá al volver del OAuth y registrará el referido.
 btnGoogle.addEventListener("click", async () => {
   btnGoogle.disabled = true;
   gIcon.innerHTML    = `<div class="g-spinner"></div>`;
   gLabel.textContent = "Conectando…";
 
+  // Guardar código referido en sessionStorage antes del redirect OAuth
   const codigoRef = document.getElementById("referido").value.trim().toUpperCase();
-  if (codigoRef) sessionStorage.setItem("pendingRef", codigoRef);
+  if (codigoRef) {
+    sessionStorage.setItem("pendingRef", codigoRef);
+  }
+
+  // FIX 2: Timeout anti-carga-infinita para botón Google
+  const connectTimeout = setTimeout(() => {
+    resetGoogle();
+    showErr("Sin respuesta", "No se pudo conectar con Google. Verifica tu conexión e intenta de nuevo.");
+  }, 15000);
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      // Siempre vuelve a login.html del mismo dominio.
-      // login.html detecta la sesión con getSession() y redirige según rol.
+      // Siempre vuelve a login.html del mismo dominio
       redirectTo: `${window.location.origin}/auth/login.html`,
     },
   });
+
+  clearTimeout(connectTimeout);
 
   if (error) {
     showErr("Error con Google", error.message);
     resetGoogle();
   }
-  // Sin error → navegador va a Google; al volver, login.html maneja todo
+  // Sin error → navegador va a Google; login.html maneja todo al volver
 });
 
 // ── Toggle contraseña ────────────────────────────────────────────────────
@@ -234,14 +269,6 @@ document.querySelector(".toggle-pw").addEventListener("click", () => {
   icon.classList.toggle("bi-eye");
   icon.classList.toggle("bi-eye-slash");
 });
-
-// ── Pre-fill referido desde URL ──────────────────────────────────────────
-const urlRef = new URLSearchParams(window.location.search).get("ref");
-if (urlRef) {
-  const refInput = document.getElementById("referido");
-  refInput.value = urlRef.toUpperCase();
-  refInput.dispatchEvent(new Event("input"));
-}
 
 // ── Validación en tiempo real del código referido ────────────────────────
 let refValidado = null;
@@ -255,31 +282,47 @@ document.getElementById("referido").addEventListener("input", (e) => {
   e.target.value = code;
 
   refValidado = null;
-  badge.classList.remove("show", "invalid");
+  badge.classList.remove("show", "valid", "invalid");
   clearTimeout(refTimer);
 
   if (code.length < 4) return;
+
+  // Mostrar spinner mientras valida
+  icon.className  = "bi bi-hourglass-split";
+  msg.textContent = "Validando…";
+  badge.classList.add("show");
+  badge.style.background    = "rgba(0,0,0,.05)";
+  badge.style.border        = "1px solid rgba(0,0,0,.1)";
+  badge.style.color         = "var(--muted)";
 
   refTimer = setTimeout(async () => {
     try {
       const { data, error } = await supabase
         .rpc("get_username_by_codigo_referido", { p_codigo: code });
 
-      if (error) { console.warn("RPC ref error:", error); return; }
+      badge.style.background = "";
+      badge.style.border     = "";
+      badge.style.color      = "";
+
+      if (error) {
+        badge.classList.remove("show");
+        console.warn("RPC ref error:", error);
+        return;
+      }
 
       if (data) {
         refValidado     = data;
         icon.className  = "bi bi-gift-fill";
         msg.textContent = `Referido por: ${data}`;
-        badge.classList.remove("invalid");
-        badge.classList.add("show");
+        badge.classList.add("valid");
       } else {
         refValidado     = false;
         icon.className  = "bi bi-x-circle-fill";
         msg.textContent = "Código no encontrado";
-        badge.classList.add("show", "invalid");
+        badge.classList.add("invalid");
       }
     } catch (err) {
+      badge.classList.remove("show");
       console.warn("Error validando referido:", err);
     }
   }, 500);
@@ -303,10 +346,13 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
 
   if (codigoRef && refValidado === false) {
     const confirm = await Swal.fire({
-      icon:"warning", title:"Código no encontrado",
-      text:"El código de referido no es válido. ¿Continuar sin referido?",
-      showCancelButton:true, confirmButtonText:"Sí, continuar",
-      cancelButtonText:"Corregir", confirmButtonColor:"#8b1a1a",
+      icon: "warning",
+      title: "Código no encontrado",
+      text: "El código de referido no es válido. ¿Continuar sin referido?",
+      showCancelButton: true,
+      confirmButtonText: "Sí, continuar",
+      cancelButtonText: "Corregir",
+      confirmButtonColor: "#8b1a1a",
     });
     if (!confirm.isConfirmed) return;
   }
@@ -320,7 +366,7 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
       .rpc("check_username_exists", { p_username: username.toLowerCase() });
 
     if (!checkErr && existe) {
-      showErr("Usuario no disponible","Ese nombre de usuario ya está en uso. Elige otro.");
+      showErr("Usuario no disponible", "Ese nombre de usuario ya está en uso. Elige otro.");
       return;
     }
 
@@ -345,7 +391,7 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
     }
 
     if (!authData?.user?.id) {
-      showErr("Correo ya registrado","Ya existe una cuenta con ese correo. Si aún no la confirmaste, revisa tu bandeja.");
+      showErr("Correo ya registrado", "Ya existe una cuenta con ese correo. Si aún no la confirmaste, revisa tu bandeja.");
       return;
     }
 
@@ -375,7 +421,7 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
 
   } catch (err) {
     console.error("Register unexpected error:", err);
-    showErr("Error de conexión","No se pudo conectar. Verifica tu conexión e intenta de nuevo.");
+    showErr("Error de conexión", "No se pudo conectar. Verifica tu conexión e intenta de nuevo.");
   } finally {
     btn.disabled    = false;
     btn.textContent = "Crear mi cuenta";
