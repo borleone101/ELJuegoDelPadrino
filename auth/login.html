@@ -157,7 +157,7 @@
     <button type="submit" class="btn-submit" id="btnSubmit">Entrar</button>
   </form>
 
-  <p class="form-footer">¿No tienes cuenta? <a href="register.html">Regístrate aquí</a></p>
+  <p class="form-footer">¿No tienes cuenta? <a href="register.html" id="linkRegister">Regístrate aquí</a></p>
 </div>
 
 <script type="module">
@@ -181,35 +181,34 @@ const btnSubmit = document.getElementById("btnSubmit");
 const showOverlay = (txt) => { roText.textContent = txt; overlay.classList.add("show"); };
 const hideOverlay = ()    => overlay.classList.remove("show");
 const showErr = (title, text) => Swal.fire({ icon:"error", title, text, confirmButtonColor:"#8b1a1a" });
-const resetGoogle = () => { btnGoogle.disabled = false; gIcon.innerHTML = GOOGLE_SVG; gLabel.textContent = "Continuar con Google"; };
+const resetGoogle = () => {
+  btnGoogle.disabled = false;
+  gIcon.innerHTML    = GOOGLE_SVG;
+  gLabel.textContent = "Continuar con Google";
+};
 
-// ── Redirigir según rol — usa replace() para no dejar login en historial ─
-async function redirigirSegunRol(userId) {
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("rol, estado")
-    .eq("id", userId)
-    .single();
-
-  if (error) { window.location.replace(RUTAS.usuario); return; }
-
-  if (profile?.estado === "suspendido") {
-    await supabase.auth.signOut();
-    hideOverlay();
-    showErr("Cuenta suspendida", "Tu cuenta está suspendida. Contacta al administrador.");
-    return;
+// ── FIX 1: Si llegan con ?ref= en login.html, redirigir a register.html ──
+// Esto maneja el caso de links de referido compartidos
+(function handleRefRedirect() {
+  const params = new URLSearchParams(window.location.search);
+  const ref    = params.get("ref");
+  if (ref) {
+    // Preservar el código al ir a register
+    window.location.replace(`register.html?ref=${encodeURIComponent(ref)}`);
   }
+  // También actualizar el link de pie de página para preservar ref si lo hubiera
+  // (ya se redirige arriba, pero por si acaso)
+})();
 
-  window.location.replace(RUTAS[profile?.rol] ?? RUTAS.usuario);
-}
-
-// ── Procesar retorno OAuth / confirmación de correo al cargar la página ──
+// ── FIX 2: Procesar retorno OAuth / confirmación de correo ───────────────
+// SOLO actúa si viene del callback de OAuth (hash en URL) o de email confirm
+// NO auto-redirige si simplemente hay sesión guardada (fix PWA auto-login)
 (async () => {
   const params    = new URLSearchParams(window.location.search);
   const tokenHash = params.get("token_hash");
   const type      = params.get("type");
 
-  // Caso 1: viene del email de confirmación con token_hash
+  // Caso A: viene del email de confirmación con token_hash
   if (tokenHash && type) {
     showOverlay("Confirmando cuenta…");
     const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
@@ -217,7 +216,12 @@ async function redirigirSegunRol(userId) {
 
     if (error) {
       hideOverlay();
-      Swal.fire({ icon:"error", title:"Enlace inválido", html:"Este enlace ya fue usado o expiró.<br>Inicia sesión normalmente o solicita un nuevo correo.", confirmButtonColor:"#8b1a1a" });
+      Swal.fire({
+        icon: "error",
+        title: "Enlace inválido",
+        html: "Este enlace ya fue usado o expiró.<br>Inicia sesión normalmente o solicita un nuevo correo.",
+        confirmButtonColor: "#8b1a1a"
+      });
       return;
     }
     if (data?.user) {
@@ -227,11 +231,40 @@ async function redirigirSegunRol(userId) {
     return;
   }
 
-  // Caso 2: callback OAuth de Google — Supabase deja el token en el hash de la URL
-  // getSession() lo procesa automáticamente y limpia el hash
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session?.user) {
-    // Limpiar la URL (quita #access_token=... del historial)
+  // Caso B: callback OAuth de Google — solo si hay hash con access_token en la URL
+  // Esto distingue "vengo de Google OAuth" vs "abro la app con sesión guardada"
+  const hasOAuthCallback = window.location.hash.includes("access_token") ||
+                           window.location.hash.includes("error_description") ||
+                           params.get("code"); // PKCE flow
+
+  if (!hasOAuthCallback) {
+    // NO hay callback OAuth → mostrar formulario normalmente
+    // Esto evita el auto-login en PWA aunque haya sesión guardada
+    return;
+  }
+
+  // FIX 3: Timeout anti-carga-infinita para el callback OAuth
+  // Si el usuario presionó "atrás" desde Google, el hash puede estar malformado
+  // En ese caso, después de 8 segundos mostramos el formulario normal
+  let oauthTimeout = setTimeout(() => {
+    hideOverlay();
+    resetGoogle();
+    console.warn("OAuth timeout — mostrando formulario");
+  }, 8000);
+
+  showOverlay("Verificando con Google…");
+
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+
+    clearTimeout(oauthTimeout);
+
+    if (error || !session?.user) {
+      hideOverlay();
+      return; // Simplemente mostrar el formulario
+    }
+
+    // Limpiar URL del hash de OAuth
     window.history.replaceState({}, "", window.location.pathname);
 
     // Aplicar referido pendiente si viene de register.html vía Google
@@ -248,33 +281,68 @@ async function redirigirSegunRol(userId) {
 
     showOverlay("Verificando cuenta…");
     await redirigirSegunRol(session.user.id);
+
+  } catch (err) {
+    clearTimeout(oauthTimeout);
+    hideOverlay();
+    console.error("OAuth callback error:", err);
   }
-  // Si no hay sesión → mostrar el formulario normalmente, sin hacer nada
 })();
 
-// ── Botón Google ────────────────────────────────────────────────────────
+// ── Redirigir según rol ──────────────────────────────────────────────────
+async function redirigirSegunRol(userId) {
+  try {
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("rol, estado")
+      .eq("id", userId)
+      .single();
+
+    if (error) { window.location.replace(RUTAS.usuario); return; }
+
+    if (profile?.estado === "suspendido") {
+      await supabase.auth.signOut();
+      hideOverlay();
+      showErr("Cuenta suspendida", "Tu cuenta está suspendida. Contacta al administrador.");
+      return;
+    }
+
+    window.location.replace(RUTAS[profile?.rol] ?? RUTAS.usuario);
+  } catch (err) {
+    console.error("redirigirSegunRol error:", err);
+    window.location.replace(RUTAS.usuario);
+  }
+}
+
+// ── Botón Google ─────────────────────────────────────────────────────────
 btnGoogle.addEventListener("click", async () => {
   btnGoogle.disabled = true;
   gIcon.innerHTML    = `<div class="g-spinner"></div>`;
   gLabel.textContent = "Conectando…";
 
+  // FIX 4: Timeout por si el redirect a Google nunca ocurre (red lenta, bloqueado, etc.)
+  const connectTimeout = setTimeout(() => {
+    resetGoogle();
+    showErr("Sin respuesta", "No se pudo conectar con Google. Verifica tu conexión e intenta de nuevo.");
+  }, 15000);
+
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      // Redirige siempre a login.html de este mismo dominio
       redirectTo: `${window.location.origin}/auth/login.html`,
     },
   });
+
+  clearTimeout(connectTimeout);
 
   if (error) {
     showErr("Error con Google", error.message);
     resetGoogle();
   }
-  // Sin error → navegador va a Google; al volver cae aquí y el bloque
-  // de getSession() de arriba procesa la sesión automáticamente
+  // Sin error → navegador va a Google; al volver el bloque OAuth de arriba lo maneja
 });
 
-// ── Toggle contraseña ───────────────────────────────────────────────────
+// ── Toggle contraseña ────────────────────────────────────────────────────
 document.querySelector(".toggle-pw").addEventListener("click", () => {
   const inp  = document.getElementById("password");
   const icon = document.querySelector(".toggle-pw i");
@@ -283,7 +351,7 @@ document.querySelector(".toggle-pw").addEventListener("click", () => {
   icon.classList.toggle("bi-eye-slash");
 });
 
-// ── Login con email / username ──────────────────────────────────────────
+// ── Login con email / username ───────────────────────────────────────────
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const identifier = document.getElementById("identifier").value.trim();
@@ -312,7 +380,12 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
 
     if (authErr) {
       if (authErr.message.includes("Email not confirmed")) {
-        Swal.fire({ icon:"warning", title:"Confirma tu correo", text:"Revisa tu bandeja de entrada y confirma tu cuenta antes de ingresar.", confirmButtonColor:"#8b1a1a" });
+        Swal.fire({
+          icon: "warning",
+          title: "Confirma tu correo",
+          text: "Revisa tu bandeja de entrada y confirma tu cuenta antes de ingresar.",
+          confirmButtonColor: "#8b1a1a"
+        });
       } else {
         showErr("Credenciales incorrectas", "Usuario o contraseña incorrectos.");
       }
@@ -321,7 +394,12 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
 
     if (!authData.user.email_confirmed_at) {
       await supabase.auth.signOut();
-      Swal.fire({ icon:"warning", title:"Confirma tu correo", text:"Debes confirmar tu correo antes de ingresar.", confirmButtonColor:"#8b1a1a" });
+      Swal.fire({
+        icon: "warning",
+        title: "Confirma tu correo",
+        text: "Debes confirmar tu correo antes de ingresar.",
+        confirmButtonColor: "#8b1a1a"
+      });
       return;
     }
 
