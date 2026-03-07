@@ -1124,7 +1124,7 @@ async function loadReferidos() {
   el.innerHTML = `<div class="spin-wrap"><div class="spinner"></div></div>`;
 
   const codigoRef = currentProfile.codigo_referido || await generarCodigoReferido();
-  const refLink   = `${window.location.origin}/auth/registro.html?ref=${codigoRef}`;
+  const refLink   = `${window.location.origin}ElJuegoDelPadrino/auth/registro.html?ref=${codigoRef}`;
 
   const { data:refs } = await supabase
     .from("referidos")
@@ -1524,3 +1524,4 @@ window.modalCambiarPassword = async () => {
    ARRANQUE
 ═══════════════════════════════════════ */
 loadSection("sorteos");
+
