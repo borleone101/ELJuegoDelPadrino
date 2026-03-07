@@ -9,8 +9,8 @@ const getEl = id => document.getElementById(id);
 
 const swal$ = { background:'#131009', color:'#e6dcc8', confirmButtonColor:'#8b1a1a', cancelButtonColor:'#221c14' };
 
-const toast = (title, icon="success") => Swal.fire({
-  title, icon, toast:true, position:"top-end", showConfirmButton:false, timer:2800, timerProgressBar:true,
+const toast = (title, icon="success", timer=2800) => Swal.fire({
+  title, icon, toast:true, position:"top-end", showConfirmButton:false, timer, timerProgressBar:true,
   background:'#1b1610', color:'#e6dcc8',
   iconColor: icon==="success"?"#4ade80":icon==="error"?"#f87171":"#d4a017"
 });
@@ -31,8 +31,25 @@ function fmtDateShort(d) {
 }
 function fmtMoney(n) { return `Bs ${Number(n||0).toFixed(2)}`; }
 
+/* ── Countdown helper ── */
+function fmtCountdown(ms) {
+  if (ms <= 0) return "Vencido";
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+function msHastaVencer(createdAt) {
+  const vence = new Date(createdAt).getTime() + 24 * 3600000;
+  return vence - Date.now();
+}
+
 /* ═══════════════════════════════════════
-   FILTROS COMPACTOS — chip style
+   FILTROS COMPACTOS — PILL style mejorado
+   (más pequeños, no invasivos, mobile-first)
 ═══════════════════════════════════════ */
 function buildFilterBar({ searchId, searchPlaceholder="Buscar…", chips=[], sortId, countId }) {
   const searchHtml = searchId ? `
@@ -44,14 +61,14 @@ function buildFilterBar({ searchId, searchPlaceholder="Buscar…", chips=[], sor
   const chipsHtml = chips.map(c => `
     <div class="fc-chip-wrap">
       <select id="${c.id}" class="fc-chip">
-        ${c.options.map(o=>`<option value="${o.value}">${o.icon?o.icon+" ":""}${o.label}</option>`).join("")}
+        ${c.options.map(o=>`<option value="${o.value}">${o.label}</option>`).join("")}
       </select>
       <i class="bi bi-chevron-down fc-chip-arr"></i>
     </div>`).join("");
 
   const sortHtml = sortId ? `
     <div class="fc-chip-wrap">
-      <select id="${sortId}" class="fc-chip fc-chip-sort">
+      <select id="${sortId}" class="fc-chip">
         <option value="desc">↓ Reciente</option>
         <option value="asc">↑ Antiguo</option>
       </select>
@@ -83,40 +100,67 @@ function emptyFilter(msg="Sin resultados") {
 }
 
 /* ═══════════════════════════════════════
-   AUTH — verificación estricta de sesión
+   AUTH
 ═══════════════════════════════════════ */
 const { data:{ session }, error: sessionError } = await supabase.auth.getSession();
 if (!session || sessionError) {
   window.location.href = "../../auth/login.html"; throw 0;
 }
-
-// Siempre verificar con el servidor, no solo con caché local
 const { data:{ user }, error: userError } = await supabase.auth.getUser();
 if (!user || userError) {
   await supabase.auth.signOut();
   window.location.href = "../../auth/login.html"; throw 0;
 }
-
-// Guardar el ID en constante inmutable para todo el módulo
 const MY_USER_ID = user.id;
 
 const { data:profile, error:profileError } = await supabase
   .from("profiles").select("*").eq("id", MY_USER_ID).single();
-
 if (!profile || profileError || profile.estado === "suspendido") {
   await supabase.auth.signOut();
   window.location.href = "../../auth/login.html"; throw 0;
 }
 
 /* ═══════════════════════════════════════
-   ESTADO GLOBAL — siempre ligado a MY_USER_ID
+   ESTADO GLOBAL
 ═══════════════════════════════════════ */
 let currentProfile = { ...profile };
 let boletosGratis = 0;
 let boletosGratisDetalle = [];
+// Timers de countdown para boletos gratis
+const countdownTimers = new Map();
+
+/* ═══════════════════════════════════════
+   BOLETOS GRATIS — LÓGICA CORE
+   - Máx 3 por usuario
+   - Vencen en 24h desde created_at
+   - Se limpian automáticamente al cargar
+═══════════════════════════════════════ */
+const MAX_BOLETOS_GRATIS = 3;
+
+async function limpiarBoletosVencidos() {
+  // Borrar boletos vencidos (no usados, creados hace más de 24h)
+  const hace24h = new Date(Date.now() - 24 * 3600000).toISOString();
+  const { data: vencidos } = await supabase
+    .from("boletos_gratis")
+    .select("id")
+    .eq("user_id", MY_USER_ID)
+    .eq("usado", false)
+    .lt("created_at", hace24h);
+
+  if (vencidos?.length) {
+    await supabase
+      .from("boletos_gratis")
+      .delete()
+      .in("id", vencidos.map(b => b.id))
+      .eq("user_id", MY_USER_ID);
+  }
+  return vencidos?.length || 0;
+}
 
 async function refreshProfile() {
-  // Siempre usar MY_USER_ID, nunca datos de otro usuario
+  // Limpiar vencidos silenciosamente en cada refresh
+  await limpiarBoletosVencidos();
+
   const { data } = await supabase
     .from("profiles").select("*").eq("id", MY_USER_ID).single();
   if (data) currentProfile = { ...data };
@@ -124,14 +168,86 @@ async function refreshProfile() {
   const { data:bgs } = await supabase
     .from("boletos_gratis")
     .select("id,origen,created_at")
-    .eq("user_id", MY_USER_ID)   // ← filtro explícito
-    .eq("usado", false);
+    .eq("user_id", MY_USER_ID)
+    .eq("usado", false)
+    .order("created_at", { ascending: true });
 
   boletosGratisDetalle = bgs || [];
   boletosGratis = boletosGratisDetalle.length;
   return currentProfile;
 }
 await refreshProfile();
+
+/* ── Notificar boleto gratis recibido ── */
+function notificarBoletosGratis(boletos, origen="Recompensa") {
+  Swal.fire({
+    title: `🎁 ¡Boleto${boletos>1?"s":""} gratis recibido${boletos>1?"s":""}!`,
+    html: `
+      <div style="text-align:center">
+        <div style="font-size:2.5rem;margin-bottom:.5rem">🎟️</div>
+        <div style="font-size:.95rem;color:var(--cream);margin-bottom:.4rem">
+          Tienes <strong style="color:#22c55e">${boletos} boleto${boletos>1?"s":""} gratis</strong> nuevo${boletos>1?"s":""}
+        </div>
+        <div style="font-size:.8rem;color:var(--muted);margin-bottom:.6rem">Origen: ${origen}</div>
+        <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:.6rem .9rem;font-size:.78rem;color:#fbbf24">
+          <i class="bi bi-clock"></i> Válidos por <strong>24 horas</strong> — solo 1 por sorteo
+        </div>
+      </div>`,
+    icon:"success", confirmButtonText:"¡Entendido!", ...swal$, timer:8000, timerProgressBar:true,
+  });
+}
+
+/* ── Intentar otorgar boleto gratis (max 3) ── */
+async function otorgarBoletoGratis(origen) {
+  if (boletosGratis >= MAX_BOLETOS_GRATIS) return false; // Ya tiene el máximo
+  const { error } = await supabase.from("boletos_gratis").insert({
+    user_id: MY_USER_ID,
+    origen,
+    usado: false,
+  });
+  if (!error) {
+    await refreshProfile();
+    notificarBoletosGratis(1, origen);
+    return true;
+  }
+  return false;
+}
+
+/* ── Countdown UI para boletos gratis ── */
+function iniciarCountdownBoletos() {
+  // Limpiar timers anteriores
+  countdownTimers.forEach(t => clearInterval(t));
+  countdownTimers.clear();
+
+  boletosGratisDetalle.forEach(b => {
+    const el = document.getElementById(`bg-cd-${b.id}`);
+    if (!el) return;
+    const tick = () => {
+      const ms = msHastaVencer(b.created_at);
+      if (ms <= 0) {
+        el.textContent = "Vencido";
+        el.style.color = "#f87171";
+        // Refrescar tras vencimiento
+        setTimeout(() => refreshProfile().then(() => {
+          const active = document.querySelector(".section.active")?.id?.replace("sec-","");
+          if (active === "fidelidad") loadFidelidad();
+        }), 1000);
+        clearInterval(countdownTimers.get(b.id));
+        return;
+      }
+      el.textContent = fmtCountdown(ms);
+      // Urgencia cuando quedan menos de 2h
+      if (ms < 7200000) {
+        el.style.color = "#f87171";
+        el.style.fontWeight = "700";
+      } else if (ms < 7200000 * 3) {
+        el.style.color = "#fbbf24";
+      }
+    };
+    tick();
+    countdownTimers.set(b.id, setInterval(tick, 1000));
+  });
+}
 
 function initUserUI(prof) {
   const ini = (prof.username?.[0] || "?").toUpperCase();
@@ -149,12 +265,163 @@ initUserUI(currentProfile);
 async function doLogout() {
   const r = await confirm$("¿Cerrar sesión?", "", "Sí, salir");
   if (r.isConfirmed) {
+    // Detener realtime y timers
+    supabase.removeAllChannels();
+    countdownTimers.forEach(t => clearInterval(t));
     await supabase.auth.signOut();
     window.location.href = "../../auth/login.html";
   }
 }
 getEl("logoutBtn")  && getEl("logoutBtn").addEventListener("click",  doLogout);
 getEl("logoutBtn2") && getEl("logoutBtn2").addEventListener("click", doLogout);
+
+/* ═══════════════════════════════════════
+   AUTO-REFRESH EN TIEMPO REAL
+   Supabase Realtime — sin recargar página
+═══════════════════════════════════════ */
+let realtimeSetup = false;
+
+function setupRealtime() {
+  if (realtimeSetup) return;
+  realtimeSetup = true;
+
+  // ── Canal 1: Rondas — cuando admin abre/cierra/sortea ──
+  supabase
+    .channel("rounds-watch")
+    .on("postgres_changes", { event:"*", schema:"public", table:"rounds" }, async (payload) => {
+      await refreshProfile();
+      initUserUI(currentProfile);
+      const active = document.querySelector(".section.active")?.id?.replace("sec-","");
+      // Actualizar silenciosamente la sección activa
+      if (active === "sorteos") loadSorteos();
+      else if (active === "historial") loadHistorial();
+      // Notificar al usuario según el evento
+      if (payload.eventType === "UPDATE") {
+        const nuevo  = payload.new;
+        const previo = payload.old;
+        if (previo?.estado === "abierta" && nuevo?.estado === "sorteada") {
+          toast("🎲 ¡Se realizó un sorteo! Revisa tu historial.", "info", 4000);
+        } else if (nuevo?.estado === "abierta" && previo?.estado !== "abierta") {
+          toast("🎟️ Nueva ronda disponible", "success", 3000);
+        }
+      }
+    })
+    .subscribe();
+
+  // ── Canal 2: Mis pagos — cuando admin aprueba/rechaza ──
+  supabase
+    .channel("my-payments-watch")
+    .on("postgres_changes", {
+      event:"UPDATE", schema:"public", table:"payments",
+      filter:`user_id=eq.${MY_USER_ID}`
+    }, async (payload) => {
+      await refreshProfile();
+      initUserUI(currentProfile);
+      const active = document.querySelector(".section.active")?.id?.replace("sec-","");
+      if (active === "pagos" || active === "sorteos") {
+        if (active === "pagos") loadPagos();
+        else loadSorteos();
+      }
+      // Notificar estado del pago
+      const estado = payload.new?.estado;
+      if (estado === "aprobado") {
+        toast("✅ Tu pago fue aprobado — ya eres parte del sorteo!", "success", 4000);
+      } else if (estado === "rechazado") {
+        Swal.fire({
+          title:"⚠️ Pago rechazado",
+          html:`Tu comprobante fue rechazado por el administrador.<br><small style="color:var(--muted)">Revisa la sección "Mis pagos" para más detalles.</small>`,
+          icon:"warning", confirmButtonText:"Ver mis pagos", ...swal$,
+        }).then(r => { if (r.isConfirmed) loadSection("pagos"); });
+      }
+    })
+    .subscribe();
+
+  // ── Canal 3: Mis participaciones — cuando el sorteo me incluye ──
+  supabase
+    .channel("my-parts-watch")
+    .on("postgres_changes", {
+      event:"UPDATE", schema:"public", table:"participations",
+      filter:`user_id=eq.${MY_USER_ID}`
+    }, async (payload) => {
+      await refreshProfile();
+      initUserUI(currentProfile);
+      const active = document.querySelector(".section.active")?.id?.replace("sec-","");
+      if (active === "historial") loadHistorial();
+      const res = payload.new?.resultado;
+      if (res === "ganada") {
+        Swal.fire({
+          title:"🏆 ¡GANASTE!",
+          html:`<div style="text-align:center"><div style="font-size:3rem">🎉</div>
+            <div style="color:var(--cream);font-size:1.05rem;margin:.5rem 0">¡Felicidades! Ganaste en un sorteo.</div>
+            <div style="font-size:.82rem;color:var(--muted)">El administrador te enviará tu premio al QR registrado.</div></div>`,
+          icon:"success", confirmButtonText:"¡Genial!", ...swal$,
+        });
+      } else if (res === "perdida") {
+        toast("Sin suerte esta vez. ¡Sigue participando!", "info", 3500);
+      }
+    })
+    .subscribe();
+
+  // ── Canal 4: Mis boletos gratis — cuando se otorgan nuevos ──
+  supabase
+    .channel("my-boletos-gratis-watch")
+    .on("postgres_changes", {
+      event:"INSERT", schema:"public", table:"boletos_gratis",
+      filter:`user_id=eq.${MY_USER_ID}`
+    }, async (payload) => {
+      await refreshProfile();
+      initUserUI(currentProfile);
+      notificarBoletosGratis(1, payload.new?.origen || "Recompensa");
+      // Si está en fidelidad, refrescar
+      const active = document.querySelector(".section.active")?.id?.replace("sec-","");
+      if (active === "fidelidad") loadFidelidad();
+    })
+    .subscribe();
+
+  // ── Canal 5: Mi perfil — cuando admin actualiza QR o saldo ──
+  supabase
+    .channel("my-profile-watch")
+    .on("postgres_changes", {
+      event:"UPDATE", schema:"public", table:"profiles",
+      filter:`id=eq.${MY_USER_ID}`
+    }, async (payload) => {
+      await refreshProfile();
+      initUserUI(currentProfile);
+      // QR verificado
+      if (!payload.old?.qr_verificado && payload.new?.qr_verificado) {
+        qrState.verificado = true;
+        toast("✅ Tu QR fue verificado. ¡Ya puedes participar!", "success", 5000);
+        const active = document.querySelector(".section.active")?.id?.replace("sec-","");
+        if (active === "sorteos") loadSorteos();
+      }
+    })
+    .subscribe();
+
+  // ── Canal 6: Premios — cuando admin envía pago de premio ──
+  supabase
+    .channel("my-prizes-watch")
+    .on("postgres_changes", {
+      event:"INSERT", schema:"public", table:"prize_payments",
+      filter:`user_id=eq.${MY_USER_ID}`
+    }, async (payload) => {
+      await refreshProfile();
+      initUserUI(currentProfile);
+      const monto = payload.new?.monto;
+      Swal.fire({
+        title:"💰 ¡Premio enviado!",
+        html:`<div style="text-align:center">
+          <div style="font-size:2rem;margin-bottom:.4rem">🏆</div>
+          <div style="color:var(--cream)">El administrador te envió <strong style="color:#22c55e">${fmtMoney(monto)}</strong></div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem">Revisa la sección "Mis premios" para los detalles.</div>
+        </div>`,
+        icon:"success", confirmButtonText:"Ver mis premios", ...swal$,
+      }).then(r => { if (r.isConfirmed) loadSection("premios"); });
+    })
+    .subscribe();
+}
+
+// Iniciar realtime tras cargar
+setupRealtime();
 
 /* ═══════════════════════════════════════
    QR STATE
@@ -187,7 +454,7 @@ function qrBanner() {
     <div class="qgb-icon"><i class="bi bi-hourglass-split"></i></div>
     <div class="qgb-body">
       <div class="qgb-title">QR pendiente de verificación</div>
-      <div class="qgb-sub">El administrador está revisando tu QR.</div>
+      <div class="qgb-sub">El administrador está revisando tu QR. Recibirás una notificación cuando sea aprobado.</div>
     </div>
     <button class="btn btn-ghost btn-sm" onclick="modalVerMiQR()">
       <i class="bi bi-eye"></i> Ver
@@ -266,17 +533,16 @@ window.modalSubirQR = async (esAct=false) => {
   try { qr_url = await uploadFile(v.file, "el-padrino/qr-cobros"); }
   catch { Swal.close(); ok$("Error al subir imagen", "", "error"); return; }
 
-  // Actualizar SOLO el perfil del usuario actual
   const { error } = await supabase
     .from("profiles")
     .update({ qr_cobro_url:qr_url, qr_metodo:v.metodo, qr_verificado:false, qr_subido_at:new Date().toISOString() })
-    .eq("id", MY_USER_ID);   // ← siempre MY_USER_ID
+    .eq("id", MY_USER_ID);
 
   Swal.close();
   if (error) { ok$("Error", error.message, "error"); return; }
 
   qrState = { subido:true, verificado:false, url:qr_url, metodo:v.metodo, subidoAt:new Date().toISOString() };
-  await ok$("QR subido correctamente", "El administrador lo revisará. Una vez verificado podrás comprar boletos.", "success");
+  await ok$("QR subido correctamente", "El administrador lo revisará pronto. Recibirás una notificación cuando sea aprobado.", "success");
 
   const active = document.querySelector(".section.active")?.id?.replace("sec-","");
   if (active) loadSection(active);
@@ -295,7 +561,7 @@ window.modalVerMiQR = () => {
         </div>
         <div style="background:var(--ink3);border:1px solid var(--border);border-radius:8px;padding:.6rem">
           <div style="font-size:.68rem;color:var(--muted);margin-bottom:.2rem">ESTADO</div>
-          <div>${qrState.verificado?'<span style="color:#22c55e">Verificado</span>':'<span style="color:#f59e0b">En revisión</span>'}</div>
+          <div>${qrState.verificado?'<span style="color:#22c55e">✅ Verificado</span>':'<span style="color:#f59e0b">⏳ En revisión</span>'}</div>
         </div>
       </div>`,
     showCancelButton:true,
@@ -324,9 +590,12 @@ function loadSection(sec) {
   secciones[sec]?.();
 }
 document.querySelectorAll("[data-sec]").forEach(btn => btn.addEventListener("click", () => loadSection(btn.dataset.sec)));
-getEl("btnRefresh") && getEl("btnRefresh").addEventListener("click", () => {
+getEl("btnRefresh") && getEl("btnRefresh").addEventListener("click", async () => {
   const active = document.querySelector(".section.active")?.id?.replace("sec-","") || "sorteos";
+  await refreshProfile();
+  initUserUI(currentProfile);
   loadSection(active);
+  toast("Actualizado", "success", 1500);
 });
 
 /* ═══════════════════════════════════════
@@ -340,9 +609,7 @@ function getNivel(t) {
   return             { key:"novato",       label:"Novato",        clase:"nivel-novato"       };
 }
 
-// Info del fondo de la ronda — datos públicos de la ronda, no de usuarios
 async function verificarFondoRonda(roundId) {
-  // Contar boletos gratis en la ronda (info pública de participación)
   const { data:pts } = await supabase
     .from("participations")
     .select("boletos, es_gratis")
@@ -351,38 +618,29 @@ async function verificarFondoRonda(roundId) {
   return { boletosGratisEnRonda:gratisEnRonda, riesgo:gratisEnRonda>=3 };
 }
 
-/* ═══════════════════════════════════════
-   BOLETO GRATIS EN RONDA
-   - ¿Ya usé YO uno aquí? → query filtrada por MY_USER_ID
-   - ¿Cuántos otros tienen gratis? → conteo anónimo, sin exponer IDs
-═══════════════════════════════════════ */
 async function estadoBoletoGratisEnRonda(roundId) {
-  // Solo mis boletos gratis usados en esta ronda
   const { data:miUso } = await supabase
     .from("boletos_gratis")
     .select("id")
-    .eq("user_id", MY_USER_ID)      // ← solo el mío
+    .eq("user_id", MY_USER_ID)
     .eq("usado_en_round", roundId)
     .limit(1);
   const yoUse = (miUso?.length || 0) > 0;
 
-  // Contar cuántas participaciones gratis hay en la ronda (sin exponer user_ids)
   const { count:totalGratisEnRonda } = await supabase
     .from("participations")
     .select("id", { count:"exact", head:true })
     .eq("round_id", roundId)
     .eq("es_gratis", true);
 
-  // ¿Yo ya participé con gratis? (desde participations)
   const { count:yoGratisEnPart } = await supabase
     .from("participations")
     .select("id", { count:"exact", head:true })
     .eq("round_id", roundId)
-    .eq("user_id", MY_USER_ID)      // ← solo el mío
+    .eq("user_id", MY_USER_ID)
     .eq("es_gratis", true);
 
   const miGratis = (yoGratisEnPart || 0) > 0;
-  // Otros = total gratis en ronda menos el mío
   const otrosConGratis = Math.max(0, (totalGratisEnRonda||0) - (miGratis ? 1 : 0));
 
   return { yoUse: yoUse || miGratis, otrosConGratis, totalGratisEnRonda: totalGratisEnRonda||0 };
@@ -390,12 +648,12 @@ async function estadoBoletoGratisEnRonda(roundId) {
 
 /* ═══════════════════════════════════════
    SORTEOS ACTIVOS
-   FIX PRINCIPAL: queries separadas para
-   datos públicos de la ronda vs datos propios
 ═══════════════════════════════════════ */
 async function loadSorteos() {
   const container = getEl("sorteosList"); if (!container) return;
-  container.innerHTML = `<div class="spin-wrap"><div class="spinner"></div></div>`;
+  // Actualización silenciosa: no mostrar spinner si ya hay contenido
+  const tieneContenido = container.children.length > 0 && !container.querySelector(".spin-wrap");
+  if (!tieneContenido) container.innerHTML = `<div class="spin-wrap"><div class="spinner"></div></div>`;
 
   const bannerEl = getEl("qrGateBanner");
   if (bannerEl) {
@@ -403,9 +661,20 @@ async function loadSorteos() {
     if (boletosGratis > 0 && puedeParticipar()) {
       const bfb = document.createElement("div");
       bfb.className = "boleto-gratis-banner";
-      bfb.innerHTML = `<i class="bi bi-gift-fill bfb-icon"></i><div>
-        <div class="bfb-title">Tienes ${boletosGratis} boleto${boletosGratis>1?"s":""} gratis</div>
-        <div class="bfb-sub">Solo puedes usar 1 por sorteo. ¡Compite rápido, pueden terminar!</div>
+
+      // Boleto próximo a vencer
+      const proxVencer = boletosGratisDetalle.reduce((min, b) => {
+        const ms = msHastaVencer(b.created_at);
+        return ms < min ? ms : min;
+      }, Infinity);
+      const urgente = proxVencer < 7200000; // menos de 2h
+
+      bfb.innerHTML = `<i class="bi bi-gift-fill bfb-icon" style="${urgente?"color:#f87171":""}"></i><div>
+        <div class="bfb-title" style="${urgente?"color:#f87171":""}">
+          Tienes ${boletosGratis} boleto${boletosGratis>1?"s":""} gratis
+          ${urgente?'<span style="font-size:.72rem;font-weight:400"> — ¡vence pronto!</span>':""}
+        </div>
+        <div class="bfb-sub">Solo 1 por sorteo · Válido 24h · ${urgente?`<strong style="color:#f87171">Menos de 2h</strong>`:"Úsalo antes de que venza"}</div>
       </div>`;
       bannerEl.appendChild(bfb);
     }
@@ -416,7 +685,7 @@ async function loadSorteos() {
     .eq("estado","abierta").order("created_at",{ascending:false});
 
   if (rErr || !rounds?.length) {
-    container.innerHTML = `<div class="empty"><i class="bi bi-ticket-perforated"></i><p>No hay sorteos activos ahora mismo.</p></div>`;
+    container.innerHTML = `<div class="empty"><i class="bi bi-ticket-perforated"></i><p>No hay sorteos activos ahora mismo.<br><small style="color:var(--dim)">El administrador abrirá nuevas rondas pronto.</small></p></div>`;
     return;
   }
 
@@ -429,9 +698,6 @@ async function loadSorteos() {
   }
 
   const roundsData = await Promise.all(rounds.map(async r => {
-
-    // ── QUERY 1: datos públicos de la ronda (cupos totales, gratis en ronda)
-    //    Solo seleccionamos lo mínimo necesario, sin exponer datos personales
     const { data:allParts } = await supabase
       .from("participations")
       .select("boletos, es_gratis, user_id")
@@ -441,41 +707,29 @@ async function loadSorteos() {
     const boletosGratisEnRonda = (allParts||[])
       .filter(p => p.es_gratis===true)
       .reduce((s,p) => s+(p.boletos||0), 0);
-    // Contar otros con gratis (sin usar sus datos, solo contar)
     const otrosConGratis = (allParts||[])
       .filter(p => p.es_gratis===true && p.user_id !== MY_USER_ID).length;
 
-    // ── QUERY 2: MIS datos en esta ronda — filtrado estrictamente por MY_USER_ID
     const { data:misParts } = await supabase
       .from("participations")
       .select("boletos, es_gratis")
       .eq("round_id", r.id)
-      .eq("user_id", MY_USER_ID);   // ← SOLO MIS datos
+      .eq("user_id", MY_USER_ID);
 
     const misBoletos   = (misParts||[]).reduce((s,p) => s+(p.boletos||1), 0);
     const yoUseGratis  = (misParts||[]).some(p => p.es_gratis===true);
 
-    // ── QUERY 3: mi pago en esta ronda — filtrado por MY_USER_ID
     const { data:myPay } = await supabase
       .from("payments")
       .select("id, estado")
       .eq("round_id", r.id)
-      .eq("user_id", MY_USER_ID)   // ← SOLO MI pago
+      .eq("user_id", MY_USER_ID)
       .maybeSingle();
 
-    return {
-      ...r,
-      cupos,
-      game: gamesMap[r.game_id],
-      misBoletos,
-      miPago: myPay,
-      boletosGratisEnRonda,
-      yoUseGratis,
-      otrosConGratis,
-    };
+    return { ...r, cupos, game: gamesMap[r.game_id], misBoletos, miPago: myPay,
+      boletosGratisEnRonda, yoUseGratis, otrosConGratis };
   }));
 
-  // Ordenar: mis sorteos primero, luego más llenos primero
   const conMi  = roundsData.filter(r => r.misBoletos > 0);
   const sinMi  = roundsData.filter(r => r.misBoletos === 0);
   sinMi.sort((a,b) => b.cupos - a.cupos);
@@ -559,13 +813,57 @@ async function loadSorteos() {
 
 /* ═══════════════════════════════════════
    MODAL COMPRAR BOLETO
+   FIX SEGURIDAD: una vez enviado comprobante,
+   no se puede cambiar la cantidad
 ═══════════════════════════════════════ */
 window.modalComprarBoleto = async (roundId, gameNombre, numRonda, precioBoleto, cuposActuales) => {
   if (!puedeParticipar()) { modalSubirQR(); return; }
   const cuposLibres = 25 - cuposActuales;
-  const maxBoletos  = Math.min(cuposLibres, 5);
+  const maxBoletos  = Math.min(cuposLibres, 3); // máx 3 por compra (mismo límite que boletos gratis)
   if (maxBoletos <= 0) { toast("Esta ronda ya está llena", "error"); return; }
 
+  // ── Verificar si ya tiene pago APROBADO en esta ronda (no puede cambiar boletos) ──
+  const { data:pagoExistente } = await supabase
+    .from("payments")
+    .select("id,estado,boletos_solicitados")
+    .eq("round_id", roundId)
+    .eq("user_id", MY_USER_ID)
+    .maybeSingle();
+
+  if (pagoExistente?.estado === "aprobado") {
+    // Ya tiene boletos aprobados — solo puede comprar más, informar al usuario
+    Swal.fire({
+      title:"Ya tienes boletos aprobados",
+      html:`Tienes <strong style="color:var(--gold2)">${pagoExistente.boletos_solicitados} boleto${pagoExistente.boletos_solicitados>1?"s":""}</strong> confirmados en esta ronda.<br>
+        <small style="color:var(--muted)">Si compras más, deberás enviar un nuevo comprobante.</small>`,
+      icon:"info",
+      showCancelButton:true,
+      confirmButtonText:"Comprar boletos adicionales",
+      cancelButtonText:"Cancelar",
+      ...swal$
+    }).then(r => { if (r.isConfirmed) abrirModalCompra(roundId, gameNombre, numRonda, precioBoleto, cuposLibres, maxBoletos, true); });
+    return;
+  }
+
+  if (pagoExistente?.estado === "pendiente") {
+    // ── SEGURIDAD: ya envió comprobante, prohibido cambiar cantidad ──
+    Swal.fire({
+      title:"Comprobante en revisión",
+      html:`<div style="text-align:center">
+        <div style="font-size:2rem;margin-bottom:.4rem">⏳</div>
+        <div style="color:var(--cream)">Ya enviaste un comprobante por <strong>${pagoExistente.boletos_solicitados} boleto${pagoExistente.boletos_solicitados>1?"s":""}</strong>.</div>
+        <div style="font-size:.82rem;color:var(--muted);margin-top:.4rem">El administrador está revisando tu pago. Por seguridad, no es posible modificar la cantidad hasta que sea procesado.</div>
+      </div>`,
+      icon:"warning", confirmButtonText:"Entendido", ...swal$
+    });
+    return;
+  }
+
+  // Sin pago previo — abrir modal normal
+  abrirModalCompra(roundId, gameNombre, numRonda, precioBoleto, cuposLibres, maxBoletos, false);
+};
+
+async function abrirModalCompra(roundId, gameNombre, numRonda, precioBoleto, cuposLibres, maxBoletos, esAdicional) {
   const gratisStatus  = await estadoBoletoGratisEnRonda(roundId);
   const puedoUsarGratis = boletosGratis > 0 && !gratisStatus.yoUse;
 
@@ -573,12 +871,22 @@ window.modalComprarBoleto = async (roundId, gameNombre, numRonda, precioBoleto, 
   if (puedoUsarGratis && gratisStatus.otrosConGratis > 0) {
     competenciaHtml = `<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.28);border-radius:8px;padding:.65rem .9rem;margin-bottom:.85rem;font-size:.82rem;display:flex;align-items:center;gap:.6rem">
       <i class="bi bi-lightning-charge-fill" style="color:#f59e0b;flex-shrink:0"></i>
-      <span style="color:#e6dcc8">${gratisStatus.otrosConGratis} jugador${gratisStatus.otrosConGratis>1?"es ya usan":"ya usa"} boleto gratis en este sorteo. <strong style="color:#fbbf24">¡Compite rápido!</strong></span>
+      <span style="color:#e6dcc8">${gratisStatus.otrosConGratis} jugador${gratisStatus.otrosConGratis>1?"es ya usan":"ya usa"} boleto gratis aquí. <strong style="color:#fbbf24">¡Compite rápido!</strong></span>
     </div>`;
   }
   if (gratisStatus.yoUse) {
     competenciaHtml = `<div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.22);border-radius:8px;padding:.6rem .9rem;margin-bottom:.85rem;font-size:.82rem;color:#86efac;display:flex;align-items:center;gap:.5rem">
       <i class="bi bi-check-circle-fill"></i> Ya usaste tu boleto gratis en este sorteo.
+    </div>`;
+  }
+
+  // Mostrar vencimiento del boleto gratis disponible
+  let gratisVencimientoHtml = "";
+  if (puedoUsarGratis && boletosGratisDetalle.length > 0) {
+    const msVence = msHastaVencer(boletosGratisDetalle[0].created_at);
+    const urgente = msVence < 3600000;
+    gratisVencimientoHtml = `<div style="font-size:.7rem;color:${urgente?"#f87171":"var(--muted)"};margin-top:.2rem">
+      <i class="bi bi-clock"></i> Vence en ${fmtCountdown(msVence)} ${urgente?"⚠️":""}
     </div>`;
   }
 
@@ -589,20 +897,20 @@ window.modalComprarBoleto = async (roundId, gameNombre, numRonda, precioBoleto, 
        </div>` : "";
 
   const { value:v } = await Swal.fire({
-    title:`Participar — ${gameNombre}`,
+    title:`${esAdicional?"Boletos adicionales — ":""}${gameNombre}`,
     html:`<div style="text-align:left;padding-right:.2rem">
       ${fondoWarnHtml}
       ${competenciaHtml}
       <div style="background:var(--ink3);border:1px solid var(--bord-g);border-radius:10px;padding:.7rem 1rem;margin-bottom:.85rem">
         <div style="font-family:'Oswald',sans-serif;font-size:.88rem;color:#fff">Ronda #${numRonda}</div>
-        <div style="font-size:.78rem;color:var(--muted);margin-top:.1rem">${cuposLibres} cupo${cuposLibres!==1?"s":""} disponible${cuposLibres!==1?"s":""}</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-top:.1rem">${cuposLibres} cupo${cuposLibres!==1?"s":""} disponible${cuposLibres!==1?"s":""} · Máx. ${maxBoletos} por compra</div>
       </div>
       ${puedoUsarGratis ? `
       <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.22);border-radius:8px;padding:.7rem 1rem;margin-bottom:.7rem;display:flex;align-items:center;gap:.7rem">
         <i class="bi bi-gift-fill" style="color:#22c55e;font-size:1.1rem"></i>
         <div>
           <div style="font-size:.85rem;font-weight:600;color:#22c55e">Tienes ${boletosGratis} boleto${boletosGratis>1?"s":""} gratis</div>
-          <div style="font-size:.75rem;color:var(--muted)">Máximo 1 por sorteo</div>
+          ${gratisVencimientoHtml}
         </div>
       </div>
       <div style="margin-bottom:.85rem;display:flex;align-items:center;gap:.5rem;padding:.55rem .8rem;background:var(--ink3);border:1px solid var(--border);border-radius:8px;cursor:pointer"
@@ -636,7 +944,7 @@ window.modalComprarBoleto = async (roundId, gameNombre, numRonda, precioBoleto, 
           </select>
         </div>
         <div class="field" style="margin-bottom:.75rem">
-          <label>Comprobante * <span style="font-size:.68rem;color:var(--muted);text-transform:none;font-weight:400">(JPG/PNG, máx. 5MB)</span></label>
+          <label>Comprobante * <span style="color:var(--muted);font-size:.68rem;text-transform:none;font-weight:400">(JPG/PNG, máx. 5MB)</span></label>
           <input type="file" id="bComp" accept="image/*"
             style="width:100%;background:var(--ink3);border:1px solid var(--border);color:var(--cream);border-radius:7px;padding:.45rem .8rem;font-size:.85rem">
           <img id="bPrev" style="display:none;width:100%;max-height:100px;object-fit:contain;margin-top:.5rem;border-radius:8px">
@@ -645,6 +953,9 @@ window.modalComprarBoleto = async (roundId, gameNombre, numRonda, precioBoleto, 
           <label>Referencia / Nro. operación</label>
           <input id="bRef" placeholder="Opcional"
             style="width:100%;background:#1b1610;border:1px solid rgba(139,26,26,.28);color:#e6dcc8;border-radius:8px;padding:.5rem .8rem;font-size:.88rem">
+        </div>
+        <div style="font-size:.72rem;color:var(--dim);margin-top:.4rem;padding:.4rem .6rem;background:rgba(139,26,26,.05);border:1px solid rgba(139,26,26,.12);border-radius:6px">
+          <i class="bi bi-lock-fill" style="color:#f87171"></i> Una vez enviado el comprobante, la cantidad no puede modificarse.
         </div>
       </div>
     </div>`,
@@ -702,19 +1013,19 @@ window.modalComprarBoleto = async (roundId, gameNombre, numRonda, precioBoleto, 
   });
   if (!v) return;
 
-  loading$("Enviando…");
+  loading$("Enviando comprobante…");
 
-  // Marcar boleto gratis — solo del usuario actual
+  // Marcar boleto gratis
   if (v.usarGratis) {
     const { data:bgDisp } = await supabase
       .from("boletos_gratis").select("id")
-      .eq("user_id", MY_USER_ID)   // ← siempre MY_USER_ID
+      .eq("user_id", MY_USER_ID)
       .eq("usado", false).limit(1);
     if (bgDisp?.length) {
       await supabase.from("boletos_gratis")
         .update({ usado:true, usado_en_round:roundId, usado_at:new Date().toISOString() })
         .eq("id", bgDisp[0].id)
-        .eq("user_id", MY_USER_ID); // ← doble verificación
+        .eq("user_id", MY_USER_ID);
     }
   }
 
@@ -725,7 +1036,7 @@ window.modalComprarBoleto = async (roundId, gameNombre, numRonda, precioBoleto, 
   }
 
   const { error:payError } = await supabase.from("payments").insert({
-    user_id:    MY_USER_ID,    // ← siempre MY_USER_ID
+    user_id:    MY_USER_ID,
     round_id:   roundId,
     metodo:     v.boletosAPagar===0 ? "gratis" : (v.metodo||"manual"),
     monto:      precioBoleto * v.boletosAPagar || 0,
@@ -742,24 +1053,26 @@ window.modalComprarBoleto = async (roundId, gameNombre, numRonda, precioBoleto, 
   Swal.close();
 
   await Swal.fire({
-    title:"¡Listo! Comprobante enviado",
-    html:`El admin revisará y confirmará tus <strong style="color:var(--gold2)">${v.boletos} boleto${v.boletos>1?"s":""}${v.usarGratis?" (incluye 1 gratis)":""}</strong>.`,
+    title:"✅ Comprobante enviado",
+    html:`El admin revisará y confirmará tus <strong style="color:var(--gold2)">${v.boletos} boleto${v.boletos>1?"s":""}${v.usarGratis?" (incluye 1 gratis)":""}</strong>.<br>
+      <small style="color:var(--muted)">Recibirás una notificación cuando sea aprobado.</small>`,
     icon:"success", confirmButtonText:"OK", ...swal$
   });
   loadSorteos();
-};
+}
 
 /* ═══════════════════════════════════════
    MI HISTORIAL
 ═══════════════════════════════════════ */
 async function loadHistorial() {
   const el = getEl("historialList"); if (!el) return;
-  el.innerHTML = `<div class="spin-wrap"><div class="spinner"></div></div>`;
+  const tieneContenido = el.children.length > 0 && !el.querySelector(".spin-wrap");
+  if (!tieneContenido) el.innerHTML = `<div class="spin-wrap"><div class="spinner"></div></div>`;
 
   const { data:parts, error } = await supabase
     .from("participations")
     .select("id,boletos,resultado,lugar,es_gratis,created_at,round_id")
-    .eq("user_id", MY_USER_ID)   // ← solo mis participaciones
+    .eq("user_id", MY_USER_ID)
     .order("created_at", {ascending:false});
 
   if (error || !parts?.length) {
@@ -875,7 +1188,6 @@ window.modalVerGanadores = async (roundId) => {
     ? await supabase.from("games").select("nombre").eq("id", round.game_id).single()
     : { data:null };
 
-  // Solo traer username (no datos sensibles) de los ganadores
   const ids = [round?.ganador_id, round?.ganador2_id, round?.ganador3_id].filter(Boolean);
   let usersMap = {};
   if (ids.length) {
@@ -919,12 +1231,13 @@ window.modalVerGanadores = async (roundId) => {
 ═══════════════════════════════════════ */
 async function loadPagos() {
   const el = getEl("pagosList"); if (!el) return;
-  el.innerHTML = `<div class="spin-wrap"><div class="spinner"></div></div>`;
+  const tieneContenido = el.children.length > 0 && !el.querySelector(".spin-wrap");
+  if (!tieneContenido) el.innerHTML = `<div class="spin-wrap"><div class="spinner"></div></div>`;
 
   const { data:pays, error } = await supabase
     .from("payments")
     .select("id,monto,metodo,estado,boletos_solicitados,comprobante_url,created_at,round_id,referencia")
-    .eq("user_id", MY_USER_ID)   // ← solo mis pagos
+    .eq("user_id", MY_USER_ID)
     .order("created_at", {ascending:false});
 
   if (error || !pays?.length) {
@@ -1021,12 +1334,13 @@ async function loadPagos() {
 ═══════════════════════════════════════ */
 async function loadPremios() {
   const el = getEl("premiosList"); if (!el) return;
-  el.innerHTML = `<div class="spin-wrap"><div class="spinner"></div></div>`;
+  const tieneContenido = el.children.length > 0 && !el.querySelector(".spin-wrap");
+  if (!tieneContenido) el.innerHTML = `<div class="spin-wrap"><div class="spinner"></div></div>`;
 
   const { data:premiosData, error } = await supabase
     .from("prize_payments")
     .select("id,monto,metodo,referencia,notas,estado,lugar,created_at,round_id")
-    .eq("user_id", MY_USER_ID)   // ← solo mis premios
+    .eq("user_id", MY_USER_ID)
     .order("created_at", {ascending:false});
 
   if (error || !premiosData?.length) {
@@ -1129,7 +1443,7 @@ async function loadReferidos() {
   const { data:refs } = await supabase
     .from("referidos")
     .select("id,referido_id,estado,creado_at,boleto_otorgado,boletos_pagados,profiles!referido_id(username)")
-    .eq("referidor_id", MY_USER_ID)   // ← solo mis referidos
+    .eq("referidor_id", MY_USER_ID)
     .order("creado_at", {ascending:false});
 
   const allRefs     = refs || [];
@@ -1171,9 +1485,9 @@ async function loadReferidos() {
           <strong style="color:var(--cream);display:block;margin-bottom:.3rem"><i class="bi bi-info-circle" style="color:var(--gold2)"></i> ¿Cómo funciona?</strong>
           <ul style="padding-left:1rem;line-height:1.8">
             <li>Tu amigo se registra con tu código o link</li>
-            <li>Cuando el admin confirme <strong style="color:var(--cream)">3 boletos pagados</strong>, recibes <strong style="color:#22c55e">1 boleto gratis</strong> automáticamente</li>
+            <li>Cuando el admin confirme <strong style="color:var(--cream)">3 boletos pagados</strong>, recibes <strong style="color:#22c55e">1 boleto gratis</strong> (máx. 3 disponibles)</li>
+            <li>Los boletos gratis <strong style="color:#fbbf24">vencen en 24 horas</strong> — úsalos rápido</li>
             <li>Solo puedes usar <strong style="color:var(--cream)">1 boleto gratis por sorteo</strong></li>
-            <li>¡Compite! Si alguien más tiene boleto gratis en el mismo sorteo, el primero en entrar se queda</li>
           </ul>
         </div>
       </div>
@@ -1235,7 +1549,7 @@ async function generarCodigoReferido() {
   const codigo= `${base}${rand}${ts}`;
   const { error } = await supabase
     .from("profiles").update({ codigo_referido:codigo })
-    .eq("id", MY_USER_ID);   // ← solo mi perfil
+    .eq("id", MY_USER_ID);
   if (!error) currentProfile.codigo_referido = codigo;
   return codigo;
 }
@@ -1244,12 +1558,12 @@ window.copiarLink   = async l => { try { await navigator.clipboard.writeText(l);
 
 /* ═══════════════════════════════════════
    FIDELIDAD
+   + Boletos con countdown de 24h
 ═══════════════════════════════════════ */
 async function loadFidelidad() {
   const el = getEl("fidelidadContent"); if (!el) return;
   el.innerHTML = `<div class="spin-wrap"><div class="spinner"></div></div>`;
 
-  // Todas las queries filtradas por MY_USER_ID
   const { data:parts } = await supabase
     .from("participations").select("boletos")
     .eq("user_id", MY_USER_ID);
@@ -1268,8 +1582,9 @@ async function loadFidelidad() {
 
   const { data:bgsDisp } = await supabase
     .from("boletos_gratis").select("id,origen,created_at")
-    .eq("user_id", MY_USER_ID)   // ← solo mis boletos gratis
-    .eq("usado", false);
+    .eq("user_id", MY_USER_ID)
+    .eq("usado", false)
+    .order("created_at", { ascending: true });
   const bgsTotal = bgsDisp?.length || 0;
 
   const promos = [
@@ -1278,6 +1593,42 @@ async function loadFidelidad() {
     { id:"gastador50",nombre:"El Patrón",        desc:"Acumula Bs 50 en compras y recibe 1 boleto gratis.",          icono:"bi-bank2",             requerido:50, progreso:Math.min(totalGastado,50),   desbloqueada:totalGastado>=50,    limitacion:"Por cada Bs 50"      },
     { id:"racha3",    nombre:"Racha ganadora",   desc:"Invita 3 amigos que compren boletos y recibe 2 gratis.",      icono:"bi-lightning-fill",    requerido:3,  progreso:Math.min(refsActivos,3),     desbloqueada:refsActivos>=3,      limitacion:"Cada 3 referidos"    },
   ];
+
+  // Construir HTML de boletos con countdown
+  const boletosHtml = bgsDisp?.length ? `
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><i class="bi bi-gift-fill"></i>Boletos gratis disponibles</div>
+        <span style="font-size:.72rem;color:var(--muted)">${bgsTotal}/${MAX_BOLETOS_GRATIS} máx.</span>
+      </div>
+      <div class="panel-body" style="padding:.6rem">
+        <div style="background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:.55rem .9rem;margin-bottom:.8rem;font-size:.78rem;color:#fbbf24;display:flex;align-items:center;gap:.5rem">
+          <i class="bi bi-clock-fill"></i> Los boletos vencen a las 24 horas de ser emitidos
+        </div>
+        <div class="item-list">
+          ${bgsDisp.map(b => {
+            const ms     = msHastaVencer(b.created_at);
+            const urgente = ms < 3600000;
+            return `
+            <div class="list-item" style="${urgente?"border-color:rgba(248,113,113,.3)":""}">
+              <div class="li-icon ic-win" style="${urgente?"background:rgba(248,113,113,.12);color:#f87171":""}">
+                <i class="bi bi-gift-fill"></i>
+              </div>
+              <div class="li-body">
+                <div class="li-title">Boleto gratis · <span style="font-size:.8rem;color:var(--muted)">${b.origen||"Promoción"}</span></div>
+                <div class="li-sub">${fmtDateShort(b.created_at)}</div>
+              </div>
+              <div class="li-right" style="align-items:flex-end;gap:.15rem">
+                <span class="bdg bdg-free"><i class="bi bi-ticket-perforated-fill"></i> Disp.</span>
+                <div style="font-size:.72rem;${urgente?"color:#f87171;font-weight:700":"color:var(--muted)"}">
+                  <i class="bi bi-clock"></i> <span id="bg-cd-${b.id}">${fmtCountdown(ms)}</span>
+                </div>
+              </div>
+            </div>`
+          }).join("")}
+        </div>
+      </div>
+    </div>` : "";
 
   el.innerHTML = `
     <div class="panel">
@@ -1291,19 +1642,25 @@ async function loadFidelidad() {
         </div>
       </div>
     </div>
-    ${bgsTotal>0 ? `<div class="boleto-gratis-banner">
+    ${bgsTotal > 0 ? `<div class="boleto-gratis-banner">
       <i class="bi bi-gift-fill bfb-icon"></i>
       <div>
         <div class="bfb-title">${bgsTotal} boleto${bgsTotal>1?"s":""} gratis disponible${bgsTotal>1?"s":""}</div>
-        <div class="bfb-sub">Solo 1 por sorteo. ¡Compite rápido!</div>
+        <div class="bfb-sub">Solo 1 por sorteo · Vencen en 24h · Máx. ${MAX_BOLETOS_GRATIS} al mismo tiempo</div>
       </div>
     </div>` : ""}
     <div style="background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.18);border-radius:10px;padding:.8rem 1rem;margin-bottom:1.2rem;font-size:.82rem;color:var(--muted)">
       <strong style="color:#fff;display:block;margin-bottom:.3rem">
-        <i class="bi bi-shield-exclamation" style="color:#f59e0b"></i> Sobre los boletos gratis
+        <i class="bi bi-shield-exclamation" style="color:#f59e0b"></i> Reglas de boletos gratis
       </strong>
-      Solo 1 boleto gratis por sorteo. Si alguien más ya tiene boleto gratis en un sorteo, te avisamos. El fondo de premios puede ser menor si hay muchos boletos gratis en una ronda.
+      <ul style="padding-left:1rem;line-height:1.8">
+        <li>Máximo <strong style="color:var(--cream)">${MAX_BOLETOS_GRATIS} boletos gratis</strong> al mismo tiempo por usuario</li>
+        <li>Solo <strong style="color:var(--cream)">1 boleto gratis</strong> por sorteo</li>
+        <li>Vencen a las <strong style="color:#fbbf24">24 horas</strong> de ser emitidos</li>
+        <li>El fondo puede ser menor si hay varios boletos gratis en una ronda</li>
+      </ul>
     </div>
+    ${boletosHtml}
     <div class="panel">
       <div class="panel-head"><div class="panel-title"><i class="bi bi-stars"></i>Promociones</div></div>
       <div class="panel-body" style="padding:.6rem">
@@ -1327,24 +1684,10 @@ async function loadFidelidad() {
           </div>`).join("")}
         </div>
       </div>
-    </div>
-    ${bgsDisp?.length ? `
-    <div class="panel">
-      <div class="panel-head"><div class="panel-title"><i class="bi bi-gift-fill"></i>Boletos gratis disponibles</div></div>
-      <div class="panel-body" style="padding:.6rem">
-        <div class="item-list">
-          ${bgsDisp.map(b=>`
-          <div class="list-item">
-            <div class="li-icon ic-win"><i class="bi bi-gift-fill"></i></div>
-            <div class="li-body">
-              <div class="li-title">Boleto gratis</div>
-              <div class="li-sub">${b.origen||"Promoción"} · ${fmtDateShort(b.created_at)}</div>
-            </div>
-            <div class="li-right"><span class="bdg bdg-free"><i class="bi bi-ticket-perforated-fill"></i> Disp.</span></div>
-          </div>`).join("")}
-        </div>
-      </div>
-    </div>` : ""}`;
+    </div>`;
+
+  // Iniciar countdown timers tras renderizar
+  setTimeout(() => iniciarCountdownBoletos(), 100);
 }
 
 /* ═══════════════════════════════════════
@@ -1364,7 +1707,6 @@ async function loadPerfil() {
   };
   initUserUI(prof);
 
-  // Todas filtradas por MY_USER_ID en paralelo
   const [{ data:parts },{ data:pays },{ data:premios },{ data:refs }] = await Promise.all([
     supabase.from("participations").select("id,resultado,boletos,es_gratis").eq("user_id", MY_USER_ID),
     supabase.from("payments").select("id,estado,monto").eq("user_id", MY_USER_ID),
@@ -1411,7 +1753,7 @@ async function loadPerfil() {
         </div>
         ${totalBoletos>0 ? `<div style="margin-top:.8rem;background:rgba(212,160,23,.05);border:1px solid rgba(212,160,23,.12);border-radius:8px;padding:.65rem 1rem;font-size:.82rem;color:var(--muted)">
           <i class="bi bi-info-circle" style="color:var(--gold2)"></i>
-          Tasa de victoria: <strong style="color:var(--gold2)">${tasaVictoria}%</strong> · ${totalPremios} premio${totalPremios!==1?"s":""} · ${totalBoltGratis} gratis usados · ${refsActivos} referidos activos
+          Victoria: <strong style="color:var(--gold2)">${tasaVictoria}%</strong> · ${totalPremios} premio${totalPremios!==1?"s":""} · ${totalBoltGratis} gratis usados · ${refsActivos} referidos activos
         </div>` : ""}
       </div>
     </div>
@@ -1517,7 +1859,7 @@ window.modalCambiarPassword = async () => {
   const { error } = await supabase.auth.updateUser({ password:v.password });
   Swal.close();
   if (error) { ok$("Error", error.message, "error"); return; }
-  ok$("Contraseña actualizada", "", "success");
+  ok$("✅ Contraseña actualizada", "", "success");
 };
 
 /* ═══════════════════════════════════════
@@ -1525,3 +1867,14 @@ window.modalCambiarPassword = async () => {
 ═══════════════════════════════════════ */
 loadSection("sorteos");
 
+// Limpiar vencidos periódicamente cada 5 minutos (silencioso)
+setInterval(async () => {
+  const eliminados = await limpiarBoletosVencidos();
+  if (eliminados > 0) {
+    await refreshProfile();
+    initUserUI(currentProfile);
+    const active = document.querySelector(".section.active")?.id?.replace("sec-","");
+    if (active === "fidelidad") loadFidelidad();
+    else if (active === "sorteos") loadSorteos();
+  }
+}, 5 * 60 * 1000);
