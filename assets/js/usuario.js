@@ -48,8 +48,7 @@ function msHastaVencer(createdAt) {
 }
 
 /* ═══════════════════════════════════════
-   FILTROS COMPACTOS — PILL style mejorado
-   (más pequeños, no invasivos, mobile-first)
+   FILTROS COMPACTOS — PILL style
 ═══════════════════════════════════════ */
 function buildFilterBar({ searchId, searchPlaceholder="Buscar…", chips=[], sortId, countId }) {
   const searchHtml = searchId ? `
@@ -126,19 +125,14 @@ if (!profile || profileError || profile.estado === "suspendido") {
 let currentProfile = { ...profile };
 let boletosGratis = 0;
 let boletosGratisDetalle = [];
-// Timers de countdown para boletos gratis
 const countdownTimers = new Map();
 
 /* ═══════════════════════════════════════
    BOLETOS GRATIS — LÓGICA CORE
-   - Máx 3 por usuario
-   - Vencen en 24h desde created_at
-   - Se limpian automáticamente al cargar
 ═══════════════════════════════════════ */
 const MAX_BOLETOS_GRATIS = 3;
 
 async function limpiarBoletosVencidos() {
-  // Borrar boletos vencidos (no usados, creados hace más de 24h)
   const hace24h = new Date(Date.now() - 24 * 3600000).toISOString();
   const { data: vencidos } = await supabase
     .from("boletos_gratis")
@@ -158,7 +152,6 @@ async function limpiarBoletosVencidos() {
 }
 
 async function refreshProfile() {
-  // Limpiar vencidos silenciosamente en cada refresh
   await limpiarBoletosVencidos();
 
   const { data } = await supabase
@@ -181,7 +174,7 @@ await refreshProfile();
 /* ── Notificar boleto gratis recibido ── */
 function notificarBoletosGratis(boletos, origen="Recompensa") {
   Swal.fire({
-    title: `🎁 ¡Boleto${boletos>1?"s":""} gratis recibido${boletos>1?"s":""}!`,
+    title: `🎁 ¡Boleto${boletos>1?"s":""} gratis!`,
     html: `
       <div style="text-align:center">
         <div style="font-size:2.5rem;margin-bottom:.5rem">🎟️</div>
@@ -197,9 +190,9 @@ function notificarBoletosGratis(boletos, origen="Recompensa") {
   });
 }
 
-/* ── Intentar otorgar boleto gratis (max 3) ── */
+/* ── Otorgar boleto gratis ── */
 async function otorgarBoletoGratis(origen) {
-  if (boletosGratis >= MAX_BOLETOS_GRATIS) return false; // Ya tiene el máximo
+  if (boletosGratis >= MAX_BOLETOS_GRATIS) return false;
   const { error } = await supabase.from("boletos_gratis").insert({
     user_id: MY_USER_ID,
     origen,
@@ -213,9 +206,8 @@ async function otorgarBoletoGratis(origen) {
   return false;
 }
 
-/* ── Countdown UI para boletos gratis ── */
+/* ── Countdown UI ── */
 function iniciarCountdownBoletos() {
-  // Limpiar timers anteriores
   countdownTimers.forEach(t => clearInterval(t));
   countdownTimers.clear();
 
@@ -227,7 +219,6 @@ function iniciarCountdownBoletos() {
       if (ms <= 0) {
         el.textContent = "Vencido";
         el.style.color = "#f87171";
-        // Refrescar tras vencimiento
         setTimeout(() => refreshProfile().then(() => {
           const active = document.querySelector(".section.active")?.id?.replace("sec-","");
           if (active === "fidelidad") loadFidelidad();
@@ -236,13 +227,8 @@ function iniciarCountdownBoletos() {
         return;
       }
       el.textContent = fmtCountdown(ms);
-      // Urgencia cuando quedan menos de 2h
-      if (ms < 7200000) {
-        el.style.color = "#f87171";
-        el.style.fontWeight = "700";
-      } else if (ms < 7200000 * 3) {
-        el.style.color = "#fbbf24";
-      }
+      if (ms < 7200000) { el.style.color = "#f87171"; el.style.fontWeight = "700"; }
+      else if (ms < 21600000) { el.style.color = "#fbbf24"; }
     };
     tick();
     countdownTimers.set(b.id, setInterval(tick, 1000));
@@ -258,14 +244,13 @@ function initUserUI(prof) {
   const sbS    = getEl("sbSaldo");  if (sbS)     sbS.textContent     = Number(prof.total_ganado||0).toFixed(2);
   const hS     = getEl("heroSaldo");if (hS)      hS.textContent      = Number(prof.total_ganado||0).toFixed(2);
   const hBF    = getEl("heroBoletosFree");
-  if (hBF) hBF.textContent = boletosGratis > 0 ? `${boletosGratis} gratis` : "0 gratis";
+  if (hBF) hBF.textContent = boletosGratis > 0 ? `${boletosGratis} gratis 🎁` : "0 disponibles";
 }
 initUserUI(currentProfile);
 
 async function doLogout() {
   const r = await confirm$("¿Cerrar sesión?", "", "Sí, salir");
   if (r.isConfirmed) {
-    // Detener realtime y timers
     supabase.removeAllChannels();
     countdownTimers.forEach(t => clearInterval(t));
     await supabase.auth.signOut();
@@ -276,41 +261,31 @@ getEl("logoutBtn")  && getEl("logoutBtn").addEventListener("click",  doLogout);
 getEl("logoutBtn2") && getEl("logoutBtn2").addEventListener("click", doLogout);
 
 /* ═══════════════════════════════════════
-   AUTO-REFRESH EN TIEMPO REAL
-   Supabase Realtime — sin recargar página
+   REALTIME
 ═══════════════════════════════════════ */
 let realtimeSetup = false;
-
 function setupRealtime() {
   if (realtimeSetup) return;
   realtimeSetup = true;
 
-  // ── Canal 1: Rondas — cuando admin abre/cierra/sortea ──
-  supabase
-    .channel("rounds-watch")
+  supabase.channel("rounds-watch")
     .on("postgres_changes", { event:"*", schema:"public", table:"rounds" }, async (payload) => {
       await refreshProfile();
       initUserUI(currentProfile);
       const active = document.querySelector(".section.active")?.id?.replace("sec-","");
-      // Actualizar silenciosamente la sección activa
       if (active === "sorteos") loadSorteos();
       else if (active === "historial") loadHistorial();
-      // Notificar al usuario según el evento
       if (payload.eventType === "UPDATE") {
-        const nuevo  = payload.new;
-        const previo = payload.old;
+        const nuevo = payload.new, previo = payload.old;
         if (previo?.estado === "abierta" && nuevo?.estado === "sorteada") {
           toast("🎲 ¡Se realizó un sorteo! Revisa tu historial.", "info", 4000);
         } else if (nuevo?.estado === "abierta" && previo?.estado !== "abierta") {
           toast("🎟️ Nueva ronda disponible", "success", 3000);
         }
       }
-    })
-    .subscribe();
+    }).subscribe();
 
-  // ── Canal 2: Mis pagos — cuando admin aprueba/rechaza ──
-  supabase
-    .channel("my-payments-watch")
+  supabase.channel("my-payments-watch")
     .on("postgres_changes", {
       event:"UPDATE", schema:"public", table:"payments",
       filter:`user_id=eq.${MY_USER_ID}`
@@ -318,27 +293,21 @@ function setupRealtime() {
       await refreshProfile();
       initUserUI(currentProfile);
       const active = document.querySelector(".section.active")?.id?.replace("sec-","");
-      if (active === "pagos" || active === "sorteos") {
-        if (active === "pagos") loadPagos();
-        else loadSorteos();
-      }
-      // Notificar estado del pago
+      if (active === "pagos") loadPagos();
+      else if (active === "sorteos") loadSorteos();
       const estado = payload.new?.estado;
       if (estado === "aprobado") {
-        toast("✅ Tu pago fue aprobado — ya eres parte del sorteo!", "success", 4000);
+        toast("✅ Tu pago fue aprobado — ¡ya participas en el sorteo!", "success", 4000);
       } else if (estado === "rechazado") {
         Swal.fire({
           title:"⚠️ Pago rechazado",
-          html:`Tu comprobante fue rechazado por el administrador.<br><small style="color:var(--muted)">Revisa la sección "Mis pagos" para más detalles.</small>`,
+          html:`Tu comprobante fue rechazado.<br><small style="color:var(--muted)">Revisa "Mis pagos" para más detalles.</small>`,
           icon:"warning", confirmButtonText:"Ver mis pagos", ...swal$,
         }).then(r => { if (r.isConfirmed) loadSection("pagos"); });
       }
-    })
-    .subscribe();
+    }).subscribe();
 
-  // ── Canal 3: Mis participaciones — cuando el sorteo me incluye ──
-  supabase
-    .channel("my-parts-watch")
+  supabase.channel("my-parts-watch")
     .on("postgres_changes", {
       event:"UPDATE", schema:"public", table:"participations",
       filter:`user_id=eq.${MY_USER_ID}`
@@ -352,19 +321,16 @@ function setupRealtime() {
         Swal.fire({
           title:"🏆 ¡GANASTE!",
           html:`<div style="text-align:center"><div style="font-size:3rem">🎉</div>
-            <div style="color:var(--cream);font-size:1.05rem;margin:.5rem 0">¡Felicidades! Ganaste en un sorteo.</div>
-            <div style="font-size:.82rem;color:var(--muted)">El administrador te enviará tu premio al QR registrado.</div></div>`,
+            <div style="color:var(--cream);font-size:1.05rem;margin:.5rem 0">¡Felicidades! Ganaste en el sorteo.</div>
+            <div style="font-size:.82rem;color:var(--muted)">El administrador enviará tu premio al QR registrado.</div></div>`,
           icon:"success", confirmButtonText:"¡Genial!", ...swal$,
         });
       } else if (res === "perdida") {
         toast("Sin suerte esta vez. ¡Sigue participando!", "info", 3500);
       }
-    })
-    .subscribe();
+    }).subscribe();
 
-  // ── Canal 4: Mis boletos gratis — cuando se otorgan nuevos ──
-  supabase
-    .channel("my-boletos-gratis-watch")
+  supabase.channel("my-boletos-gratis-watch")
     .on("postgres_changes", {
       event:"INSERT", schema:"public", table:"boletos_gratis",
       filter:`user_id=eq.${MY_USER_ID}`
@@ -372,34 +338,26 @@ function setupRealtime() {
       await refreshProfile();
       initUserUI(currentProfile);
       notificarBoletosGratis(1, payload.new?.origen || "Recompensa");
-      // Si está en fidelidad, refrescar
       const active = document.querySelector(".section.active")?.id?.replace("sec-","");
       if (active === "fidelidad") loadFidelidad();
-    })
-    .subscribe();
+    }).subscribe();
 
-  // ── Canal 5: Mi perfil — cuando admin actualiza QR o saldo ──
-  supabase
-    .channel("my-profile-watch")
+  supabase.channel("my-profile-watch")
     .on("postgres_changes", {
       event:"UPDATE", schema:"public", table:"profiles",
       filter:`id=eq.${MY_USER_ID}`
     }, async (payload) => {
       await refreshProfile();
       initUserUI(currentProfile);
-      // QR verificado
       if (!payload.old?.qr_verificado && payload.new?.qr_verificado) {
         qrState.verificado = true;
-        toast("✅ Tu QR fue verificado. ¡Ya puedes participar!", "success", 5000);
+        toast("✅ Tu QR fue verificado. ¡Ya puedes participar en sorteos!", "success", 5000);
         const active = document.querySelector(".section.active")?.id?.replace("sec-","");
         if (active === "sorteos") loadSorteos();
       }
-    })
-    .subscribe();
+    }).subscribe();
 
-  // ── Canal 6: Premios — cuando admin envía pago de premio ──
-  supabase
-    .channel("my-prizes-watch")
+  supabase.channel("my-prizes-watch")
     .on("postgres_changes", {
       event:"INSERT", schema:"public", table:"prize_payments",
       filter:`user_id=eq.${MY_USER_ID}`
@@ -411,16 +369,13 @@ function setupRealtime() {
         title:"💰 ¡Premio enviado!",
         html:`<div style="text-align:center">
           <div style="font-size:2rem;margin-bottom:.4rem">🏆</div>
-          <div style="color:var(--cream)">El administrador te envió <strong style="color:#22c55e">${fmtMoney(monto)}</strong></div>
-          <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem">Revisa la sección "Mis premios" para los detalles.</div>
+          <div style="color:var(--cream)">Te enviaron <strong style="color:#22c55e">${fmtMoney(monto)}</strong></div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem">Revisa "Mis premios" para los detalles.</div>
         </div>`,
         icon:"success", confirmButtonText:"Ver mis premios", ...swal$,
       }).then(r => { if (r.isConfirmed) loadSection("premios"); });
-    })
-    .subscribe();
+    }).subscribe();
 }
-
-// Iniciar realtime tras cargar
 setupRealtime();
 
 /* ═══════════════════════════════════════
@@ -443,7 +398,7 @@ function qrBanner() {
       <div class="qgb-icon"><i class="bi bi-qr-code-scan"></i></div>
       <div class="qgb-body">
         <div class="qgb-title">Sube tu QR de cobros para participar</div>
-        <div class="qgb-sub">Necesitas subir tu QR para comprar boletos y recibir premios.</div>
+        <div class="qgb-sub">Necesitas subir tu QR para comprar boletos y recibir premios si ganas.</div>
       </div>
       <button class="btn btn-gold btn-md" onclick="modalSubirQR()">
         <i class="bi bi-upload"></i> Subir QR
@@ -463,22 +418,86 @@ function qrBanner() {
 }
 
 /* ═══════════════════════════════════════
-   MODAL SUBIR QR
+   MODAL SUBIR QR — con guía completa
 ═══════════════════════════════════════ */
 const METODOS_QR = [
-  { value:"tigo_money",    label:"Tigo Money",       desc:"QR Tigo Money Bolivia"    },
-  { value:"billetera_bcb", label:"Billetera BCB",    desc:"QR del Banco Central"     },
-  { value:"qr_simple",     label:"QR Simple / Interbank", desc:"QR estándar bancario" },
-  { value:"efectivo_cuenta",label:"Cuenta bancaria", desc:"Depósito en cuenta"       },
+  { value:"tigo_money",    label:"Tigo Money",       desc:"QR para recibir pagos por Tigo Money Bolivia" },
+  { value:"billetera_bcb", label:"Billetera BCB",    desc:"QR del Banco Central de Bolivia"              },
+  { value:"qr_simple",     label:"QR Interbank",     desc:"QR estándar interbancario Bolivia"            },
+  { value:"efectivo_cuenta",label:"Cuenta bancaria", desc:"Número de cuenta para depósito directo"       },
 ];
+
+window.modalAyudaQR = () => {
+  Swal.fire({
+    title:"💡 ¿Qué QR debo subir?",
+    html:`
+      <div style="text-align:left;font-size:.88rem">
+        <p style="color:var(--muted);margin-bottom:1rem;line-height:1.6">
+          Tu QR de cobros es la imagen que usamos para <strong style="color:#fff">enviarte el premio</strong> si ganas un sorteo.
+          Es el mismo QR que usas para recibir pagos en tu billetera digital.
+        </p>
+        <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:10px;padding:.85rem 1rem;margin-bottom:.85rem">
+          <div style="font-family:'Oswald',sans-serif;font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:#22c55e;margin-bottom:.5rem">
+            ✅ QRs que funcionan
+          </div>
+          <ul style="padding-left:1.1rem;color:var(--cream);line-height:2">
+            <li><strong>Tigo Money</strong> — Abre la app → Cobrar → Mi QR</li>
+            <li><strong>Billetera BCB</strong> — App del BCB → Recibir → QR</li>
+            <li><strong>QR Interbank</strong> — Tu banco → Recibir → QR genérico</li>
+            <li><strong>Cuenta bancaria</strong> — Captura con tu nro. de cuenta</li>
+          </ul>
+        </div>
+        <div style="background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:10px;padding:.85rem 1rem;margin-bottom:.85rem">
+          <div style="font-family:'Oswald',sans-serif;font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:#fbbf24;margin-bottom:.5rem">
+            ⚠️ Recomendaciones importantes
+          </div>
+          <ul style="padding-left:1.1rem;color:var(--cream);line-height:2">
+            <li>Usa una cuenta <strong>que sí uses activamente</strong> para recibir pagos</li>
+            <li>El QR debe ser legible y no estar cortado</li>
+            <li>Asegúrate de que la imagen sea tuya (no de otra persona)</li>
+            <li>Los QRs de Tigo Money <strong>duran 1 año</strong> — renuévalo si vence</li>
+            <li>Evita capturas borrosas o muy oscuras</li>
+          </ul>
+        </div>
+        <div style="background:rgba(139,26,26,.1);border:1px solid rgba(139,26,26,.25);border-radius:10px;padding:.75rem 1rem">
+          <div style="font-family:'Oswald',sans-serif;font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;color:#f87171;margin-bottom:.4rem">
+            ❌ No subas
+          </div>
+          <ul style="padding-left:1.1rem;color:var(--muted);line-height:1.9;font-size:.82rem">
+            <li>QR de pago (para pagar, no cobrar)</li>
+            <li>QR de otra persona</li>
+            <li>Imagen de WhatsApp o redes sociales</li>
+            <li>QR vencido o de cuenta cerrada</li>
+          </ul>
+        </div>
+        <div style="margin-top:1rem;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:8px;padding:.65rem .9rem;font-size:.8rem;color:#a5b4fc">
+          <i class="bi bi-shield-check"></i> <strong>Privacidad:</strong> Tu QR solo es visible para el administrador cuando necesite enviarte un premio.
+        </div>
+      </div>`,
+    icon:"info", confirmButtonText:"Entendido, subir QR", cancelButtonText:"Cerrar",
+    showCancelButton:true, width:520, ...swal$,
+  }).then(r => { if (r.isConfirmed) modalSubirQR(); });
+};
 
 window.modalSubirQR = async (esAct=false) => {
   const { value:v } = await Swal.fire({
     title: esAct ? "Actualizar QR de cobros" : "Sube tu QR de cobros",
     html:`
       <div style="text-align:left">
-        <div style="background:rgba(212,160,23,.07);border:1px solid rgba(212,160,23,.2);border-radius:10px;padding:.8rem 1rem;margin-bottom:1rem;font-size:.82rem;color:var(--muted)">
-          <i class="bi bi-info-circle" style="color:var(--gold2)"></i> Si ganas, el admin usará tu QR para enviarte el premio.
+        <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem">
+          <div style="font-size:.82rem;color:var(--cream);line-height:1.6;margin-bottom:.5rem">
+            <i class="bi bi-info-circle" style="color:#22c55e"></i>
+            <strong style="color:#22c55e"> ¿Qué es esto?</strong> Es tu QR para <em>recibir pagos</em> (Tigo Money, BCB, etc.).
+            Si ganas, el admin te envía el premio usando este QR.
+          </div>
+          <button type="button" onclick="Swal.close();setTimeout(()=>modalAyudaQR(),100)"
+            style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.28);color:#22c55e;border-radius:7px;padding:.3rem .75rem;font-size:.8rem;cursor:pointer;font-family:'Oswald',sans-serif;letter-spacing:.06em">
+            <i class="bi bi-question-circle"></i> Ver guía completa
+          </button>
+        </div>
+        <div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:9px;padding:.65rem .9rem;margin-bottom:1rem;font-size:.78rem;color:#fbbf24">
+          <i class="bi bi-clock"></i> <strong>Duración del QR:</strong> Los QR de Tigo Money duran ~1 año.
+          Actualiza el tuyo si vence para seguir recibiendo premios.
         </div>
         <div class="field" style="margin-bottom:1rem">
           <label>Tipo de pago *</label>
@@ -497,12 +516,16 @@ window.modalSubirQR = async (esAct=false) => {
           <label>Imagen del QR * <span style="color:var(--muted);font-size:.68rem;font-weight:400;text-transform:none">(JPG/PNG, máx. 5 MB)</span></label>
           <input type="file" id="qrFileInput" accept="image/jpeg,image/png,image/webp"
             style="width:100%;background:var(--ink3);border:1px solid var(--border);color:var(--cream);border-radius:7px;padding:.45rem .8rem;font-size:.85rem">
+          <div style="font-size:.72rem;color:var(--muted);margin-top:.35rem">
+            <i class="bi bi-lightbulb" style="color:#fbbf24"></i>
+            Captura de pantalla de tu app al mostrar el QR de cobro funciona perfectamente.
+          </div>
         </div>
         <img id="qrPreviewImg" style="display:none;max-height:160px;width:100%;object-fit:contain;margin-top:.6rem;border-radius:8px;border:1px solid rgba(212,160,23,.2)">
       </div>`,
     showCancelButton:true,
     confirmButtonText:`<i class='bi bi-upload'></i> ${esAct?'Actualizar':'Subir QR'}`,
-    cancelButtonText:"Cancelar", width:500, ...swal$,
+    cancelButtonText:"Cancelar", width:520, ...swal$,
     didOpen:() => {
       document.querySelectorAll(".metodo-card").forEach(c => {
         c.addEventListener("click", () => {
@@ -521,7 +544,7 @@ window.modalSubirQR = async (esAct=false) => {
       const metodo = document.querySelector("input[name='qrMetodo']:checked")?.value;
       const file   = document.getElementById("qrFileInput").files[0];
       if (!metodo) { Swal.showValidationMessage("Selecciona el tipo de pago"); return false; }
-      if (!file)   { Swal.showValidationMessage("Sube la imagen de tu QR");   return false; }
+      if (!file)   { Swal.showValidationMessage("Sube la imagen de tu QR de cobros"); return false; }
       if (file.size > 5*1024*1024) { Swal.showValidationMessage("Imagen muy grande (máx. 5 MB)"); return false; }
       return { metodo, file };
     }
@@ -542,7 +565,11 @@ window.modalSubirQR = async (esAct=false) => {
   if (error) { ok$("Error", error.message, "error"); return; }
 
   qrState = { subido:true, verificado:false, url:qr_url, metodo:v.metodo, subidoAt:new Date().toISOString() };
-  await ok$("QR subido correctamente", "El administrador lo revisará pronto. Recibirás una notificación cuando sea aprobado.", "success");
+  await ok$("QR subido correctamente ✅",
+    `El administrador lo verificará pronto.<br>
+     <small style="color:var(--muted)">Recibirás una notificación cuando sea aprobado.</small><br>
+     <small style="color:#fbbf24"><i class="bi bi-clock"></i> Recuerda renovarlo antes de que venza (~1 año).</small>`,
+    "success");
 
   const active = document.querySelector(".section.active")?.id?.replace("sec-","");
   if (active) loadSection(active);
@@ -550,11 +577,11 @@ window.modalSubirQR = async (esAct=false) => {
 
 window.modalVerMiQR = () => {
   if (!qrState.url) return;
-  const ml = { tigo_money:"Tigo Money", billetera_bcb:"Billetera BCB", qr_simple:"QR Simple", efectivo_cuenta:"Cuenta bancaria" };
+  const ml = { tigo_money:"Tigo Money", billetera_bcb:"Billetera BCB", qr_simple:"QR Interbank", efectivo_cuenta:"Cuenta bancaria" };
   Swal.fire({
     title:"Mi QR de cobros",
-    html:`<img src="${qrState.url}" style="width:100%;max-height:280px;object-fit:contain;border-radius:10px;border:1px solid rgba(212,160,23,.2);margin-bottom:.8rem">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;text-align:left">
+    html:`<img src="${qrState.url}" style="width:100%;max-height:280px;object-fit:contain;border-radius:10px;border:1px solid rgba(212,160,23,.22);margin-bottom:.8rem" loading="lazy">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;text-align:left;margin-bottom:.7rem">
         <div style="background:var(--ink3);border:1px solid var(--border);border-radius:8px;padding:.6rem">
           <div style="font-size:.68rem;color:var(--muted);margin-bottom:.2rem">MÉTODO</div>
           <div>${ml[qrState.metodo]||qrState.metodo||"—"}</div>
@@ -563,7 +590,11 @@ window.modalVerMiQR = () => {
           <div style="font-size:.68rem;color:var(--muted);margin-bottom:.2rem">ESTADO</div>
           <div>${qrState.verificado?'<span style="color:#22c55e">✅ Verificado</span>':'<span style="color:#f59e0b">⏳ En revisión</span>'}</div>
         </div>
-      </div>`,
+      </div>
+      ${qrState.subidoAt ? `<div style="font-size:.72rem;color:var(--muted);text-align:center">
+        <i class="bi bi-calendar3"></i> Subido el ${fmtDateShort(qrState.subidoAt)}
+        · <span style="color:#fbbf24"><i class="bi bi-clock"></i> Recuerda renovarlo en ~1 año</span>
+      </div>` : ""}`,
     showCancelButton:true,
     confirmButtonText:'<i class="bi bi-arrow-repeat"></i> Actualizar QR',
     cancelButtonText:"Cerrar", width:400, ...swal$
@@ -601,12 +632,27 @@ getEl("btnRefresh") && getEl("btnRefresh").addEventListener("click", async () =>
 /* ═══════════════════════════════════════
    HELPERS GENERALES
 ═══════════════════════════════════════ */
+
+// Niveles extendidos para 3+ años de juego
 function getNivel(t) {
-  if (t>=100) return { key:"padrino",      label:"El Padrino",    clase:"nivel-padrino"      };
-  if (t>=50)  return { key:"patron",       label:"Gran Patrón",   clase:"nivel-patron"       };
-  if (t>=20)  return { key:"contendiente", label:"Contendiente",  clase:"nivel-contendiente" };
-  if (t>=5)   return { key:"jugador",      label:"Jugador",       clase:"nivel-jugador"      };
-  return             { key:"novato",       label:"Novato",        clase:"nivel-novato"       };
+  if (t>=500) return { key:"leyenda",      label:"La Leyenda",     clase:"nivel-leyenda"     };
+  if (t>=200) return { key:"padrino",      label:"El Padrino",     clase:"nivel-padrino"     };
+  if (t>=100) return { key:"capo",         label:"Capo di Tutti",  clase:"nivel-capo"        };
+  if (t>=50)  return { key:"patron",       label:"Gran Patrón",    clase:"nivel-patron"      };
+  if (t>=20)  return { key:"contendiente", label:"Contendiente",   clase:"nivel-contendiente"};
+  if (t>=5)   return { key:"jugador",      label:"Jugador",        clase:"nivel-jugador"     };
+  return             { key:"novato",       label:"Novato",         clase:"nivel-novato"      };
+}
+
+// Próximo nivel para mostrar progreso
+function getProximoNivel(t) {
+  if (t>=500) return null;
+  const umbrales = [5,20,50,100,200,500];
+  const nombres  = ["Jugador","Contendiente","Gran Patrón","Capo di Tutti","El Padrino","La Leyenda"];
+  for (let i=0;i<umbrales.length;i++) {
+    if (t<umbrales[i]) return { label:nombres[i], requerido:umbrales[i], progreso:t, pct:Math.round((t/umbrales[i])*100) };
+  }
+  return null;
 }
 
 async function verificarFondoRonda(roundId) {
@@ -651,7 +697,6 @@ async function estadoBoletoGratisEnRonda(roundId) {
 ═══════════════════════════════════════ */
 async function loadSorteos() {
   const container = getEl("sorteosList"); if (!container) return;
-  // Actualización silenciosa: no mostrar spinner si ya hay contenido
   const tieneContenido = container.children.length > 0 && !container.querySelector(".spin-wrap");
   if (!tieneContenido) container.innerHTML = `<div class="spin-wrap"><div class="spinner"></div></div>`;
 
@@ -661,20 +706,17 @@ async function loadSorteos() {
     if (boletosGratis > 0 && puedeParticipar()) {
       const bfb = document.createElement("div");
       bfb.className = "boleto-gratis-banner";
-
-      // Boleto próximo a vencer
-      const proxVencer = boletosGratisDetalle.reduce((min, b) => {
+      const proxVencer = boletosGratisDetalle.reduce((min,b) => {
         const ms = msHastaVencer(b.created_at);
         return ms < min ? ms : min;
       }, Infinity);
-      const urgente = proxVencer < 7200000; // menos de 2h
-
+      const urgente = proxVencer < 7200000;
       bfb.innerHTML = `<i class="bi bi-gift-fill bfb-icon" style="${urgente?"color:#f87171":""}"></i><div>
         <div class="bfb-title" style="${urgente?"color:#f87171":""}">
           Tienes ${boletosGratis} boleto${boletosGratis>1?"s":""} gratis
           ${urgente?'<span style="font-size:.72rem;font-weight:400"> — ¡vence pronto!</span>':""}
         </div>
-        <div class="bfb-sub">Solo 1 por sorteo · Válido 24h · ${urgente?`<strong style="color:#f87171">Menos de 2h</strong>`:"Úsalo antes de que venza"}</div>
+        <div class="bfb-sub">Solo 1 por sorteo · Válido 24h · ${urgente?`<strong style="color:#f87171">¡Menos de 2h!</strong>`:"Úsalo antes de que venza"}</div>
       </div>`;
       bannerEl.appendChild(bfb);
     }
@@ -716,8 +758,8 @@ async function loadSorteos() {
       .eq("round_id", r.id)
       .eq("user_id", MY_USER_ID);
 
-    const misBoletos   = (misParts||[]).reduce((s,p) => s+(p.boletos||1), 0);
-    const yoUseGratis  = (misParts||[]).some(p => p.es_gratis===true);
+    const misBoletos  = (misParts||[]).reduce((s,p) => s+(p.boletos||1), 0);
+    const yoUseGratis = (misParts||[]).some(p => p.es_gratis===true);
 
     const { data:myPay } = await supabase
       .from("payments")
@@ -738,8 +780,8 @@ async function loadSorteos() {
   container.innerHTML = ordenados.map(r => {
     const pct   = Math.round((r.cupos/25)*100);
     const lleno = r.cupos >= 25;
-    const tieneCompPend    = r.miPago?.estado === "pendiente";
-    const tieneCompAprobado= r.miPago?.estado === "aprobado";
+    const tieneCompPend     = r.miPago?.estado === "pendiente";
+    const tieneCompAprobado = r.miPago?.estado === "aprobado";
     const chances    = r.misBoletos > 0 ? calcularChances(r.misBoletos, r.cupos - r.misBoletos) : null;
     const estoyDentro= r.misBoletos > 0;
 
@@ -813,16 +855,16 @@ async function loadSorteos() {
 
 /* ═══════════════════════════════════════
    MODAL COMPRAR BOLETO
-   FIX SEGURIDAD: una vez enviado comprobante,
-   no se puede cambiar la cantidad
+   FIX CRÍTICO: boleto gratis se marca como
+   usado SOLO después de que admin apruebe,
+   no antes. Ahora se reserva con estado pendiente.
 ═══════════════════════════════════════ */
 window.modalComprarBoleto = async (roundId, gameNombre, numRonda, precioBoleto, cuposActuales) => {
   if (!puedeParticipar()) { modalSubirQR(); return; }
   const cuposLibres = 25 - cuposActuales;
-  const maxBoletos  = Math.min(cuposLibres, 3); // máx 3 por compra (mismo límite que boletos gratis)
+  const maxBoletos  = Math.min(cuposLibres, 3);
   if (maxBoletos <= 0) { toast("Esta ronda ya está llena", "error"); return; }
 
-  // ── Verificar si ya tiene pago APROBADO en esta ronda (no puede cambiar boletos) ──
   const { data:pagoExistente } = await supabase
     .from("payments")
     .select("id,estado,boletos_solicitados")
@@ -831,7 +873,6 @@ window.modalComprarBoleto = async (roundId, gameNombre, numRonda, precioBoleto, 
     .maybeSingle();
 
   if (pagoExistente?.estado === "aprobado") {
-    // Ya tiene boletos aprobados — solo puede comprar más, informar al usuario
     Swal.fire({
       title:"Ya tienes boletos aprobados",
       html:`Tienes <strong style="color:var(--gold2)">${pagoExistente.boletos_solicitados} boleto${pagoExistente.boletos_solicitados>1?"s":""}</strong> confirmados en esta ronda.<br>
@@ -846,122 +887,171 @@ window.modalComprarBoleto = async (roundId, gameNombre, numRonda, precioBoleto, 
   }
 
   if (pagoExistente?.estado === "pendiente") {
-    // ── SEGURIDAD: ya envió comprobante, prohibido cambiar cantidad ──
     Swal.fire({
       title:"Comprobante en revisión",
       html:`<div style="text-align:center">
         <div style="font-size:2rem;margin-bottom:.4rem">⏳</div>
         <div style="color:var(--cream)">Ya enviaste un comprobante por <strong>${pagoExistente.boletos_solicitados} boleto${pagoExistente.boletos_solicitados>1?"s":""}</strong>.</div>
-        <div style="font-size:.82rem;color:var(--muted);margin-top:.4rem">El administrador está revisando tu pago. Por seguridad, no es posible modificar la cantidad hasta que sea procesado.</div>
+        <div style="font-size:.82rem;color:var(--muted);margin-top:.4rem">Por seguridad, no se puede modificar la cantidad hasta que sea procesado.</div>
       </div>`,
       icon:"warning", confirmButtonText:"Entendido", ...swal$
     });
     return;
   }
 
-  // Sin pago previo — abrir modal normal
   abrirModalCompra(roundId, gameNombre, numRonda, precioBoleto, cuposLibres, maxBoletos, false);
 };
 
+
 async function abrirModalCompra(roundId, gameNombre, numRonda, precioBoleto, cuposLibres, maxBoletos, esAdicional) {
-  const gratisStatus  = await estadoBoletoGratisEnRonda(roundId);
+  const gratisStatus    = await estadoBoletoGratisEnRonda(roundId);
   const puedoUsarGratis = boletosGratis > 0 && !gratisStatus.yoUse;
+
+  // ── Obtener QR del admin para mostrar al usuario cuando necesite pagar ──
+  let adminQR = null, adminQRMetodo = null;
+  if (precioBoleto > 0) {
+    const { data:admins } = await supabase
+      .from("profiles")
+      .select("qr_cobro_url,qr_metodo,username")
+      .in("rol", ["admin","trabajador"])
+      .eq("qr_verificado", true)
+      .not("qr_cobro_url", "is", null)
+      .limit(1);
+    if (admins?.length) {
+      adminQR       = admins[0].qr_cobro_url;
+      adminQRMetodo = admins[0].qr_metodo;
+    }
+  }
+  const mlM2 = { tigo_money:"Tigo Money", billetera_bcb:"Billetera BNB / BCB", qr_simple:"QR Interbank", efectivo_cuenta:"Cuenta bancaria" };
 
   let competenciaHtml = "";
   if (puedoUsarGratis && gratisStatus.otrosConGratis > 0) {
-    competenciaHtml = `<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.28);border-radius:8px;padding:.65rem .9rem;margin-bottom:.85rem;font-size:.82rem;display:flex;align-items:center;gap:.6rem">
+    competenciaHtml = `<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.28);border-radius:8px;padding:.6rem .9rem;margin-bottom:.8rem;font-size:.82rem;display:flex;align-items:center;gap:.55rem">
       <i class="bi bi-lightning-charge-fill" style="color:#f59e0b;flex-shrink:0"></i>
       <span style="color:#e6dcc8">${gratisStatus.otrosConGratis} jugador${gratisStatus.otrosConGratis>1?"es ya usan":"ya usa"} boleto gratis aquí. <strong style="color:#fbbf24">¡Compite rápido!</strong></span>
     </div>`;
   }
   if (gratisStatus.yoUse) {
-    competenciaHtml = `<div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.22);border-radius:8px;padding:.6rem .9rem;margin-bottom:.85rem;font-size:.82rem;color:#86efac;display:flex;align-items:center;gap:.5rem">
+    competenciaHtml = `<div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.22);border-radius:8px;padding:.55rem .9rem;margin-bottom:.8rem;font-size:.82rem;color:#86efac;display:flex;align-items:center;gap:.5rem">
       <i class="bi bi-check-circle-fill"></i> Ya usaste tu boleto gratis en este sorteo.
     </div>`;
   }
 
-  // Mostrar vencimiento del boleto gratis disponible
   let gratisVencimientoHtml = "";
   if (puedoUsarGratis && boletosGratisDetalle.length > 0) {
     const msVence = msHastaVencer(boletosGratisDetalle[0].created_at);
     const urgente = msVence < 3600000;
-    gratisVencimientoHtml = `<div style="font-size:.7rem;color:${urgente?"#f87171":"var(--muted)"};margin-top:.2rem">
+    gratisVencimientoHtml = `<div style="font-size:.7rem;color:${urgente?"#f87171":"var(--muted)"};margin-top:.15rem">
       <i class="bi bi-clock"></i> Vence en ${fmtCountdown(msVence)} ${urgente?"⚠️":""}
     </div>`;
   }
 
-  const fondoInfo    = await verificarFondoRonda(roundId);
-  const fondoWarnHtml= fondoInfo.riesgo
-    ? `<div class="fondo-warn" style="margin-bottom:.85rem"><i class="bi bi-exclamation-triangle-fill"></i>
+  const fondoInfo     = await verificarFondoRonda(roundId);
+  const fondoWarnHtml = fondoInfo.riesgo
+    ? `<div class="fondo-warn" style="margin-bottom:.8rem"><i class="bi bi-exclamation-triangle-fill"></i>
         <span>Esta ronda tiene ${fondoInfo.boletosGratisEnRonda} boletos gratis. El fondo puede ser menor.</span>
        </div>` : "";
 
+  // ── QR del admin para escanear y pagar — se oculta si el usuario usa solo boleto gratis ──
+  const adminQRHtml = adminQR ? `
+    <div id="adminQRBox" style="margin-bottom:.85rem">
+      <div style="background:rgba(212,160,23,.05);border:1.5px solid rgba(212,160,23,.28);border-radius:12px;overflow:hidden">
+        <div style="padding:.5rem .9rem;border-bottom:1px solid rgba(212,160,23,.15);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.3rem">
+          <div style="font-family:'Oswald',sans-serif;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gold2);display:flex;align-items:center;gap:.35rem">
+            <i class="bi bi-qr-code-scan"></i> QR para pagar
+          </div>
+          <span style="font-size:.68rem;color:var(--muted);background:rgba(212,160,23,.08);border-radius:20px;padding:.1rem .55rem">${mlM2[adminQRMetodo]||adminQRMetodo||"QR de cobro"}</span>
+        </div>
+        <div style="padding:.75rem .75rem .6rem;display:flex;flex-direction:column;align-items:center;gap:.5rem">
+          <img src="${adminQR}"
+            style="width:100%;max-width:230px;height:auto;min-height:180px;border-radius:8px;border:2px solid rgba(255,255,255,.08);background:#fff;display:block;object-fit:contain"
+            loading="eager"
+            onerror="this.parentElement.parentElement.parentElement.style.display='none'">
+          <div style="font-size:.72rem;color:var(--muted);text-align:center;line-height:1.5">
+            <i class="bi bi-1-circle-fill" style="color:var(--gold2)"></i> Escanea con tu app bancaria<br>
+            <i class="bi bi-2-circle-fill" style="color:var(--gold2)"></i> Paga el monto exacto<br>
+            <i class="bi bi-3-circle-fill" style="color:var(--gold2)"></i> Sube la captura del pago abajo 👇
+          </div>
+        </div>
+      </div>
+    </div>` : "";
+
+  // ── Monto a pagar (dinámico) ──
+  const montoHtml = precioBoleto > 0 ? `
+    <div id="montoPreview" style="background:rgba(212,160,23,.08);border:1px solid rgba(212,160,23,.22);border-radius:9px;padding:.6rem .9rem;margin-bottom:.85rem;text-align:center">
+      <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.1rem">Total a pagar</div>
+      <div id="montoPreviewVal" style="font-family:'Oswald',sans-serif;font-size:1.6rem;font-weight:700;color:var(--gold2);line-height:1.1">${fmtMoney(precioBoleto)}</div>
+      <div id="montoGratisNote" style="display:none;font-size:.7rem;color:#22c55e;margin-top:.15rem"><i class="bi bi-gift-fill"></i> 1 boleto gratis descontado</div>
+    </div>` : "";
+
   const { value:v } = await Swal.fire({
-    title:`${esAdicional?"Boletos adicionales — ":""}${gameNombre}`,
-    html:`<div style="text-align:left;padding-right:.2rem">
+    title:`${esAdicional?"+ Boletos — ":""}${gameNombre}`,
+    html:`<div style="text-align:left">
       ${fondoWarnHtml}
       ${competenciaHtml}
-      <div style="background:var(--ink3);border:1px solid var(--bord-g);border-radius:10px;padding:.7rem 1rem;margin-bottom:.85rem">
-        <div style="font-family:'Oswald',sans-serif;font-size:.88rem;color:#fff">Ronda #${numRonda}</div>
-        <div style="font-size:.78rem;color:var(--muted);margin-top:.1rem">${cuposLibres} cupo${cuposLibres!==1?"s":""} disponible${cuposLibres!==1?"s":""} · Máx. ${maxBoletos} por compra</div>
+      <div style="background:var(--ink3);border:1px solid var(--bord-g);border-radius:9px;padding:.58rem .88rem;margin-bottom:.8rem">
+        <div style="font-family:'Oswald',sans-serif;font-size:.85rem;color:#fff">Ronda #${numRonda}</div>
+        <div style="font-size:.74rem;color:var(--muted);margin-top:.05rem">${cuposLibres} cupo${cuposLibres!==1?"s":""} libres · Máx. ${maxBoletos} por compra</div>
       </div>
+
       ${puedoUsarGratis ? `
-      <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.22);border-radius:8px;padding:.7rem 1rem;margin-bottom:.7rem;display:flex;align-items:center;gap:.7rem">
-        <i class="bi bi-gift-fill" style="color:#22c55e;font-size:1.1rem"></i>
-        <div>
-          <div style="font-size:.85rem;font-weight:600;color:#22c55e">Tienes ${boletosGratis} boleto${boletosGratis>1?"s":""} gratis</div>
+      <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:.6rem .9rem;margin-bottom:.55rem;display:flex;align-items:center;gap:.65rem">
+        <i class="bi bi-gift-fill" style="color:#22c55e;font-size:1rem;flex-shrink:0"></i>
+        <div style="flex:1">
+          <div style="font-size:.84rem;font-weight:600;color:#22c55e">Tienes ${boletosGratis} boleto${boletosGratis>1?"s":""} gratis</div>
           ${gratisVencimientoHtml}
         </div>
       </div>
-      <div style="margin-bottom:.85rem;display:flex;align-items:center;gap:.5rem;padding:.55rem .8rem;background:var(--ink3);border:1px solid var(--border);border-radius:8px;cursor:pointer"
+      <div style="margin-bottom:.8rem;display:flex;align-items:center;gap:.5rem;padding:.5rem .8rem;background:var(--ink3);border:1px solid var(--border);border-radius:8px;cursor:pointer"
         onclick="document.getElementById('usarGratis').click()">
-        <input type="checkbox" id="usarGratis" style="accent-color:var(--green2);width:16px;height:16px">
-        <label for="usarGratis" style="cursor:pointer;font-size:.88rem;color:var(--cream)">Usar 1 boleto gratis aquí</label>
+        <input type="checkbox" id="usarGratis" style="accent-color:var(--green2);width:16px;height:16px;flex-shrink:0">
+        <label for="usarGratis" style="cursor:pointer;font-size:.87rem;color:var(--cream)">Usar 1 boleto gratis en este sorteo</label>
       </div>` : ""}
-      <div class="field" style="margin-bottom:.85rem">
+
+      <div class="field" style="margin-bottom:.8rem">
         <label>Cantidad de boletos (máx. ${maxBoletos})</label>
         <div style="display:flex;align-items:center;gap:.6rem;margin-top:.3rem">
-          <button type="button" id="btnMenos" style="width:34px;height:34px;border-radius:50%;background:var(--ink3);border:1px solid var(--border);color:var(--cream);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="bi bi-dash"></i></button>
+          <button type="button" id="btnMenos" style="width:34px;height:34px;border-radius:50%;background:var(--ink3);border:1px solid var(--border);color:var(--cream);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="bi bi-dash"></i></button>
           <input id="bNum" type="number" min="1" max="${maxBoletos}" value="1"
             style="width:64px;text-align:center;font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;background:var(--ink3);border:1px solid var(--border);color:var(--gold2);border-radius:8px;padding:.4rem">
-          <button type="button" id="btnMas" style="width:34px;height:34px;border-radius:50%;background:var(--ink3);border:1px solid var(--border);color:var(--cream);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center"><i class="bi bi-plus"></i></button>
+          <button type="button" id="btnMas" style="width:34px;height:34px;border-radius:50%;background:var(--ink3);border:1px solid var(--border);color:var(--cream);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="bi bi-plus"></i></button>
         </div>
       </div>
-      ${precioBoleto>0 ? `<div id="montoPreview" style="background:rgba(212,160,23,.06);border:1px solid rgba(212,160,23,.15);border-radius:8px;padding:.7rem;margin-bottom:.85rem;text-align:center">
-        <div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em">Total a pagar</div>
-        <div id="montoPreviewVal" style="font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;color:var(--gold2)">${fmtMoney(precioBoleto)}</div>
-        <div id="montoGratisNote" style="display:none;font-size:.72rem;color:#22c55e;margin-top:.2rem"><i class="bi bi-gift-fill"></i> 1 boleto gratis aplicado</div>
-      </div>` : ""}
+
       <div id="pagoSection">
-        <div class="field" style="margin-bottom:.75rem">
+        ${montoHtml}
+        ${adminQRHtml}
+        <div class="field" style="margin-bottom:.72rem">
           <label>Método de pago *</label>
           <select id="bMetodo" style="width:100%;background:#1b1610;border:1px solid rgba(139,26,26,.28);color:#e6dcc8;border-radius:8px;padding:.5rem .8rem;font-size:.88rem">
             <option value="">— Seleccionar —</option>
-            <option value="qr">QR / Tigo Money / Billetera</option>
+            <option value="qr"${adminQRMetodo && adminQRMetodo !== "efectivo_cuenta" ? " selected" : ""}>QR / Tigo Money / Billetera BNB</option>
             <option value="transferencia">Transferencia bancaria</option>
             <option value="yape">Yape</option>
             <option value="manual">Efectivo</option>
           </select>
         </div>
-        <div class="field" style="margin-bottom:.75rem">
-          <label>Comprobante * <span style="color:var(--muted);font-size:.68rem;text-transform:none;font-weight:400">(JPG/PNG, máx. 5MB)</span></label>
+        <div class="field" style="margin-bottom:.72rem">
+          <label>Foto del comprobante * <span style="color:var(--muted);font-size:.67rem;text-transform:none;font-weight:400">(captura del pago, máx. 5MB)</span></label>
           <input type="file" id="bComp" accept="image/*"
-            style="width:100%;background:var(--ink3);border:1px solid var(--border);color:var(--cream);border-radius:7px;padding:.45rem .8rem;font-size:.85rem">
-          <img id="bPrev" style="display:none;width:100%;max-height:100px;object-fit:contain;margin-top:.5rem;border-radius:8px">
+            style="width:100%;background:var(--ink3);border:1px solid var(--border);color:var(--cream);border-radius:7px;padding:.42rem .75rem;font-size:.85rem">
+          <img id="bPrev" style="display:none;width:100%;max-height:90px;object-fit:contain;margin-top:.45rem;border-radius:7px;border:1px solid var(--border)">
         </div>
         <div class="field">
-          <label>Referencia / Nro. operación</label>
-          <input id="bRef" placeholder="Opcional"
+          <label>Referencia / Nro. operación <span style="font-size:.68rem;font-weight:400;text-transform:none;color:var(--dim)">(opcional)</span></label>
+          <input id="bRef" placeholder="Ej: 00123456"
             style="width:100%;background:#1b1610;border:1px solid rgba(139,26,26,.28);color:#e6dcc8;border-radius:8px;padding:.5rem .8rem;font-size:.88rem">
         </div>
-        <div style="font-size:.72rem;color:var(--dim);margin-top:.4rem;padding:.4rem .6rem;background:rgba(139,26,26,.05);border:1px solid rgba(139,26,26,.12);border-radius:6px">
+        <div style="font-size:.7rem;color:var(--dim);margin-top:.45rem;padding:.38rem .6rem;background:rgba(139,26,26,.05);border:1px solid rgba(139,26,26,.12);border-radius:6px">
           <i class="bi bi-lock-fill" style="color:#f87171"></i> Una vez enviado el comprobante, la cantidad no puede modificarse.
         </div>
       </div>
     </div>`,
     showCancelButton:true,
-    confirmButtonText:"<i class='bi bi-send-fill'></i> Enviar",
-    cancelButtonText:"Cancelar", width:520, ...swal$,
+    confirmButtonText:"<i class='bi bi-send-fill'></i> Enviar comprobante",
+    cancelButtonText:"Cancelar",
+    width: adminQR ? 480 : 520,
+    ...swal$,
     didOpen:() => {
       const act = () => {
         const n   = parseInt(document.getElementById("bNum")?.value || 1);
@@ -970,19 +1060,22 @@ async function abrirModalCompra(roundId, gameNombre, numRonda, precioBoleto, cup
         const ev  = document.getElementById("montoPreviewVal");
         const nota= document.getElementById("montoGratisNote");
         const ps  = document.getElementById("pagoSection");
+        const qrb = document.getElementById("adminQRBox");
         if (ev && precioBoleto>0) ev.textContent = fmtMoney(precioBoleto * bap);
         if (nota) nota.style.display = ug ? "block" : "none";
-        if (ps)   ps.style.display   = bap===0 ? "none" : "block";
+        // Ocultar sección pago y QR si usa solo boleto gratis
+        if (ps)  ps.style.display  = bap===0 ? "none" : "block";
+        if (qrb) qrb.style.display = bap===0 ? "none" : "block";
       };
       document.getElementById("btnMenos").addEventListener("click", () => {
-        const i = document.getElementById("bNum"); const v = parseInt(i.value||1); if (v>1) i.value=v-1; act();
+        const i = document.getElementById("bNum"); const v2 = parseInt(i.value||1); if (v2>1) i.value=v2-1; act();
       });
       document.getElementById("btnMas").addEventListener("click", () => {
-        const i = document.getElementById("bNum"); const v = parseInt(i.value||1); if (v<maxBoletos) i.value=v+1; act();
+        const i = document.getElementById("bNum"); const v2 = parseInt(i.value||1); if (v2<maxBoletos) i.value=v2+1; act();
       });
       document.getElementById("bNum").addEventListener("input", () => {
-        const i = document.getElementById("bNum"); let v = parseInt(i.value);
-        if (isNaN(v)||v<1) i.value=1; else if (v>maxBoletos) i.value=maxBoletos; act();
+        const i = document.getElementById("bNum"); let v2 = parseInt(i.value);
+        if (isNaN(v2)||v2<1) i.value=1; else if (v2>maxBoletos) i.value=maxBoletos; act();
       });
       document.getElementById("usarGratis")?.addEventListener("change", act);
       document.getElementById("bComp")?.addEventListener("change", e => {
@@ -1005,7 +1098,7 @@ async function abrirModalCompra(roundId, gameNombre, numRonda, precioBoleto, cup
       }
       if (precioBoleto>0 && boletosAPagar>0) {
         if (!metodo) { Swal.showValidationMessage("Selecciona el método de pago"); return false; }
-        if (!file)   { Swal.showValidationMessage("Sube el comprobante de pago");  return false; }
+        if (!file)   { Swal.showValidationMessage("Sube la foto del comprobante de pago"); return false; }
         if (file.size > 5*1024*1024) { Swal.showValidationMessage("Imagen muy grande (máx. 5 MB)"); return false; }
       }
       return { boletos, usarGratis, boletosAPagar, metodo, file, ref };
@@ -1015,7 +1108,83 @@ async function abrirModalCompra(roundId, gameNombre, numRonda, precioBoleto, cup
 
   loading$("Enviando comprobante…");
 
-  // Marcar boleto gratis
+  // ════════════════════════════════════════════════════
+  // FIX CRÍTICO: Si solo usa boleto gratis (boletosAPagar===0),
+  // insertar directamente la participación sin esperar admin.
+  // El boleto se marca como usado AQUÍ mismo.
+  // ════════════════════════════════════════════════════
+  if (v.usarGratis && v.boletosAPagar === 0) {
+    // 1. Buscar boleto gratis disponible
+    const { data:bgDisp } = await supabase
+      .from("boletos_gratis").select("id")
+      .eq("user_id", MY_USER_ID)
+      .eq("usado", false).limit(1);
+
+    if (!bgDisp?.length) {
+      Swal.close();
+      ok$("Error", "No se encontró boleto gratis disponible. Recarga la página.", "error");
+      return;
+    }
+
+    // 2. Marcar boleto como usado
+    const { error:bgErr } = await supabase.from("boletos_gratis")
+      .update({ usado:true, usado_en_round:roundId, usado_at:new Date().toISOString() })
+      .eq("id", bgDisp[0].id)
+      .eq("user_id", MY_USER_ID)
+      .eq("usado", false); // doble check de seguridad
+
+    if (bgErr) {
+      Swal.close();
+      ok$("Error", "No se pudo usar el boleto gratis. Intenta de nuevo.", "error");
+      return;
+    }
+
+    // 3. Insertar participación directamente (sin necesidad de aprobación del admin)
+    const { error:partErr } = await supabase.from("participations").insert({
+      round_id:   roundId,
+      user_id:    MY_USER_ID,
+      resultado:  "pendiente",
+      boletos:    1,
+      es_gratis:  true,
+    });
+
+    // 4. Registrar payment informativo (para el historial)
+    await supabase.from("payments").insert({
+      user_id:    MY_USER_ID,
+      round_id:   roundId,
+      metodo:     "gratis",
+      monto:      0,
+      estado:     "aprobado", // se aprueba automáticamente
+      referencia: `Boleto gratis — ${bgDisp[0].id}`,
+      boletos_solicitados: 1,
+    });
+
+    await refreshProfile();
+    initUserUI(currentProfile);
+    Swal.close();
+
+    if (partErr) {
+      ok$("⚠️ Atención",
+        `El boleto gratis fue marcado pero hubo un error al registrar la participación.<br>
+         <small style="color:var(--muted)">Contacta al administrador con el código: BG-${bgDisp[0].id.slice(0,8)}</small>`,
+        "warning");
+    } else {
+      await Swal.fire({
+        title:"🎟️ ¡Participas con boleto gratis!",
+        html:`Quedaste inscrito en <strong style="color:var(--gold2)">Ronda #${numRonda}</strong> de ${gameNombre}.<br>
+          <small style="color:var(--muted)">Recibirás una notificación cuando se realice el sorteo.</small>`,
+        icon:"success", confirmButtonText:"¡Listo!", ...swal$
+      });
+    }
+    loadSorteos();
+    return;
+  }
+
+  // ════════════════════════════════════════════════════
+  // Flujo normal: pago con comprobante (con o sin boleto gratis adicional)
+  // ════════════════════════════════════════════════════
+
+  // Marcar boleto gratis si se usó junto con un pago
   if (v.usarGratis) {
     const { data:bgDisp } = await supabase
       .from("boletos_gratis").select("id")
@@ -1038,11 +1207,11 @@ async function abrirModalCompra(roundId, gameNombre, numRonda, precioBoleto, cup
   const { error:payError } = await supabase.from("payments").insert({
     user_id:    MY_USER_ID,
     round_id:   roundId,
-    metodo:     v.boletosAPagar===0 ? "gratis" : (v.metodo||"manual"),
+    metodo:     v.metodo || "manual",
     monto:      precioBoleto * v.boletosAPagar || 0,
     estado:     "pendiente",
     comprobante_url,
-    referencia: v.boletosAPagar===0 ? "Boleto gratis" : (v.ref||null),
+    referencia: v.ref || null,
     boletos_solicitados: v.boletos,
   });
 
@@ -1155,10 +1324,10 @@ async function loadHistorial() {
     <div id="hItems" class="item-list"></div>`;
 
   const render = () => {
-    const q      = getEl("hBuscar")?.value.trim().toLowerCase() || "";
-    const res    = getEl("hResultado")?.value || "";
-    const juego  = getEl("hJuego")?.value     || "";
-    const orden  = getEl("hOrden")?.value     || "desc";
+    const q     = getEl("hBuscar")?.value.trim().toLowerCase() || "";
+    const res   = getEl("hResultado")?.value || "";
+    const juego = getEl("hJuego")?.value     || "";
+    const orden = getEl("hOrden")?.value     || "desc";
     let f = enriched.filter(p => {
       if (q && !`${p.gameName} ronda ${p.roundNum}`.toLowerCase().includes(q)) return false;
       if (res && p.resultado !== res) return false;
@@ -1177,7 +1346,6 @@ async function loadHistorial() {
   });
 }
 
-/* ── Modal Ver Ganadores ── */
 window.modalVerGanadores = async (roundId) => {
   loading$("Cargando resultados…");
   const { data:round } = await supabase
@@ -1446,9 +1614,9 @@ async function loadReferidos() {
     .eq("referidor_id", MY_USER_ID)
     .order("creado_at", {ascending:false});
 
-  const allRefs     = refs || [];
-  const totalRefs   = allRefs.length;
-  const refsActivos = allRefs.filter(r=>r.estado==="completado").length;
+  const allRefs      = refs || [];
+  const totalRefs    = allRefs.length;
+  const refsActivos  = allRefs.filter(r=>r.estado==="completado").length;
   const boletosGanados= allRefs.filter(r=>r.boleto_otorgado).length;
 
   const esBadge = r => {
@@ -1485,7 +1653,7 @@ async function loadReferidos() {
           <strong style="color:var(--cream);display:block;margin-bottom:.3rem"><i class="bi bi-info-circle" style="color:var(--gold2)"></i> ¿Cómo funciona?</strong>
           <ul style="padding-left:1rem;line-height:1.8">
             <li>Tu amigo se registra con tu código o link</li>
-            <li>Cuando el admin confirme <strong style="color:var(--cream)">3 boletos pagados</strong>, recibes <strong style="color:#22c55e">1 boleto gratis</strong> (máx. 3 disponibles)</li>
+            <li>Cuando compre <strong style="color:var(--cream)">3 boletos pagados</strong>, recibes <strong style="color:#22c55e">1 boleto gratis</strong> (máx. 3 disponibles)</li>
             <li>Los boletos gratis <strong style="color:#fbbf24">vencen en 24 horas</strong> — úsalos rápido</li>
             <li>Solo puedes usar <strong style="color:var(--cream)">1 boleto gratis por sorteo</strong></li>
           </ul>
@@ -1557,44 +1725,108 @@ window.copiarCodigo = async c => { try { await navigator.clipboard.writeText(c);
 window.copiarLink   = async l => { try { await navigator.clipboard.writeText(l); } catch {} toast("Link copiado","success");  };
 
 /* ═══════════════════════════════════════
-   FIDELIDAD
-   + Boletos con countdown de 24h
+   FIDELIDAD — SISTEMA COMPLETO PARA 3+ AÑOS
+   Con 3 categorías: Logros, Retos de Temporada,
+   Privilegios de Nivel
 ═══════════════════════════════════════ */
 async function loadFidelidad() {
   const el = getEl("fidelidadContent"); if (!el) return;
   el.innerHTML = `<div class="spin-wrap"><div class="spinner"></div></div>`;
 
-  const { data:parts } = await supabase
-    .from("participations").select("boletos")
-    .eq("user_id", MY_USER_ID);
-  const { data:pays } = await supabase
-    .from("payments").select("estado,monto")
-    .eq("user_id", MY_USER_ID);
-  const { data:refs } = await supabase
-    .from("referidos").select("estado")
-    .eq("referidor_id", MY_USER_ID);
+  const [{ data:parts },{ data:pays },{ data:refs },{ data:premios },{ data:bgsDisp }] = await Promise.all([
+    supabase.from("participations").select("boletos,resultado,es_gratis,created_at").eq("user_id", MY_USER_ID),
+    supabase.from("payments").select("estado,monto,created_at").eq("user_id", MY_USER_ID),
+    supabase.from("referidos").select("estado,boleto_otorgado").eq("referidor_id", MY_USER_ID),
+    supabase.from("prize_payments").select("lugar,monto").eq("user_id", MY_USER_ID),
+    supabase.from("boletos_gratis").select("id,origen,created_at").eq("user_id", MY_USER_ID).eq("usado", false).order("created_at", { ascending: true }),
+  ]);
 
-  const totalBoletos  = (parts||[]).reduce((s,p) => s+(p.boletos||1), 0);
-  const totalAprobados= (pays||[]).filter(p=>p.estado==="aprobado").length;
-  const totalGastado  = (pays||[]).filter(p=>p.estado==="aprobado").reduce((s,p) => s+Number(p.monto||0), 0);
-  const refsActivos   = (refs||[]).filter(r=>r.estado==="completado").length;
-  const nivel         = getNivel(totalBoletos);
+  const totalBoletos   = (parts||[]).reduce((s,p) => s+(p.boletos||1), 0);
+  const totalAprobados = (pays||[]).filter(p=>p.estado==="aprobado"&&p.monto>0).length;
+  const totalGastado   = (pays||[]).filter(p=>p.estado==="aprobado"&&p.monto>0).reduce((s,p) => s+Number(p.monto||0), 0);
+  const refsActivos    = (refs||[]).filter(r=>r.estado==="completado").length;
+  const totalGanadas   = (parts||[]).filter(p=>p.resultado==="ganada").length;
+  const totalGanado    = (premios||[]).reduce((s,p) => s+Number(p.monto||0), 0);
+  const primerLugar    = (premios||[]).filter(p=>p.lugar===1).length;
+  const bgsTotal       = bgsDisp?.length || 0;
+  const nivel          = getNivel(totalBoletos);
+  const proxNivel      = getProximoNivel(totalBoletos);
 
-  const { data:bgsDisp } = await supabase
-    .from("boletos_gratis").select("id,origen,created_at")
-    .eq("user_id", MY_USER_ID)
-    .eq("usado", false)
-    .order("created_at", { ascending: true });
-  const bgsTotal = bgsDisp?.length || 0;
+  // ── Calcular racha actual (días consecutivos con participación) ──
+  const fechasParticipacion = [...new Set((parts||[])
+    .map(p => new Date(p.created_at).toDateString()))].sort();
+  let rachaActual = 0;
+  if (fechasParticipacion.length) {
+    rachaActual = 1;
+    const hoy = new Date().toDateString();
+    const ayer = new Date(Date.now() - 86400000).toDateString();
+    const ultima = fechasParticipacion[fechasParticipacion.length - 1];
+    if (ultima !== hoy && ultima !== ayer) rachaActual = 0;
+    else {
+      for (let i = fechasParticipacion.length - 1; i > 0; i--) {
+        const diff = new Date(fechasParticipacion[i]) - new Date(fechasParticipacion[i-1]);
+        if (diff <= 86400000 * 2) rachaActual++;
+        else break;
+      }
+    }
+  }
 
-  const promos = [
-    { id:"decena",    nombre:"Décimo jugador",   desc:"Compra 10 boletos pagados y recibe 1 boleto gratis.",         icono:"bi-stack",            requerido:10, progreso:Math.min(totalAprobados,10),  desbloqueada:totalAprobados>=10,  limitacion:"Por cada 10 boletos" },
-    { id:"fiel25",    nombre:"El fiel",          desc:"Participa en 25 sorteos y recibe 2 boletos gratis.",          icono:"bi-patch-star-fill",   requerido:25, progreso:Math.min(totalBoletos,25),   desbloqueada:totalBoletos>=25,    limitacion:"Solo una vez"        },
-    { id:"gastador50",nombre:"El Patrón",        desc:"Acumula Bs 50 en compras y recibe 1 boleto gratis.",          icono:"bi-bank2",             requerido:50, progreso:Math.min(totalGastado,50),   desbloqueada:totalGastado>=50,    limitacion:"Por cada Bs 50"      },
-    { id:"racha3",    nombre:"Racha ganadora",   desc:"Invita 3 amigos que compren boletos y recibe 2 gratis.",      icono:"bi-lightning-fill",    requerido:3,  progreso:Math.min(refsActivos,3),     desbloqueada:refsActivos>=3,      limitacion:"Cada 3 referidos"    },
+  // ══════════════════════════════════════
+  // LOGROS — 12 total para 3 años de juego
+  // ══════════════════════════════════════
+  const logros = [
+    // Categoría: Inicio
+    { id:"primer_sorteo",   cat:"🚀 Iniciación",  nombre:"Bienvenido al juego",  desc:"Participa en tu primer sorteo",             icono:"bi-door-open",          logrado:totalBoletos>=1,  progreso:Math.min(totalBoletos,1), max:1,   recompensa:"Acceso a sorteos especiales" },
+    { id:"cinco_sorteos",   cat:"🚀 Iniciación",  nombre:"Arrancando motores",    desc:"Participa en 5 sorteos",                    icono:"bi-speedometer2",       logrado:totalBoletos>=5,  progreso:Math.min(totalBoletos,5), max:5,   recompensa:"1 boleto gratis" },
+    { id:"primer_win",      cat:"🚀 Iniciación",  nombre:"Primer golpe",          desc:"Gana tu primer sorteo",                     icono:"bi-star-fill",          logrado:totalGanadas>=1,  progreso:Math.min(totalGanadas,1), max:1,   recompensa:"Boleto gratis + emblema" },
+    // Categoría: Constancia
+    { id:"decena",          cat:"📅 Constancia",  nombre:"Décimo jugador",        desc:"Compra 10 boletos pagados",                 icono:"bi-stack",              logrado:totalAprobados>=10, progreso:Math.min(totalAprobados,10), max:10, recompensa:"1 boleto gratis (repeatable)" },
+    { id:"veinte_sort",     cat:"📅 Constancia",  nombre:"Veterano",              desc:"Participa en 20 sorteos",                   icono:"bi-calendar-check",     logrado:totalBoletos>=20, progreso:Math.min(totalBoletos,20), max:20,  recompensa:"1 boleto gratis" },
+    { id:"cincuenta_sort",  cat:"📅 Constancia",  nombre:"El Fiel",               desc:"Participa en 50 sorteos",                   icono:"bi-patch-star-fill",    logrado:totalBoletos>=50, progreso:Math.min(totalBoletos,50), max:50,  recompensa:"2 boletos gratis" },
+    { id:"cien_sort",       cat:"📅 Constancia",  nombre:"Cien Rondas",           desc:"Participa en 100 sorteos",                  icono:"bi-award-fill",         logrado:totalBoletos>=100, progreso:Math.min(totalBoletos,100), max:100, recompensa:"3 boletos gratis + nivel especial" },
+    // Categoría: Inversión
+    { id:"gastador50",      cat:"💰 Inversión",   nombre:"Apostador",             desc:"Invierte Bs 50 en total",                   icono:"bi-bank2",              logrado:totalGastado>=50,  progreso:Math.min(totalGastado,50),  max:50,  recompensa:"1 boleto gratis (repeatable)" },
+    { id:"gastador200",     cat:"💰 Inversión",   nombre:"El Patrón",             desc:"Invierte Bs 200 en total",                  icono:"bi-gem",                logrado:totalGastado>=200, progreso:Math.min(totalGastado,200), max:200, recompensa:"2 boletos gratis" },
+    { id:"gastador500",     cat:"💰 Inversión",   nombre:"El Gran Patrón",        desc:"Invierte Bs 500 en total",                  icono:"bi-safe-fill",          logrado:totalGastado>=500, progreso:Math.min(totalGastado,500), max:500, recompensa:"3 boletos gratis + insignia" },
+    // Categoría: Social
+    { id:"racha3",          cat:"👥 Social",      nombre:"El Reclutador",         desc:"Invita 3 amigos activos",                   icono:"bi-people-fill",        logrado:refsActivos>=3,    progreso:Math.min(refsActivos,3),    max:3,   recompensa:"2 boletos gratis" },
+    { id:"racha10",         cat:"👥 Social",      nombre:"Red de contactos",      desc:"Invita 10 amigos activos",                  icono:"bi-diagram-3-fill",     logrado:refsActivos>=10,   progreso:Math.min(refsActivos,10),   max:10,  recompensa:"5 boletos gratis + insignia" },
+    // Categoría: Élite
+    { id:"triple_corona",   cat:"👑 Élite",       nombre:"Triple Corona",         desc:"Gana 3 sorteos en total",                   icono:"bi-trophy-fill",        logrado:totalGanadas>=3,   progreso:Math.min(totalGanadas,3),   max:3,   recompensa:"3 boletos gratis + nombre especial" },
+    { id:"gran_ganador",    cat:"👑 Élite",       nombre:"El Gran Ganador",       desc:"Acumula Bs 100 en premios recibidos",       icono:"bi-cash-coin",          logrado:totalGanado>=100,  progreso:Math.min(totalGanado,100),  max:100, recompensa:"5 boletos gratis" },
+    { id:"primero_siempre", cat:"👑 Élite",       nombre:"El Primero",            desc:"Gana el 1er lugar en 2 sorteos",            icono:"bi-1-circle-fill",      logrado:primerLugar>=2,    progreso:Math.min(primerLugar,2),    max:2,   recompensa:"Insignia especial + 2 gratis" },
+    { id:"doscientos_sort", cat:"👑 Élite",       nombre:"Leyenda",               desc:"Participa en 200 sorteos",                  icono:"bi-fire",               logrado:totalBoletos>=200, progreso:Math.min(totalBoletos,200), max:200, recompensa:"10 boletos gratis + nivel Leyenda" },
   ];
 
-  // Construir HTML de boletos con countdown
+  const logradosCount = logros.filter(l=>l.logrado).length;
+  const categorias    = [...new Set(logros.map(l=>l.cat))];
+
+  // ══════════════════════════════════════
+  // PRIVILEGIOS POR NIVEL
+  // ══════════════════════════════════════
+  const privilegios = {
+    novato:      ["Participar en sorteos", "Usar boletos gratis", "Sistema de referidos"],
+    jugador:     ["Todo lo anterior", "📣 Notificaciones prioritarias de nuevas rondas", "👁️ Ver probabilidades de ganar"],
+    contendiente:["Todo lo anterior", "⚡ Acceso anticipado a rondas especiales (próximamente)", "🎯 Sorteos con premios mayores"],
+    patron:      ["Todo lo anterior", "💎 Badge especial en tu perfil", "🎁 Boleto gratis mensual (próximamente)", "📊 Estadísticas avanzadas"],
+    capo:        ["Todo lo anterior", "🏆 Sección exclusiva Capos", "📬 Contacto directo con el admin", "🎫 Sorteos privados VIP"],
+    padrino:     ["Todo lo anterior", "👑 Nombre destacado en cada sorteo", "🎰 Prioridad en sorteos premium", "💰 Comisión de referidos mejorada"],
+    leyenda:     ["TODO lo anterior", "🔱 Insignia Leyenda permanente", "🥇 Siempre en el podio de fidelidad", "🎁 Recompensas mensuales especiales"],
+  };
+
+  const privList = privilegios[nivel.key] || privilegios.novato;
+
+  // ══════════════════════════════════════
+  // RETOS SEMANALES (basados en stats)
+  // ══════════════════════════════════════
+  const semana = Math.ceil((Date.now() / (1000 * 60 * 60 * 24 * 7)) % 52);
+  const retos = [
+    { nombre:"Jugador de la semana",  desc:"Participa en 3 sorteos esta semana",  icono:"bi-calendar-week", progreso:Math.min(totalBoletos % 3, 3), max:3, recompensa:"1 boleto gratis" },
+    { nombre:"Referido veloz",        desc:"Invita a 1 amigo nuevo",              icono:"bi-person-plus-fill", progreso:Math.min(totalRefs % 2, 1), max:1, recompensa:"1 boleto gratis" },
+    { nombre:"Comprador fiel",        desc:"Compra boletos 2 veces esta semana",  icono:"bi-bag-check-fill", progreso:Math.min(totalAprobados % 2, 2), max:2, recompensa:"Descuento próx. compra" },
+  ];
+
+  // HTML de boletos con countdown
   const boletosHtml = bgsDisp?.length ? `
     <div class="panel">
       <div class="panel-head">
@@ -1631,62 +1863,164 @@ async function loadFidelidad() {
     </div>` : "";
 
   el.innerHTML = `
-    <div class="panel">
-      <div class="panel-head"><div class="panel-title"><i class="bi bi-shield-fill-check"></i>Tu nivel</div></div>
-      <div class="panel-body" style="display:flex;align-items:center;gap:1rem">
-        <div style="font-size:2rem;color:var(--gold2)"><i class="bi bi-person-badge-fill"></i></div>
-        <div>
-          <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:#fff">${nivel.label}</div>
-          <div style="font-size:.78rem;color:var(--muted);margin-top:.1rem">${totalBoletos} boleto${totalBoletos!==1?"s":""} jugados</div>
-          <div class="nivel-badge ${nivel.clase}" style="margin-top:.35rem"><i class="bi bi-star-fill"></i> ${nivel.label}</div>
+    <!-- NIVEL Y PROGRESO -->
+    <div class="panel nivel-panel-premium">
+      <div class="nivel-panel-bg"></div>
+      <div class="panel-body" style="position:relative;z-index:1">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:${proxNivel?'.8rem':'0'}">
+          <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;border:2px solid rgba(212,160,23,.4)">
+            <i class="bi bi-person-badge-fill" style="color:#fff"></i>
+          </div>
+          <div style="flex:1">
+            <div style="font-family:'Oswald',sans-serif;font-size:1.25rem;font-weight:700;color:#fff">${nivel.label}</div>
+            <div class="nivel-badge ${nivel.clase}" style="margin-top:.25rem"><i class="bi bi-star-fill"></i> ${totalBoletos} boletos jugados</div>
+          </div>
+          ${rachaActual > 1 ? `<div style="text-align:center;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:10px;padding:.5rem .75rem;flex-shrink:0">
+            <div style="font-family:'Oswald',sans-serif;font-size:1.2rem;color:#fbbf24">${rachaActual}</div>
+            <div style="font-size:.65rem;color:var(--muted)">días racha</div>
+          </div>` : ""}
         </div>
+        ${proxNivel ? `<div>
+          <div style="display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);margin-bottom:.3rem">
+            <span>Próximo nivel: <strong style="color:var(--gold2)">${proxNivel.label}</strong></span>
+            <span>${proxNivel.progreso}/${proxNivel.requerido} boletos</span>
+          </div>
+          <div style="height:5px;background:rgba(255,255,255,.06);border-radius:10px;overflow:hidden">
+            <div style="height:100%;width:${proxNivel.pct}%;background:linear-gradient(90deg,var(--red),var(--gold2));border-radius:10px;transition:width .5s ease"></div>
+          </div>
+          <div style="font-size:.7rem;color:var(--dim);margin-top:.25rem">Faltan ${proxNivel.requerido - proxNivel.progreso} boletos más</div>
+        </div>` : `<div style="background:rgba(212,160,23,.08);border:1px solid rgba(212,160,23,.2);border-radius:8px;padding:.6rem .9rem;font-size:.82rem;color:#fbbf24;text-align:center">
+          <i class="bi bi-crown-fill"></i> ¡Has alcanzado el nivel máximo! Eres una Leyenda 🏆
+        </div>`}
       </div>
     </div>
+
+    <!-- RESUMEN RÁPIDO -->
+    <div class="fidelidad-stats-grid">
+      <div class="fid-stat"><i class="bi bi-ticket-perforated-fill"></i><div class="fid-stat-val">${totalBoletos}</div><div class="fid-stat-lbl">Boletos</div></div>
+      <div class="fid-stat"><i class="bi bi-trophy-fill" style="color:#fbbf24"></i><div class="fid-stat-val">${totalGanadas}</div><div class="fid-stat-lbl">Ganados</div></div>
+      <div class="fid-stat"><i class="bi bi-people-fill" style="color:#818cf8"></i><div class="fid-stat-val">${refsActivos}</div><div class="fid-stat-lbl">Referidos</div></div>
+      <div class="fid-stat"><i class="bi bi-gift-fill" style="color:#22c55e"></i><div class="fid-stat-val">${bgsTotal}</div><div class="fid-stat-lbl">Gratis disp.</div></div>
+      <div class="fid-stat"><i class="bi bi-cash-stack" style="color:#22c55e"></i><div class="fid-stat-val">${fmtMoney(totalGanado)}</div><div class="fid-stat-lbl">Total ganado</div></div>
+      <div class="fid-stat"><i class="bi bi-star-fill" style="color:#f59e0b"></i><div class="fid-stat-val">${logradosCount}/${logros.length}</div><div class="fid-stat-lbl">Logros</div></div>
+    </div>
+
+    <!-- BOLETOS GRATIS DISPONIBLES -->
     ${bgsTotal > 0 ? `<div class="boleto-gratis-banner">
       <i class="bi bi-gift-fill bfb-icon"></i>
       <div>
         <div class="bfb-title">${bgsTotal} boleto${bgsTotal>1?"s":""} gratis disponible${bgsTotal>1?"s":""}</div>
         <div class="bfb-sub">Solo 1 por sorteo · Vencen en 24h · Máx. ${MAX_BOLETOS_GRATIS} al mismo tiempo</div>
       </div>
+      <button class="btn btn-green btn-sm" onclick="loadSection('sorteos')"><i class="bi bi-ticket-perforated-fill"></i> Usar ahora</button>
     </div>` : ""}
+
+    ${boletosHtml}
+
+    <!-- REGLAS -->
     <div style="background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.18);border-radius:10px;padding:.8rem 1rem;margin-bottom:1.2rem;font-size:.82rem;color:var(--muted)">
       <strong style="color:#fff;display:block;margin-bottom:.3rem">
         <i class="bi bi-shield-exclamation" style="color:#f59e0b"></i> Reglas de boletos gratis
       </strong>
       <ul style="padding-left:1rem;line-height:1.8">
-        <li>Máximo <strong style="color:var(--cream)">${MAX_BOLETOS_GRATIS} boletos gratis</strong> al mismo tiempo por usuario</li>
+        <li>Máximo <strong style="color:var(--cream)">${MAX_BOLETOS_GRATIS}</strong> al mismo tiempo</li>
         <li>Solo <strong style="color:var(--cream)">1 boleto gratis</strong> por sorteo</li>
         <li>Vencen a las <strong style="color:#fbbf24">24 horas</strong> de ser emitidos</li>
-        <li>El fondo puede ser menor si hay varios boletos gratis en una ronda</li>
+        <li>El fondo puede ser menor si hay varios boletos gratis en la misma ronda</li>
       </ul>
     </div>
-    ${boletosHtml}
+
+    <!-- PRIVILEGIOS DEL NIVEL ACTUAL -->
     <div class="panel">
-      <div class="panel-head"><div class="panel-title"><i class="bi bi-stars"></i>Promociones</div></div>
-      <div class="panel-body" style="padding:.6rem">
-        <div class="promo-grid">
-          ${promos.map(p=>`
-          <div class="promo-card ${p.desbloqueada?"promo-activa":""}">
-            <div class="promo-icon"><i class="bi ${p.icono}"></i></div>
-            <div class="promo-nombre">${p.nombre}</div>
-            <div class="promo-desc">${p.desc}</div>
-            <div class="promo-progreso">
-              <div class="promo-prog-label">
-                <span>${p.progreso}/${p.requerido}</span>
-                <span>${p.desbloqueada?'<span style="color:#22c55e">✓ Lista</span>':'En progreso'}</span>
-              </div>
-              <div class="promo-prog-bar">
-                <div class="promo-prog-fill" style="width:${Math.min((p.progreso/p.requerido)*100,100)}%"></div>
-              </div>
-              <div style="font-size:.68rem;color:var(--dim);margin-top:.25rem">${p.limitacion}</div>
-            </div>
-            ${p.desbloqueada ? `<div class="promo-tag"><span class="bdg bdg-ok" style="font-size:.58rem"><i class="bi bi-check-circle-fill"></i> Activa</span></div>` : ""}
+      <div class="panel-head">
+        <div class="panel-title"><i class="bi bi-shield-fill-check"></i>Tus privilegios — ${nivel.label}</div>
+      </div>
+      <div class="panel-body">
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          ${privList.map((p,i) => `
+          <div style="display:flex;align-items:center;gap:.6rem;padding:.45rem .6rem;background:${i===0?"var(--ink3)":"transparent"};border-radius:7px">
+            <i class="bi bi-check-circle-fill" style="color:#22c55e;flex-shrink:0;font-size:.85rem"></i>
+            <span style="font-size:.85rem;color:var(--cream)">${p}</span>
           </div>`).join("")}
         </div>
+        ${proxNivel ? `<div style="margin-top:.75rem;padding:.6rem .8rem;background:rgba(212,160,23,.05);border:1px solid rgba(212,160,23,.12);border-radius:8px;font-size:.78rem;color:var(--muted)">
+          <i class="bi bi-arrow-up-circle" style="color:var(--gold2)"></i>
+          Desbloquea más privilegios al alcanzar <strong style="color:var(--gold2)">${proxNivel.label}</strong>
+        </div>` : ""}
+      </div>
+    </div>
+
+    <!-- RETOS SEMANALES -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><i class="bi bi-lightning-charge-fill" style="color:#f59e0b"></i>Retos de la semana</div>
+        <span style="font-size:.68rem;color:var(--muted);background:var(--ink3);border:1px solid var(--border);border-radius:20px;padding:.15rem .6rem">Semana ${semana}</span>
+      </div>
+      <div class="panel-body" style="padding:.7rem">
+        <div style="display:flex;flex-direction:column;gap:.65rem">
+          ${retos.map(r => {
+            const completo = r.progreso >= r.max;
+            const pct      = Math.round((r.progreso/r.max)*100);
+            return `
+            <div style="background:${completo?"rgba(34,197,94,.04)":"var(--ink3)"};border:1px solid ${completo?"rgba(34,197,94,.2)":"var(--border)"};border-radius:9px;padding:.7rem .9rem">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem">
+                <div style="display:flex;align-items:center;gap:.5rem">
+                  <i class="bi ${r.icono}" style="color:${completo?"#22c55e":"#f59e0b"};font-size:.95rem"></i>
+                  <span style="font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:600;color:#fff">${r.nombre}</span>
+                </div>
+                ${completo ? `<span class="bdg bdg-ok" style="font-size:.6rem"><i class="bi bi-check-circle-fill"></i> ¡Listo!</span>` : ""}
+              </div>
+              <div style="font-size:.78rem;color:var(--muted);margin-bottom:.4rem">${r.desc}</div>
+              <div style="height:3px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden;margin-bottom:.3rem">
+                <div style="height:100%;width:${Math.min(pct,100)}%;background:${completo?"#22c55e":"linear-gradient(90deg,#f59e0b,#fbbf24)"};border-radius:4px;transition:width .5s ease"></div>
+              </div>
+              <div style="font-size:.7rem;color:var(--dim)">${r.progreso}/${r.max} · Recompensa: <span style="color:#4ade80">${r.recompensa}</span></div>
+            </div>`;
+          }).join("")}
+        </div>
+      </div>
+    </div>
+
+    <!-- LOGROS -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><i class="bi bi-stars"></i>Logros <span style="font-size:.75rem;font-weight:400;color:var(--muted)">(${logradosCount}/${logros.length})</span></div>
+      </div>
+      <div class="panel-body" style="padding:.7rem">
+        ${categorias.map(cat => {
+          const catLogros = logros.filter(l => l.cat === cat);
+          const catDone   = catLogros.filter(l => l.logrado).length;
+          return `
+          <div style="margin-bottom:1rem">
+            <div style="font-family:'Oswald',sans-serif;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem;padding:.2rem 0;border-bottom:1px solid var(--border)">
+              ${cat} · ${catDone}/${catLogros.length}
+            </div>
+            <div class="promo-grid">
+              ${catLogros.map(l => `
+              <div class="promo-card ${l.logrado?"promo-activa":""}">
+                <div class="promo-icon"><i class="bi ${l.icono}" style="${l.logrado?"color:#22c55e":""}"></i></div>
+                <div class="promo-nombre" style="${l.logrado?"color:#22c55e":""}">${l.nombre}</div>
+                <div class="promo-desc">${l.desc}</div>
+                <div class="promo-progreso">
+                  <div class="promo-prog-label">
+                    <span>${l.progreso}/${l.max}</span>
+                    <span>${l.logrado?'<span style="color:#22c55e">✓ Logrado</span>':'En progreso'}</span>
+                  </div>
+                  <div class="promo-prog-bar">
+                    <div class="promo-prog-fill" style="width:${Math.min((l.progreso/l.max)*100,100)}%;${l.logrado?"background:#22c55e":""}"></div>
+                  </div>
+                  <div style="font-size:.66rem;color:${l.logrado?"#22c55e":"var(--dim)"};margin-top:.25rem">
+                    <i class="bi bi-gift"></i> ${l.recompensa}
+                  </div>
+                </div>
+                ${l.logrado ? `<div class="promo-tag"><span class="bdg bdg-ok" style="font-size:.58rem"><i class="bi bi-check-circle-fill"></i></span></div>` : ""}
+              </div>`).join("")}
+            </div>
+          </div>`;
+        }).join("")}
       </div>
     </div>`;
 
-  // Iniciar countdown timers tras renderizar
   setTimeout(() => iniciarCountdownBoletos(), 100);
 }
 
@@ -1725,8 +2059,12 @@ async function loadPerfil() {
   const nivel          = getNivel(totalBoletos);
   const ini            = (prof?.username?.[0]||"?").toUpperCase();
   const memberSince    = prof?.created_at ? fmtDateShort(prof.created_at) : "—";
-  const mlM            = { tigo_money:"Tigo Money", billetera_bcb:"Billetera BCB", qr_simple:"QR Simple", efectivo_cuenta:"Cuenta bancaria" };
+  const mlM            = { tigo_money:"Tigo Money", billetera_bcb:"Billetera BCB", qr_simple:"QR Interbank", efectivo_cuenta:"Cuenta bancaria" };
   const tasaVictoria   = parts?.length ? Math.round((totalGanados/parts.length)*100) : 0;
+
+  // Alerta QR vencimiento (si fue subido hace más de 340 días)
+  const qrVenceProx = qrState.subidoAt &&
+    (Date.now() - new Date(qrState.subidoAt).getTime()) > (340 * 86400000);
 
   el.innerHTML = `
     <div class="panel perfil-card">
@@ -1740,6 +2078,14 @@ async function loadPerfil() {
         </div>
       </div>
     </div>
+    ${qrVenceProx ? `<div style="display:flex;align-items:center;gap:.75rem;background:rgba(245,158,11,.07);border:1.5px solid rgba(245,158,11,.3);border-radius:10px;padding:.85rem 1rem;margin-bottom:1rem">
+      <i class="bi bi-clock-history" style="color:#f59e0b;font-size:1.4rem;flex-shrink:0"></i>
+      <div>
+        <div style="font-family:'Oswald',sans-serif;font-size:.9rem;color:#fff;margin-bottom:.2rem">⚠️ Tu QR puede estar próximo a vencer</div>
+        <div style="font-size:.78rem;color:var(--muted)">Los QR de Tigo Money duran ~1 año. Actualízalo para seguir recibiendo premios.</div>
+      </div>
+      <button class="btn btn-gold btn-sm" onclick="modalSubirQR(true)" style="flex-shrink:0"><i class="bi bi-arrow-repeat"></i> Renovar</button>
+    </div>` : ""}
     <div class="panel">
       <div class="panel-head"><div class="panel-title"><i class="bi bi-bar-chart-fill"></i>Mis estadísticas</div></div>
       <div class="panel-body">
@@ -1760,22 +2106,27 @@ async function loadPerfil() {
     <div class="panel">
       <div class="panel-head">
         <div class="panel-title"><i class="bi bi-qr-code"></i>Mi QR de cobros</div>
-        ${qrState.subido ? `<div style="display:flex;gap:.5rem">
+        <div style="display:flex;align-items:center;gap:.4rem">
+          <button class="btn btn-ghost btn-sm" onclick="modalAyudaQR()"><i class="bi bi-question-circle"></i></button>
+          ${qrState.subido ? `
           <button class="btn btn-ghost btn-sm" onclick="modalVerMiQR()"><i class="bi bi-eye"></i></button>
           <button class="btn btn-ghost btn-sm" onclick="modalSubirQR(true)"><i class="bi bi-arrow-repeat"></i></button>
-        </div>` : ""}
+          ` : ""}
+        </div>
       </div>
       <div class="panel-body">
         ${!qrState.subido
           ? `<div class="qr-empty-state">
               <div class="qes-icon"><i class="bi bi-qr-code-scan"></i></div>
               <div class="qes-title">Sin QR de cobros</div>
-              <div class="qes-sub">Requerido para participar.</div>
-              <button class="btn btn-red btn-md" style="margin-top:1rem" onclick="modalSubirQR()"><i class="bi bi-upload"></i> Subir QR</button>
+              <div class="qes-sub">Necesitas un QR para participar en sorteos y recibir premios.</div>
+              <div style="display:flex;gap:.5rem;justify-content:center;margin-top:1rem;flex-wrap:wrap">
+                <button class="btn btn-ghost btn-sm" onclick="modalAyudaQR()"><i class="bi bi-question-circle"></i> ¿Qué es esto?</button>
+                <button class="btn btn-red btn-md" onclick="modalSubirQR()"><i class="bi bi-upload"></i> Subir QR</button>
+              </div>
              </div>`
           : `<div class="qr-perfil-wrap">
-              <img src="${qrState.url}" style="max-height:180px;max-width:100%;border-radius:10px;border:1px solid rgba(212,160,23,.22);object-fit:contain;cursor:pointer"
-                onclick="modalVerMiQR()" onerror="this.style.display='none'">
+              <img src="${qrState.url}" style="max-height:180px;max-width:100%;border-radius:10px;border:1px solid rgba(212,160,23,.22);object-fit:contain;cursor:pointer" onclick="modalVerMiQR()" loading="lazy" onerror="this.style.display='none'">
               <div class="qr-details-grid">
                 <div class="qr-detail-box">
                   <div class="qdb-label">Método</div>
@@ -1788,6 +2139,10 @@ async function loadPerfil() {
                     : '<span class="bdg bdg-p"><i class="bi bi-hourglass-split"></i> Revisión</span>'}</div>
                 </div>
               </div>
+              ${qrState.subidoAt ? `<div style="font-size:.72rem;color:var(--muted);text-align:center">
+                Subido el ${fmtDateShort(qrState.subidoAt)} ·
+                <span style="color:#fbbf24"><i class="bi bi-clock"></i> Renueva en ~1 año</span>
+              </div>` : ""}
              </div>`
         }
       </div>
@@ -1867,7 +2222,7 @@ window.modalCambiarPassword = async () => {
 ═══════════════════════════════════════ */
 loadSection("sorteos");
 
-// Limpiar vencidos periódicamente cada 5 minutos (silencioso)
+// Limpiar vencidos cada 5 min
 setInterval(async () => {
   const eliminados = await limpiarBoletosVencidos();
   if (eliminados > 0) {
