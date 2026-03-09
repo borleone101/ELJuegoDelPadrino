@@ -1744,6 +1744,7 @@ async function loadFidelidad() {
   const totalBoletos   = (parts||[]).reduce((s,p) => s+(p.boletos||1), 0);
   const totalAprobados = (pays||[]).filter(p=>p.estado==="aprobado"&&p.monto>0).length;
   const totalGastado   = (pays||[]).filter(p=>p.estado==="aprobado"&&p.monto>0).reduce((s,p) => s+Number(p.monto||0), 0);
+  const totalRefs      = (refs||[]).length;
   const refsActivos    = (refs||[]).filter(r=>r.estado==="completado").length;
   const totalGanadas   = (parts||[]).filter(p=>p.resultado==="ganada").length;
   const totalGanado    = (premios||[]).reduce((s,p) => s+Number(p.monto||0), 0);
