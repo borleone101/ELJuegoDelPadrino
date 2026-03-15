@@ -529,7 +529,12 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
 
       <!-- PASO 2: Pago -->
       <div class="compra-step" id="compraStep2" style="display:none">
-        <button class="compra-back-btn" id="drawerBack"><i class="bi bi-arrow-left"></i> Volver</button>
+        <div class="compra-resumen-fijo">
+          <i class="bi bi-ticket-perforated-fill" style="color:var(--gold2)"></i>
+          <span id="drawerResumenTxt"></span>
+          <span id="drawerResumenMonto" style="font-family:'Oswald',sans-serif;color:var(--gold2);font-weight:700;margin-left:auto"></span>
+          <button class="compra-back-btn" id="drawerBack" title="Volver al paso 1"><i class="bi bi-arrow-left"></i></button>
+        </div>
         <div class="compra-step-label"><span class="step-num">2</span> Realiza el pago</div>
 
         ${adminQR?`
@@ -609,21 +614,41 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
   getEl("drawerMas")?.addEventListener("click",()=>{ if(boletos<maxBoletos){boletos++;actualizarMonto();} });
   getEl("drawerUsarGratis")?.addEventListener("change",e=>{ usarGratis=e.target.checked; actualizarMonto(); });
 
+  // Snapshot inmutable al avanzar — se capturan los valores y NO cambian
+  let boletosSnap=1, usarGratisSnap=false, bapSnap=1;
+
   getEl("drawerBtnNext")?.addEventListener("click",()=>{
     const bap=usarGratis?Math.max(0,boletos-1):boletos;
     if(precioBoleto===0||bap===0){ enviarParticipacion(); return; }
-    // ir al paso 2 — bloquear cantidad
+    // Tomar snapshot — a partir de aquí los valores son definitivos
+    boletosSnap=boletos; usarGratisSnap=usarGratis; bapSnap=bap;
+    // Mostrar resumen en el paso 2
+    const rt=getEl("drawerResumenTxt");
+    const rm=getEl("drawerResumenMonto");
+    if(rt) rt.textContent=`${boletosSnap} boleto${boletosSnap!==1?"s":""}${usarGratisSnap?" (1 gratis)":""}`;
+    if(rm) rm.textContent=fmtMoney(precioBoleto*bapSnap);
+    // Actualizar monto exacto en QR
+    const me=getEl("montoExacto"); if(me) me.textContent=fmtMoney(precioBoleto*bapSnap);
     getEl("compraStep1").style.display="none";
     getEl("compraStep2").style.display="block";
-    // bloquear botones cantidad
+    // Deshabilitar controles — no se pueden cambiar en paso 2
     if(getEl("drawerMenos")) getEl("drawerMenos").disabled=true;
     if(getEl("drawerMas")) getEl("drawerMas").disabled=true;
     if(getEl("drawerUsarGratis")) getEl("drawerUsarGratis").disabled=true;
   });
 
+  // Volver al paso 1 — SE LIMPIA el archivo subido para evitar re-uso
   getEl("drawerBack")?.addEventListener("click",()=>{
     getEl("compraStep1").style.display="block";
     getEl("compraStep2").style.display="none";
+    // Resetear snapshot
+    boletosSnap=boletos; usarGratisSnap=usarGratis;
+    // Limpiar comprobante subido — evita re-uso
+    const compInput=getEl("drawerComp");
+    if(compInput){ compInput.value=""; }
+    const prev=getEl("drawerPrev"); if(prev){prev.src="";prev.style.display="none";}
+    const ph=getEl("compraUploadPlaceholder"); if(ph) ph.style.display="flex";
+    // Re-habilitar controles
     if(getEl("drawerMenos")) getEl("drawerMenos").disabled=false;
     if(getEl("drawerMas")) getEl("drawerMas").disabled=false;
     if(getEl("drawerUsarGratis")) getEl("drawerUsarGratis").disabled=false;
@@ -644,7 +669,10 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
   getEl("drawerSubmit")?.addEventListener("click",()=>enviarParticipacion());
 
   async function enviarParticipacion(){
-    const bap=usarGratis?Math.max(0,boletos-1):boletos;
+    // Usar snapshot si ya se pasó al paso 2, si no usar valores actuales
+    const _boletos = (typeof boletosSnap!=="undefined" && getEl("compraStep2")?.style.display!=="none") ? boletosSnap : boletos;
+    const _usarGratis = (typeof usarGratisSnap!=="undefined" && getEl("compraStep2")?.style.display!=="none") ? usarGratisSnap : usarGratis;
+    const bap=_usarGratis?Math.max(0,_boletos-1):_boletos;
 
     // validaciones paso 2
     if(precioBoleto>0&&bap>0){
@@ -694,12 +722,12 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
       metodo:bap===0?"gratis":metodo,
       monto:precioBoleto*bap||0,
       estado:"pendiente",comprobante_url,referencia:ref,
-      boletos_solicitados:boletos,
+      boletos_solicitados:_boletos,
     });
     if(payError){ Swal.close(); ok$("Error al registrar pago",payError.message,"error"); return; }
     await refreshProfile(); initUserUI(currentProfile);
     Swal.close();
-    await Swal.fire({title:"✅ Comprobante enviado",html:`El admin revisará tus <strong style="color:var(--gold2)">${boletos} boleto${boletos>1?"s":""}${usarGratis?" (incluye 1 gratis)":""}</strong>.<br><small style="color:var(--muted)">Recibirás notificación cuando sea aprobado.</small>`,icon:"success",confirmButtonText:"OK",...swal$});
+    await Swal.fire({title:"✅ Comprobante enviado",html:`El admin revisará tus <strong style="color:var(--gold2)">${_boletos} boleto${_boletos>1?"s":""}${_usarGratis?" (incluye 1 gratis)":""}</strong>.<br><small style="color:var(--muted)">Recibirás notificación cuando sea aprobado.</small>`,icon:"success",confirmButtonText:"OK",...swal$});
     loadSorteos();
   }
 };
@@ -1017,7 +1045,6 @@ async function loadReferidos() {
   const el=getEl("referidosList"); if(!el) return;
   el.innerHTML=`<div class="spin-wrap"><div class="spinner"></div></div>`;
   const codigoRef=currentProfile.codigo_referido||await generarCodigoReferido();
-  const refLink=`${window.location.origin}/ElJuegoDelPadrino/auth/register.html?ref=${codigoRef}`;
 
   const{data:refs}=await supabase.from("referidos").select("id,referido_id,estado,creado_at,boleto_otorgado,boletos_pagados,profiles!referido_id(username)").eq("referidor_id",MY_USER_ID).order("creado_at",{ascending:false});
   const allRefs=refs||[];
@@ -1038,8 +1065,10 @@ async function loadReferidos() {
 
   el.innerHTML=`
   <div class="panel"><div class="panel-head"><div class="panel-title"><i class="bi bi-share-fill"></i>Tu código de invitación</div></div><div class="panel-body">
-    <div class="ref-code-box"><div><div class="ref-code">${codigoRef}</div><div class="ref-link">${refLink}</div></div>
-    <div style="display:flex;flex-direction:column;gap:.4rem"><button class="btn btn-gold btn-sm" onclick="copiarCodigo('${codigoRef}')"><i class="bi bi-copy"></i> Código</button><button class="btn btn-ghost btn-sm" onclick="copiarLink('${refLink}')"><i class="bi bi-link-45deg"></i> Link</button></div></div>
+    <div class="ref-code-box">
+      <div><div class="ref-code">${codigoRef}</div><div class="ref-code-hint">Comparte este código con tus amigos</div></div>
+      <button class="btn btn-gold btn-md" onclick="copiarCodigo('${codigoRef}')"><i class="bi bi-copy"></i> Copiar código</button>
+    </div>
     <div style="background:rgba(212,160,23,.05);border:1px solid rgba(212,160,23,.15);border-radius:9px;padding:.75rem 1rem;font-size:.82rem;color:var(--muted)">
       <strong style="color:var(--cream);display:block;margin-bottom:.3rem"><i class="bi bi-info-circle" style="color:var(--gold2)"></i> ¿Cómo funciona?</strong>
       <ul style="padding-left:1rem;line-height:1.8"><li>Tu amigo se registra con tu código</li><li>Cuando compre <strong style="color:var(--cream)">3 boletos pagados</strong>, recibes <strong style="color:#22c55e">1 boleto gratis</strong></li><li>Solo 1 boleto gratis por sorteo</li></ul>
