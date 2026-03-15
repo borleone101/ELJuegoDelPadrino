@@ -662,6 +662,19 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
       const prev=getEl("drawerPrev"); const ph=getEl("compraUploadPlaceholder");
       if(prev){ prev.src=ev.target.result; prev.style.display="block"; }
       if(ph) ph.style.display="none";
+      // Ocultar botón volver — una vez subida la imagen no se puede cambiar cantidad
+      const backBtn=getEl("drawerBack");
+      if(backBtn){
+        backBtn.style.display="none";
+        // Mostrar lock visual
+        const resumen=document.querySelector(".compra-resumen-fijo");
+        if(resumen&&!resumen.querySelector(".compra-lock-badge")){
+          const badge=document.createElement("span");
+          badge.className="compra-lock-badge";
+          badge.innerHTML='<i class="bi bi-lock-fill"></i> Fijo';
+          resumen.appendChild(badge);
+        }
+      }
     };
     r2.readAsDataURL(f);
   });
@@ -1228,17 +1241,17 @@ async function loadFidelidad() {
   <!-- NIVEL CARD -->
   <div class="panel nivel-panel-premium">
     <div class="panel-body" style="position:relative;z-index:1">
-      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:${proxNivel?'.75rem':'0'}">
-        <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;border:2px solid rgba(212,160,23,.4)">
+      <div style="display:flex;align-items:center;gap:.85rem;margin-bottom:${proxNivel?'.75rem':'0'};flex-wrap:wrap">
+        <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;border:2px solid rgba(212,160,23,.4)">
           <i class="bi bi-person-badge-fill" style="color:#fff"></i>
         </div>
-        <div style="flex:1">
-          <div style="font-family:'Oswald',sans-serif;font-size:1.2rem;font-weight:700;color:#fff">${nivel.label}</div>
-          <div class="nivel-badge ${nivel.clase}" style="margin-top:.2rem"><i class="bi bi-star-fill"></i> ${totalBoletos} boletos</div>
+        <div style="flex:1;min-width:120px">
+          <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:#fff;line-height:1.2">${nivel.label}</div>
+          <div class="nivel-badge ${nivel.clase}" style="margin-top:.2rem;font-size:.72rem"><i class="bi bi-star-fill"></i> ${totalBoletos} boletos</div>
         </div>
-        <div style="text-align:right">
-          <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;color:#fbbf24;font-weight:700">${xpTotal} XP</div>
-          <div style="font-size:.65rem;color:var(--muted)">${logradosTotal}/${totalLogros} logros</div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:#fbbf24;font-weight:700">${xpTotal} XP</div>
+          <div style="font-size:.63rem;color:var(--muted)">${logradosTotal}/${totalLogros} logros</div>
         </div>
       </div>
       ${proxNivel?`<div style="font-size:.75rem;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:.3rem"><span>→ <strong style="color:var(--gold2)">${proxNivel.label}</strong></span><span>${proxNivel.progreso}/${proxNivel.requerido}</span></div>
@@ -1269,7 +1282,7 @@ async function loadFidelidad() {
     <div class="panel-head">
       <div class="panel-title"><i class="bi bi-stars"></i>Logros <span style="font-size:.75rem;font-weight:400;color:var(--muted)">(${logradosTotal}/${totalLogros})</span></div>
     </div>
-    <div style="padding:.6rem .85rem;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch">
+    <div style="padding:.5rem .6rem;border-bottom:1px solid var(--border);overflow:hidden">
       <div class="logros-filtros" id="logrosFiltros">
         <button class="logro-filtro-btn active" data-filtro="todos">Todos</button>
         ${gruposLogros.map(g=>`<button class="logro-filtro-btn" data-filtro="${g.id}">${g.label}</button>`).join("")}
@@ -1277,7 +1290,7 @@ async function loadFidelidad() {
         <button class="logro-filtro-btn" data-filtro="pendientes">⏳ Pendientes</button>
       </div>
     </div>
-    <div class="panel-body" id="logrosContainer" style="padding:.7rem">
+    <div class="panel-body" id="logrosContainer" style="padding:.6rem .7rem">
       ${renderLogros("todos")}
     </div>
   </div>`;
