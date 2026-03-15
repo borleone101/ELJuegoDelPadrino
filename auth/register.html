@@ -45,7 +45,6 @@
   .toggle-pw:hover{color:var(--red2)}
   .hint{font-size:.85rem;color:var(--muted);margin-top:.45rem}
 
-  /* Badge referido con animación de entrada */
   .ref-badge{display:none;align-items:center;gap:.5rem;border-radius:6px;padding:.5rem .9rem;margin-top:.6rem;font-size:.9rem;font-weight:600;animation:fadeIn .3s ease}
   .ref-badge.show{display:flex}
   .ref-badge.valid{background:rgba(34,139,34,.1);border:1px solid rgba(34,139,34,.3);color:#1a6b1a}
@@ -192,9 +191,15 @@
 <script type="module">
 import { supabase } from "../assets/js/supabase.js";
 
-const BASE = "https://borleone101.github.io/ELJuegoDelPadrino";
+// ─────────────────────────────────────────────────────────────
+// CONFIGURACIÓN — igual que en login.html
+// ─────────────────────────────────────────────────────────────
+const SITE_URL     = "https://borleone101.github.io/ELJuegoDelPadrino";
+const OAUTH_REDIRECT = `${SITE_URL}/auth/login.html`;
+
 const GOOGLE_SVG = `<svg width="20" height="20" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd"><path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/></g></svg>`;
 
+// ── Helpers UI ───────────────────────────────────────────────
 const overlay   = document.getElementById("redirectOverlay");
 const roText    = document.getElementById("roText");
 const btnGoogle = document.getElementById("btnGoogle");
@@ -202,53 +207,49 @@ const gIcon     = document.getElementById("gIcon");
 const gLabel    = document.getElementById("gLabel");
 
 const showOverlay = (txt) => { roText.textContent = txt; overlay.classList.add("show"); };
-const hideOverlay = ()    => overlay.classList.remove("show");
-const showErr = (title, text) => Swal.fire({ icon:"error", title, text, confirmButtonColor:"#8b1a1a" });
+const showErr = (title, text) => Swal.fire({ icon: "error", title, text, confirmButtonColor: "#8b1a1a" });
 const resetGoogle = () => {
   btnGoogle.disabled = false;
   gIcon.innerHTML    = GOOGLE_SVG;
   gLabel.textContent = "Registrarse con Google";
 };
 
-// ── FIX 1: Pre-fill referido desde URL ──────────────────────────────────
-// Soporta tanto ?ref= directo como venido de redirección desde login.html
+// ── 1. Pre-fill código referido desde URL (?ref=XXXX) ────────
 (function initRefCode() {
   const urlRef = new URLSearchParams(window.location.search).get("ref");
   if (!urlRef) return;
 
   const refInput = document.getElementById("referido");
   refInput.value = urlRef.toUpperCase().trim();
-
-  // Limpiar el parámetro de la URL sin recargar (URL limpia en PWA)
   window.history.replaceState({}, "", window.location.pathname);
-
-  // Disparar validación automática del código
   refInput.dispatchEvent(new Event("input"));
 })();
 
-// ── Botón Google ─────────────────────────────────────────────────────────
+// ── 2. Botón Google ───────────────────────────────────────────
 btnGoogle.addEventListener("click", async () => {
   btnGoogle.disabled = true;
   gIcon.innerHTML    = `<div class="g-spinner"></div>`;
   gLabel.textContent = "Conectando…";
 
-  // Guardar código referido en sessionStorage antes del redirect OAuth
+  // Guardar código referido antes del redirect OAuth
   const codigoRef = document.getElementById("referido").value.trim().toUpperCase();
   if (codigoRef) {
     sessionStorage.setItem("pendingRef", codigoRef);
+  } else {
+    sessionStorage.removeItem("pendingRef");
   }
 
-  // FIX 2: Timeout anti-carga-infinita para botón Google
   const connectTimeout = setTimeout(() => {
     resetGoogle();
     showErr("Sin respuesta", "No se pudo conectar con Google. Verifica tu conexión e intenta de nuevo.");
-  }, 15000);
+  }, 15_000);
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      // Siempre vuelve a login.html del mismo dominio
-      redirectTo: `${window.location.origin}/auth/login.html`,
+      redirectTo: OAUTH_REDIRECT,
+      // Descomenta la siguiente línea si quieres que siempre pida elegir cuenta:
+      // queryParams: { prompt: "select_account" },
     },
   });
 
@@ -258,10 +259,11 @@ btnGoogle.addEventListener("click", async () => {
     showErr("Error con Google", error.message);
     resetGoogle();
   }
-  // Sin error → navegador va a Google; login.html maneja todo al volver
+  // Sin error → el navegador va a Google;
+  // al volver, login.html captura el callback y aplica el pendingRef.
 });
 
-// ── Toggle contraseña ────────────────────────────────────────────────────
+// ── 3. Toggle contraseña ──────────────────────────────────────
 document.querySelector(".toggle-pw").addEventListener("click", () => {
   const inp  = document.getElementById("password");
   const icon = document.querySelector(".toggle-pw i");
@@ -270,7 +272,7 @@ document.querySelector(".toggle-pw").addEventListener("click", () => {
   icon.classList.toggle("bi-eye-slash");
 });
 
-// ── Validación en tiempo real del código referido ────────────────────────
+// ── 4. Validación en tiempo real del código referido ─────────
 let refValidado = null;
 let refTimer    = null;
 
@@ -287,13 +289,12 @@ document.getElementById("referido").addEventListener("input", (e) => {
 
   if (code.length < 4) return;
 
-  // Mostrar spinner mientras valida
   icon.className  = "bi bi-hourglass-split";
   msg.textContent = "Validando…";
   badge.classList.add("show");
-  badge.style.background    = "rgba(0,0,0,.05)";
-  badge.style.border        = "1px solid rgba(0,0,0,.1)";
-  badge.style.color         = "var(--muted)";
+  badge.style.background = "rgba(0,0,0,.05)";
+  badge.style.border     = "1px solid rgba(0,0,0,.1)";
+  badge.style.color      = "var(--muted)";
 
   refTimer = setTimeout(async () => {
     try {
@@ -328,7 +329,7 @@ document.getElementById("referido").addEventListener("input", (e) => {
   }, 500);
 });
 
-// ── Submit registro con correo ───────────────────────────────────────────
+// ── 5. Submit registro con correo ─────────────────────────────
 document.getElementById("registerForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -338,11 +339,11 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
   const codigoRef = document.getElementById("referido").value.trim().toUpperCase();
   const btn       = document.getElementById("btnSubmit");
 
-  if (username.length < 3)                  { showErr("Error","El usuario debe tener al menos 3 caracteres."); return; }
-  if (/\s/.test(username))                  { showErr("Error","El nombre de usuario no puede tener espacios."); return; }
-  if (!/^[a-zA-Z0-9_\-]+$/.test(username)) { showErr("Error","Solo letras, números, _ y -"); return; }
-  if (!email || !email.includes("@"))       { showErr("Error","Ingresa un correo electrónico válido."); return; }
-  if (password.length < 6)                  { showErr("Error","La contraseña debe tener al menos 6 caracteres."); return; }
+  if (username.length < 3)                  { showErr("Error", "El usuario debe tener al menos 3 caracteres."); return; }
+  if (/\s/.test(username))                  { showErr("Error", "El nombre de usuario no puede tener espacios."); return; }
+  if (!/^[a-zA-Z0-9_\-]+$/.test(username)) { showErr("Error", "Solo letras, números, _ y -"); return; }
+  if (!email || !email.includes("@"))       { showErr("Error", "Ingresa un correo electrónico válido."); return; }
+  if (password.length < 6)                  { showErr("Error", "La contraseña debe tener al menos 6 caracteres."); return; }
 
   if (codigoRef && refValidado === false) {
     const confirm = await Swal.fire({
@@ -370,7 +371,8 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
       return;
     }
 
-    // 2. Crear usuario — el trigger fn_crear_perfil_nuevo_usuario crea el perfil
+    // 2. Crear usuario en Supabase Auth
+    // El trigger fn_crear_perfil_nuevo_usuario crea el perfil automáticamente
     const { data: authData, error: authErr } = await supabase.auth.signUp({
       email,
       password,
@@ -390,12 +392,14 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
       return;
     }
 
+    // Supabase puede devolver un user sin error aunque el correo ya exista
+    // (cuando "Confirm email" está activo, devuelve identities vacío)
     if (!authData?.user?.id) {
       showErr("Correo ya registrado", "Ya existe una cuenta con ese correo. Si aún no la confirmaste, revisa tu bandeja.");
       return;
     }
 
-    // 3. Registrar referido si hay código válido (no crítico)
+    // 3. Registrar referido si hay código (no crítico: no detiene el registro)
     if (codigoRef && refValidado !== false) {
       try {
         await supabase.rpc("fn_registrar_referido", {
@@ -407,11 +411,11 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
       }
     }
 
-    // 4. Éxito
+    // 4. Éxito → pedir confirmación de correo
     await Swal.fire({
       icon: "success",
       title: "¡Bienvenido a la familia!",
-      html: `Revisa tu correo <strong>${email}</strong> y <strong>confirma tu cuenta</strong> para ingresar.`,
+      html: `Revisa tu correo <strong>${email}</strong> y <strong>confirma tu cuenta</strong> para ingresar.<br><br><small style="color:#7a6a56">Revisa también la carpeta de spam.</small>`,
       confirmButtonColor: "#8b1a1a",
       confirmButtonText: "Entendido",
     });
