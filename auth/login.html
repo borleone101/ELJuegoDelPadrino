@@ -40,6 +40,9 @@
   .toggle-pw{position:absolute;right:0;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:1.1rem;padding:.3rem;transition:color .2s}
   .toggle-pw:hover{color:var(--red2)}
 
+  .forgot-link{display:block;text-align:right;margin-top:.5rem;font-size:.9rem;color:var(--red);text-decoration:none;font-weight:600;transition:color .2s}
+  .forgot-link:hover{color:var(--red2)}
+
   .btn-submit{display:block;width:100%;font-family:'Oswald',sans-serif;font-weight:700;font-size:1.15rem;letter-spacing:.12em;text-transform:uppercase;background:var(--red);color:#fff;border:none;padding:1.05rem;border-radius:6px;cursor:pointer;transition:all .25s;box-shadow:0 6px 22px rgba(139,26,26,.32);margin-top:.5rem}
   .btn-submit:hover{background:var(--red2);transform:translateY(-2px);box-shadow:0 10px 30px rgba(139,26,26,.45)}
   .btn-submit:active{transform:translateY(0)}
@@ -153,24 +156,35 @@
           <i class="bi bi-eye"></i>
         </button>
       </div>
+      <a href="#" class="forgot-link" id="btnForgot">¿Olvidaste tu contraseña?</a>
     </div>
     <button type="submit" class="btn-submit" id="btnSubmit">Entrar</button>
   </form>
 
-  <p class="form-footer">¿No tienes cuenta? <a href="register.html" id="linkRegister">Regístrate aquí</a></p>
+  <p class="form-footer">¿No tienes cuenta? <a href="register.html">Regístrate aquí</a></p>
 </div>
 
 <script type="module">
 import { supabase } from "../assets/js/supabase.js";
 
-const BASE = "https://borleone101.github.io/ELJuegoDelPadrino";
+// ─────────────────────────────────────────────────────────────
+// CONFIGURACIÓN — ajusta esta URL a la de tu sitio en producción
+// ─────────────────────────────────────────────────────────────
+const SITE_URL = "https://borleone101.github.io/ELJuegoDelPadrino";
+
 const RUTAS = {
-  admin:      `${BASE}/public/admin/index.html`,
-  trabajador: `${BASE}/public/trabajador/index.html`,
-  usuario:    `${BASE}/public/usuario/index.html`,
+  admin:      `${SITE_URL}/public/admin/index.html`,
+  trabajador: `${SITE_URL}/public/trabajador/index.html`,
+  usuario:    `${SITE_URL}/public/usuario/index.html`,
 };
+
+// URL exacta a la que Supabase redirige luego del OAuth con Google.
+// Debe estar en: Supabase → Authentication → URL Configuration → Redirect URLs
+const OAUTH_REDIRECT = `${SITE_URL}/auth/login.html`;
+
 const GOOGLE_SVG = `<svg width="20" height="20" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd"><path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/></g></svg>`;
 
+// ── Helpers UI ───────────────────────────────────────────────
 const overlay   = document.getElementById("redirectOverlay");
 const roText    = document.getElementById("roText");
 const btnGoogle = document.getElementById("btnGoogle");
@@ -180,35 +194,35 @@ const btnSubmit = document.getElementById("btnSubmit");
 
 const showOverlay = (txt) => { roText.textContent = txt; overlay.classList.add("show"); };
 const hideOverlay = ()    => overlay.classList.remove("show");
-const showErr = (title, text) => Swal.fire({ icon:"error", title, text, confirmButtonColor:"#8b1a1a" });
+const showErr = (title, text) => Swal.fire({ icon: "error", title, text, confirmButtonColor: "#8b1a1a" });
 const resetGoogle = () => {
   btnGoogle.disabled = false;
   gIcon.innerHTML    = GOOGLE_SVG;
   gLabel.textContent = "Continuar con Google";
 };
 
-// ── FIX 1: Si llegan con ?ref= en login.html, redirigir a register.html ──
-// Esto maneja el caso de links de referido compartidos
+// ── 1. Redirigir ?ref= hacia register.html ───────────────────
 (function handleRefRedirect() {
   const params = new URLSearchParams(window.location.search);
   const ref    = params.get("ref");
   if (ref) {
-    // Preservar el código al ir a register
     window.location.replace(`register.html?ref=${encodeURIComponent(ref)}`);
   }
-  // También actualizar el link de pie de página para preservar ref si lo hubiera
-  // (ya se redirige arriba, pero por si acaso)
 })();
 
-// ── FIX 2: Procesar retorno OAuth / confirmación de correo ───────────────
-// SOLO actúa si viene del callback de OAuth (hash en URL) o de email confirm
-// NO auto-redirige si simplemente hay sesión guardada (fix PWA auto-login)
+// ── 2. Detectar callback OAuth / confirmación de correo ──────
+// Usamos onAuthStateChange para capturar SIGNED_IN de forma
+// confiable tanto en flujo PKCE (code en URL) como implicit (hash).
+// Sólo actuamos si la URL tiene señales claras de callback.
 (async () => {
   const params    = new URLSearchParams(window.location.search);
   const tokenHash = params.get("token_hash");
   const type      = params.get("type");
+  const code      = params.get("code");           // PKCE OAuth callback
+  const hashStr   = window.location.hash;
+  const hasImplicit = hashStr.includes("access_token") || hashStr.includes("error_description");
 
-  // Caso A: viene del email de confirmación con token_hash
+  // ── Caso A: Confirmación de correo con token_hash ────────
   if (tokenHash && type) {
     showOverlay("Confirmando cuenta…");
     const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
@@ -220,7 +234,7 @@ const resetGoogle = () => {
         icon: "error",
         title: "Enlace inválido",
         html: "Este enlace ya fue usado o expiró.<br>Inicia sesión normalmente o solicita un nuevo correo.",
-        confirmButtonColor: "#8b1a1a"
+        confirmButtonColor: "#8b1a1a",
       });
       return;
     }
@@ -231,65 +245,56 @@ const resetGoogle = () => {
     return;
   }
 
-  // Caso B: callback OAuth de Google — solo si hay hash con access_token en la URL
-  // Esto distingue "vengo de Google OAuth" vs "abro la app con sesión guardada"
-  const hasOAuthCallback = window.location.hash.includes("access_token") ||
-                           window.location.hash.includes("error_description") ||
-                           params.get("code"); // PKCE flow
+  // ── Caso B: Callback OAuth (PKCE con ?code= o implicit con #access_token) ──
+  if (code || hasImplicit) {
+    showOverlay("Verificando con Google…");
 
-  if (!hasOAuthCallback) {
-    // NO hay callback OAuth → mostrar formulario normalmente
-    // Esto evita el auto-login en PWA aunque haya sesión guardada
-    return;
-  }
-
-  // FIX 3: Timeout anti-carga-infinita para el callback OAuth
-  // Si el usuario presionó "atrás" desde Google, el hash puede estar malformado
-  // En ese caso, después de 8 segundos mostramos el formulario normal
-  let oauthTimeout = setTimeout(() => {
-    hideOverlay();
-    resetGoogle();
-    console.warn("OAuth timeout — mostrando formulario");
-  }, 8000);
-
-  showOverlay("Verificando con Google…");
-
-  try {
-    const { data: { session }, error } = await supabase.auth.getSession();
-
-    clearTimeout(oauthTimeout);
-
-    if (error || !session?.user) {
+    // Timeout de seguridad: si en 10 s no hay sesión, mostramos el form
+    const timer = setTimeout(() => {
       hideOverlay();
-      return; // Simplemente mostrar el formulario
-    }
+      resetGoogle();
+      console.warn("OAuth timeout — mostrando formulario");
+    }, 10_000);
 
-    // Limpiar URL del hash de OAuth
-    window.history.replaceState({}, "", window.location.pathname);
+    // onAuthStateChange captura el SIGNED_IN que dispara Supabase
+    // al intercambiar el code/token, evitando la race condition de getSession()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" && session?.user) {
+        clearTimeout(timer);
+        subscription.unsubscribe();
 
-    // Aplicar referido pendiente si viene de register.html vía Google
-    const pendingRef = sessionStorage.getItem("pendingRef");
-    if (pendingRef) {
-      sessionStorage.removeItem("pendingRef");
-      try {
-        await supabase.rpc("fn_registrar_referido", {
-          p_codigo_referido:  pendingRef,
-          p_nuevo_usuario_id: session.user.id,
-        });
-      } catch (e) { console.warn("ref error (no crítico):", e); }
-    }
+        // Limpiar URL
+        window.history.replaceState({}, "", window.location.pathname);
 
-    showOverlay("Verificando cuenta…");
-    await redirigirSegunRol(session.user.id);
+        // Aplicar referido pendiente (guardado en register.html antes del OAuth)
+        const pendingRef = sessionStorage.getItem("pendingRef");
+        if (pendingRef) {
+          sessionStorage.removeItem("pendingRef");
+          try {
+            await supabase.rpc("fn_registrar_referido", {
+              p_codigo_referido:  pendingRef,
+              p_nuevo_usuario_id: session.user.id,
+            });
+          } catch (e) { console.warn("ref error (no crítico):", e); }
+        }
 
-  } catch (err) {
-    clearTimeout(oauthTimeout);
-    hideOverlay();
-    console.error("OAuth callback error:", err);
+        showOverlay("Verificando cuenta…");
+        await redirigirSegunRol(session.user.id);
+      }
+
+      if (event === "SIGNED_OUT" || event === "TOKEN_REFRESHED") {
+        // No hacer nada, dejar pasar
+      }
+    });
+
+    return; // No continuar: onAuthStateChange maneja el resto
   }
+
+  // ── Caso C: Sin callback — mostrar el formulario normalmente ──
+  // No auto-redirigimos aunque haya sesión guardada (evita loop en PWA)
 })();
 
-// ── Redirigir según rol ──────────────────────────────────────────────────
+// ── 3. Redirigir según rol ────────────────────────────────────
 async function redirigirSegunRol(userId) {
   try {
     const { data: profile, error } = await supabase
@@ -298,7 +303,11 @@ async function redirigirSegunRol(userId) {
       .eq("id", userId)
       .single();
 
-    if (error) { window.location.replace(RUTAS.usuario); return; }
+    if (error) {
+      console.warn("Error leyendo perfil, redirigiendo como usuario:", error.message);
+      window.location.replace(RUTAS.usuario);
+      return;
+    }
 
     if (profile?.estado === "suspendido") {
       await supabase.auth.signOut();
@@ -314,22 +323,24 @@ async function redirigirSegunRol(userId) {
   }
 }
 
-// ── Botón Google ─────────────────────────────────────────────────────────
+// ── 4. Botón Google ───────────────────────────────────────────
 btnGoogle.addEventListener("click", async () => {
   btnGoogle.disabled = true;
   gIcon.innerHTML    = `<div class="g-spinner"></div>`;
   gLabel.textContent = "Conectando…";
 
-  // FIX 4: Timeout por si el redirect a Google nunca ocurre (red lenta, bloqueado, etc.)
+  // Timeout por si el redirect a Google nunca ocurre
   const connectTimeout = setTimeout(() => {
     resetGoogle();
     showErr("Sin respuesta", "No se pudo conectar con Google. Verifica tu conexión e intenta de nuevo.");
-  }, 15000);
+  }, 15_000);
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${window.location.origin}/auth/login.html`,
+      redirectTo: OAUTH_REDIRECT,
+      // queryParams opcional: fuerza selección de cuenta Google cada vez
+      // queryParams: { prompt: "select_account" },
     },
   });
 
@@ -339,10 +350,10 @@ btnGoogle.addEventListener("click", async () => {
     showErr("Error con Google", error.message);
     resetGoogle();
   }
-  // Sin error → navegador va a Google; al volver el bloque OAuth de arriba lo maneja
+  // Sin error → el navegador redirige a Google; al volver onAuthStateChange lo captura
 });
 
-// ── Toggle contraseña ────────────────────────────────────────────────────
+// ── 5. Toggle contraseña ──────────────────────────────────────
 document.querySelector(".toggle-pw").addEventListener("click", () => {
   const inp  = document.getElementById("password");
   const icon = document.querySelector(".toggle-pw i");
@@ -351,7 +362,135 @@ document.querySelector(".toggle-pw").addEventListener("click", () => {
   icon.classList.toggle("bi-eye-slash");
 });
 
-// ── Login con email / username ───────────────────────────────────────────
+// ── 6. Recuperar contraseña ───────────────────────────────────
+document.getElementById("btnForgot").addEventListener("click", async (e) => {
+  e.preventDefault();
+
+  const { value: email } = await Swal.fire({
+    title: "Recuperar contraseña",
+    html: `
+      <p style="margin-bottom:1rem;font-size:.95rem;color:#7a6a56">
+        Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.
+      </p>
+      <input id="swal-email" type="email" class="swal2-input"
+             placeholder="correo@ejemplo.com" autocomplete="email">
+    `,
+    confirmButtonText: "Enviar enlace",
+    confirmButtonColor: "#8b1a1a",
+    showCancelButton: true,
+    cancelButtonText: "Cancelar",
+    focusConfirm: false,
+    preConfirm: () => {
+      const val = document.getElementById("swal-email").value.trim();
+      if (!val || !val.includes("@")) {
+        Swal.showValidationMessage("Ingresa un correo válido");
+        return false;
+      }
+      return val;
+    },
+    didOpen: () => {
+      // Pre-llenar con lo que ya escribió el usuario
+      const id = document.getElementById("identifier").value.trim();
+      if (id.includes("@")) {
+        document.getElementById("swal-email").value = id;
+      }
+    },
+  });
+
+  if (!email) return;
+
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      // La URL a la que Supabase redirigirá con el token de recuperación.
+      // DEBE estar en: Supabase → Authentication → URL Configuration → Redirect URLs
+      redirectTo: `${OAUTH_REDIRECT}?type=recovery`,
+    });
+
+    if (error) {
+      // Supabase a veces devuelve error si el correo no existe,
+      // pero por seguridad siempre mostramos éxito al usuario.
+      console.warn("resetPasswordForEmail:", error.message);
+    }
+
+    Swal.fire({
+      icon: "success",
+      title: "Correo enviado",
+      html: `Si existe una cuenta con <strong>${email}</strong>, recibirás un enlace para restablecer tu contraseña.<br><br><small style="color:#7a6a56">Revisa también la carpeta de spam.</small>`,
+      confirmButtonColor: "#8b1a1a",
+      confirmButtonText: "Entendido",
+    });
+
+  } catch (err) {
+    console.error("resetPasswordForEmail error:", err);
+    showErr("Error", "No se pudo enviar el correo. Intenta de nuevo más tarde.");
+  }
+});
+
+// ── 7. Manejo del token de recuperación al volver del correo ─
+// Cuando el usuario hace clic en el enlace del correo de recuperación,
+// Supabase redirige aquí con type=recovery en el hash o como parámetro.
+// Detectamos esto y mostramos el formulario de nueva contraseña.
+(async () => {
+  const params  = new URLSearchParams(window.location.search);
+  const hash    = new URLSearchParams(window.location.hash.slice(1));
+  const type    = params.get("type") || hash.get("type");
+
+  if (type !== "recovery") return;
+
+  // Esperar a que Supabase procese el token del hash
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === "PASSWORD_RECOVERY") {
+      subscription.unsubscribe();
+      window.history.replaceState({}, "", window.location.pathname);
+
+      const { value: newPw, isConfirmed } = await Swal.fire({
+        title: "Nueva contraseña",
+        html: `
+          <p style="margin-bottom:1rem;font-size:.95rem;color:#7a6a56">
+            Elige una nueva contraseña para tu cuenta.
+          </p>
+          <input id="pw1" type="password" class="swal2-input" placeholder="Nueva contraseña" minlength="6">
+          <input id="pw2" type="password" class="swal2-input" placeholder="Repite la contraseña" style="margin-top:.5rem">
+        `,
+        confirmButtonText: "Guardar contraseña",
+        confirmButtonColor: "#8b1a1a",
+        showCancelButton: false,
+        allowOutsideClick: false,
+        focusConfirm: false,
+        preConfirm: () => {
+          const p1 = document.getElementById("pw1").value;
+          const p2 = document.getElementById("pw2").value;
+          if (p1.length < 6) { Swal.showValidationMessage("Mínimo 6 caracteres"); return false; }
+          if (p1 !== p2)     { Swal.showValidationMessage("Las contraseñas no coinciden"); return false; }
+          return p1;
+        },
+      });
+
+      if (!isConfirmed || !newPw) return;
+
+      const { error } = await supabase.auth.updateUser({ password: newPw });
+
+      if (error) {
+        showErr("Error", error.message);
+        return;
+      }
+
+      await Swal.fire({
+        icon: "success",
+        title: "¡Contraseña actualizada!",
+        text: "Ya puedes iniciar sesión con tu nueva contraseña.",
+        confirmButtonColor: "#8b1a1a",
+        confirmButtonText: "Iniciar sesión",
+      });
+
+      // Cerrar sesión temporal de recovery y limpiar
+      await supabase.auth.signOut();
+      window.location.replace(window.location.pathname);
+    }
+  });
+})();
+
+// ── 8. Login con email / username ─────────────────────────────
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const identifier = document.getElementById("identifier").value.trim();
@@ -365,6 +504,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
   try {
     let email = identifier;
 
+    // Resolver username → email si no contiene @
     if (!identifier.includes("@")) {
       const { data: resolvedEmail, error: rpcErr } = await supabase
         .rpc("get_email_by_username", { p_username: identifier.toLowerCase() });
@@ -379,15 +519,17 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({ email, password });
 
     if (authErr) {
-      if (authErr.message.includes("Email not confirmed")) {
+      if (authErr.message.toLowerCase().includes("email not confirmed")) {
         Swal.fire({
           icon: "warning",
           title: "Confirma tu correo",
           text: "Revisa tu bandeja de entrada y confirma tu cuenta antes de ingresar.",
-          confirmButtonColor: "#8b1a1a"
+          confirmButtonColor: "#8b1a1a",
         });
-      } else {
+      } else if (authErr.message.toLowerCase().includes("invalid login credentials")) {
         showErr("Credenciales incorrectas", "Usuario o contraseña incorrectos.");
+      } else {
+        showErr("Error al iniciar sesión", authErr.message);
       }
       return;
     }
@@ -398,7 +540,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
         icon: "warning",
         title: "Confirma tu correo",
         text: "Debes confirmar tu correo antes de ingresar.",
-        confirmButtonColor: "#8b1a1a"
+        confirmButtonColor: "#8b1a1a",
       });
       return;
     }
