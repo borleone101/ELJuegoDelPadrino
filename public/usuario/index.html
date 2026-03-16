@@ -200,45 +200,12 @@ input,select,textarea{font-family:inherit}
 .promo-tag{position:absolute;top:.6rem;right:.6rem}
 
 /* ── NIVEL PANEL PREMIUM ── */
-.nivel-panel-premium{background:linear-gradient(145deg,#1e150c,#130f08)!important;position:relative;overflow:hidden}
-.nivel-panel-premium::before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 70% 80% at -10% 50%,rgba(139,26,26,.22),transparent 60%),radial-gradient(ellipse 50% 60% at 110% 50%,rgba(184,134,11,.12),transparent 55%)}
 
 /* ── FIDELIDAD STATS GRID ── */
-.fidelidad-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:1.2rem;width:100%}
-.fid-stat{background:var(--ink2);border:1px solid var(--border);border-radius:10px;padding:.7rem .8rem;display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center;min-width:0;overflow:hidden}
-.fid-stat i{font-size:1.1rem;color:var(--gold2)}
-.fid-stat-val{font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff;line-height:1.1;word-break:break-word;max-width:100%}
-.fid-stat-lbl{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;word-break:break-word;max-width:100%}
 
 /* ── LOGROS ── */
-.logro-grupo{margin-bottom:1.2rem}
-.logro-grupo-header{display:flex;align-items:center;justify-content:space-between;padding:.4rem 0;margin-bottom:.6rem;border-bottom:1px solid var(--border)}
-.logro-grupo-title{font-family:'Oswald',sans-serif;font-size:.88rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.logro-grupo-sub{font-size:.7rem;color:var(--dim);margin-top:.1rem}
-.logro-grupo-count{font-family:'Oswald',sans-serif;font-size:.8rem;color:var(--muted)}
-.logros-grid{display:flex;flex-direction:column;gap:.5rem}
-.logro-card{background:var(--ink3);border:1px solid var(--border);border-radius:10px;padding:.75rem .9rem;display:flex;align-items:center;gap:.75rem;transition:border-color .18s}
-.logro-card.logro-done{border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.03)}
-.logro-icon-wrap{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.04);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--muted);flex-shrink:0}
-.logro-icon-done{background:rgba(34,197,94,.14);border-color:rgba(34,197,94,.3);color:#22c55e}
-.logro-info{flex:1;min-width:0}
-.logro-nombre{font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:600;color:#fff}
-.logro-locked{color:var(--dim)}
-.logro-desc{font-size:.72rem;color:var(--muted);margin-top:.1rem}
-.logro-prog-wrap{display:flex;align-items:center;gap:.5rem;margin-top:.35rem}
-.logro-prog-bar{flex:1;height:3px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden}
-.logro-prog-fill{height:100%;background:linear-gradient(90deg,var(--red),var(--gold2));border-radius:4px;transition:width .5s ease}
-.logro-fill-done{background:#22c55e!important}
-.logro-prog-txt{font-size:.65rem;color:var(--dim);white-space:nowrap;flex-shrink:0}
-.logro-xp{flex-shrink:0;text-align:right}
-.logro-xp-val{font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:700;color:#22c55e;white-space:nowrap}
-.logro-xp-lock{font-family:'Oswald',sans-serif;font-size:.75rem;color:var(--dim);white-space:nowrap}
 
 /* ── LOGROS FILTROS ── */
-.logros-filtros{display:flex;gap:.4rem;white-space:nowrap;padding-bottom:.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none}.logros-filtros::-webkit-scrollbar{display:none}
-.logro-filtro-btn{font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.05em;padding:.28rem .75rem;border-radius:20px;background:var(--ink3);border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .18s;white-space:nowrap}
-.logro-filtro-btn:hover{border-color:var(--bord-g);color:var(--cream)}
-.logro-filtro-btn.active{background:rgba(212,160,23,.12);border-color:rgba(212,160,23,.3);color:var(--gold2)}
 
 /* ── BOLETO GRATIS BANNER ── */
 .boleto-gratis-banner{display:flex;align-items:center;gap:.7rem;background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.22);border-radius:10px;padding:.75rem .9rem;margin-bottom:1rem;flex-wrap:wrap}
@@ -443,7 +410,6 @@ input,select,textarea{font-family:inherit}
 .credito-username{font-family:'Oswald',sans-serif;font-size:.88rem;font-weight:600;color:var(--cream)}
 .credito-info{font-size:.72rem;color:var(--muted)}
 
-
 /* ── COMPRA RESUMEN FIJO (paso 2) ── */
 .compra-resumen-fijo{display:flex;align-items:center;gap:.6rem;background:rgba(212,160,23,.07);border:1px solid rgba(212,160,23,.2);border-radius:9px;padding:.6rem .85rem;margin-bottom:1rem;font-size:.85rem;color:var(--cream)}
 .compra-lock-badge{margin-left:.3rem;font-family:'Oswald',sans-serif;font-size:.65rem;font-weight:600;letter-spacing:.08em;color:#f87171;background:rgba(139,26,26,.15);border:1px solid rgba(139,26,26,.28);border-radius:20px;padding:.1rem .5rem;white-space:nowrap;display:inline-flex;align-items:center;gap:.25rem;flex-shrink:0}
@@ -467,19 +433,19 @@ input,select,textarea{font-family:inherit}
   .qr-details-grid{grid-template-columns:1fr 1fr}
   .promo-grid{grid-template-columns:1fr 1fr}
   /* Fidelidad mobile — 2 columnas para que no quede microscópico */
-  .fidelidad-stats-grid{grid-template-columns:repeat(2,1fr)!important;gap:.5rem!important}
-  .fid-stat{padding:.65rem .7rem}
-  .fid-stat-val{font-size:1rem}
-  .fid-stat i{font-size:1rem}
+  
+  
+  
+  
   /* Logros mobile */
-  .logro-card{padding:.65rem .75rem;gap:.6rem}
-  .logro-icon-wrap{width:34px;height:34px;font-size:.9rem;flex-shrink:0}
-  .logro-nombre{font-size:.82rem}
-  .logro-desc{font-size:.68rem}
-  .logro-xp-val,.logro-xp-lock{font-size:.7rem}
+  
+  
+  
+  
+  .logro-xp-val,
   /* Filtros logros */
-  .logros-filtros{gap:.3rem}
-  .logro-filtro-btn{font-size:.68rem;padding:.24rem .65rem}
+  
+  
   /* Nivel panel */
   .nivel-panel-premium .nivel-badge{font-size:.72rem}
   .nivel-panel-premium .panel-body>div:first-child{flex-wrap:wrap;gap:.6rem}
@@ -490,22 +456,30 @@ input,select,textarea{font-family:inherit}
   .compra-drawer-panel{max-width:100%}
   .fc-row{gap:.3rem}
   .fc-chip{font-size:.74rem}
+  /* Fidelidad mobile */
+  .fid-grid{grid-template-columns:repeat(2,1fr)!important;gap:.45rem}
+  .fid-cell{padding:.6rem .4rem}
+  .fid-num{font-size:.95rem}
+  .fid-lbl{font-size:.57rem}
+  .fid-ico{font-size:.9rem}
+  .nivel-body{padding:.85rem .9rem}
+  .lg-card{padding:.55rem .65rem;gap:.55rem}
+  .lg-icon{width:30px;height:30px;min-width:30px;font-size:.82rem}
+  .lg-nombre{font-size:.8rem}
+  .lg-desc{font-size:.67rem}
+  .lg-grupo-sub{display:none}
+  .lg-xp{font-size:.67rem;padding:.12rem .38rem}
   /* Ganadores */
   .ganadores-podio{gap:.6rem}
   .podio-1{min-width:110px}
   .podio-2,.podio-3{min-width:85px}
 }
 @media(max-width:480px){
-  .fidelidad-stats-grid{grid-template-columns:repeat(2,1fr)!important;gap:.4rem!important}
-  .fid-stat{padding:.55rem .5rem}
-  .fid-stat-val{font-size:.9rem}
-  .fid-stat i{font-size:.9rem}
-  .fid-stat-lbl{font-size:.6rem;letter-spacing:.04em}
-  .logro-xp{display:none}
-  .logro-prog-wrap{display:none}
-  .logro-card{gap:.5rem;padding:.6rem .65rem}
-  .logro-nombre{font-size:.8rem}
-  .logro-desc{font-size:.66rem}
+  .fid-grid{grid-template-columns:repeat(2,1fr)!important;gap:.4rem}
+  .fid-cell{padding:.55rem .35rem}
+  .fid-num{font-size:.88rem}
+  .lg-xp{display:none}
+  .lg-barra-wrap{margin-top:.2rem}
   .ganadores-podio{gap:.4rem}
   .podio-1{min-width:100px}
   .podio-2,.podio-3{min-width:78px}
@@ -513,21 +487,80 @@ input,select,textarea{font-family:inherit}
   .podio-trofeo{font-size:1.4rem}
 }
 @media(max-width:360px){
+  .fid-grid{grid-template-columns:repeat(2,1fr)!important}
   .ref-stats-row{grid-template-columns:1fr 1fr}
   .ref-stats-row .ref-stat:last-child{grid-column:span 2}
   .stats-grid{grid-template-columns:1fr}
   .premios-resumen{grid-template-columns:1fr}
-  .fidelidad-stats-grid{grid-template-columns:repeat(2,1fr)!important}
   .tb-name{display:none}
   .fc-chip-wrap{flex:1 1 auto}
   .fc-chip{width:100%}
-  .logro-grupo-sub{display:none}
+  .lg-grupo-count{display:none}
 }
 @media(min-width:769px){
   .sb-overlay{display:none!important}
   .bottom-nav{display:none!important}
   .hero-mobile{display:none!important}
 }
+
+/* ════════════════════════════════
+   FIDELIDAD — nivel, stats, logros
+════════════════════════════════ */
+/* Panel nivel */
+.nivel-panel-premium{background:linear-gradient(145deg,#1e150c,#130f08)!important;position:relative;overflow:hidden}
+.nivel-panel-premium::before{content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 70% 80% at -10% 50%,rgba(139,26,26,.22),transparent 60%),
+             radial-gradient(ellipse 50% 60% at 110% 50%,rgba(184,134,11,.12),transparent 55%)}
+.nivel-body{position:relative;z-index:1;padding:1rem 1.1rem}
+.nivel-row{display:flex;align-items:center;gap:.85rem;margin-bottom:.6rem}
+.nivel-avatar{width:46px;height:46px;min-width:46px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:1.25rem;border:2px solid rgba(212,160,23,.4);color:#fff}
+.nivel-info{flex:1;min-width:0}
+.nivel-nombre{font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:#fff;line-height:1.2}
+.nivel-xp-box{text-align:right;flex-shrink:0}
+.nivel-xp-val{font-family:'Oswald',sans-serif;font-size:1rem;color:#fbbf24;font-weight:700;white-space:nowrap}
+.nivel-xp-val span{font-size:.72rem;font-weight:400}
+.nivel-xp-sub{font-size:.62rem;color:var(--muted);margin-top:.1rem;white-space:nowrap}
+.nivel-prog-row{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);margin-bottom:.3rem}
+.nivel-prog-lbl strong{color:var(--gold2)}
+.nivel-prog-num{color:var(--dim)}
+.nivel-barra-bg{height:5px;background:rgba(255,255,255,.06);border-radius:10px;overflow:hidden}
+.nivel-barra-fill{height:100%;background:linear-gradient(90deg,var(--red),var(--gold2));border-radius:10px;transition:width .5s ease}
+.nivel-prog-hint{font-size:.67rem;color:var(--dim);margin-top:.22rem}
+.nivel-max-msg{background:rgba(212,160,23,.08);border:1px solid rgba(212,160,23,.2);border-radius:8px;padding:.55rem .9rem;font-size:.82rem;color:#fbbf24;text-align:center;margin-top:.4rem}
+
+/* Stats grid fidelidad — 3 cols desktop, 2 cols mobile */
+.fid-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.55rem;margin-bottom:1.1rem}
+.fid-cell{background:var(--ink2);border:1px solid var(--border);border-radius:10px;padding:.7rem .5rem;display:flex;flex-direction:column;align-items:center;gap:.18rem;text-align:center;min-width:0;overflow:hidden}
+.fid-ico{font-size:1rem;color:var(--gold2);flex-shrink:0}
+.fid-num{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#fff;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.fid-lbl{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+
+/* Logros — grupos y cards */
+.lg-total-badge{font-family:'Oswald',sans-serif;font-size:.8rem;color:var(--muted);background:var(--ink3);border:1px solid var(--border);border-radius:20px;padding:.15rem .65rem}
+.lg-grupo{margin-bottom:1.1rem}
+.lg-grupo:last-child{margin-bottom:0}
+.lg-grupo-hdr{display:flex;align-items:center;gap:.5rem;padding:.3rem 0 .5rem;border-bottom:1px solid var(--border);margin-bottom:.5rem;flex-wrap:wrap}
+.lg-grupo-label{font-family:'Oswald',sans-serif;font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.lg-grupo-sub{font-size:.68rem;color:var(--dim);flex:1;text-align:right}
+.lg-grupo-count{font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:700;color:#22c55e;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.2);border-radius:20px;padding:.1rem .5rem;white-space:nowrap}
+.lg-lista{display:flex;flex-direction:column;gap:.4rem}
+.lg-card{display:flex;align-items:center;gap:.65rem;background:var(--ink3);border:1px solid var(--border);border-radius:9px;padding:.6rem .75rem;transition:border-color .18s}
+.lg-card.lg-done{border-color:rgba(34,197,94,.28);background:rgba(34,197,94,.03)}
+.lg-icon{width:34px;height:34px;min-width:34px;border-radius:50%;background:rgba(255,255,255,.04);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.9rem;color:var(--muted)}
+.lg-icon.lg-icon-done{background:rgba(34,197,94,.14);border-color:rgba(34,197,94,.3);color:#22c55e}
+.lg-body{flex:1;min-width:0}
+.lg-nombre{font-family:'Oswald',sans-serif;font-size:.85rem;font-weight:600;color:#fff;line-height:1.2}
+.lg-card:not(.lg-done) .lg-nombre{color:var(--muted)}
+.lg-desc{font-size:.71rem;color:var(--dim);margin-top:.1rem;line-height:1.3}
+.lg-barra-wrap{display:flex;align-items:center;gap:.45rem;margin-top:.3rem}
+.lg-barra{flex:1;height:3px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden}
+.lg-barra-fill{height:100%;background:linear-gradient(90deg,var(--red),var(--gold2));border-radius:4px;transition:width .5s ease;min-width:2px}
+.lg-barra-ok{background:#22c55e!important}
+.lg-prog-txt{font-size:.62rem;color:var(--dim);white-space:nowrap;flex-shrink:0}
+.lg-xp{flex-shrink:0;font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:700;display:flex;align-items:center;gap:.2rem;padding:.15rem .45rem;border-radius:20px;white-space:nowrap}
+.lg-xp-done{color:#22c55e;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.2)}
+.lg-xp-lock{color:var(--dim);background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+
 </style>
 </head>
 <body>
