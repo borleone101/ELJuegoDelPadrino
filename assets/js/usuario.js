@@ -1261,13 +1261,13 @@ async function loadFidelidad() {
     </div>
   </div>
 
-  <!-- STATS RÁPIDAS -->
-  <div class="fidelidad-stats-grid">
+  <!-- STATS RÁPIDAS — grid siempre 2 cols en mobile, 3 en desktop -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:1.2rem" class="fidelidad-stats-grid">
     <div class="fid-stat"><i class="bi bi-ticket-perforated-fill"></i><div class="fid-stat-val">${totalBoletos}</div><div class="fid-stat-lbl">Boletos</div></div>
     <div class="fid-stat"><i class="bi bi-trophy-fill" style="color:#fbbf24"></i><div class="fid-stat-val">${totalGanadas}</div><div class="fid-stat-lbl">Ganados</div></div>
     <div class="fid-stat"><i class="bi bi-people-fill" style="color:#818cf8"></i><div class="fid-stat-val">${refsActivos}</div><div class="fid-stat-lbl">Referidos</div></div>
     <div class="fid-stat"><i class="bi bi-gift-fill" style="color:#22c55e"></i><div class="fid-stat-val">${bgsTotal}</div><div class="fid-stat-lbl">Gratis disp.</div></div>
-    <div class="fid-stat"><i class="bi bi-cash-stack" style="color:#22c55e"></i><div class="fid-stat-val">${fmtMoney(totalGanado)}</div><div class="fid-stat-lbl">Total ganado</div></div>
+    <div class="fid-stat"><i class="bi bi-cash-stack" style="color:#22c55e"></i><div class="fid-stat-val">${fmtMoney(totalGanado)}</div><div class="fid-stat-lbl">Tot. ganado</div></div>
     <div class="fid-stat"><i class="bi bi-lightning-fill" style="color:#fbbf24"></i><div class="fid-stat-val">${xpTotal}</div><div class="fid-stat-lbl">XP total</div></div>
   </div>
 
