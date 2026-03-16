@@ -867,11 +867,55 @@ window.modalVerGanadores = async (roundId) => {
     const h=track.scrollHeight;
     track.style.animation=`creditosScroll ${Math.max(8,h/30)}s ${2}s linear infinite`;
   }
+
+  // ── Música épica de ganadores ──
+  let ganadoresAudio = document.getElementById("ganadoresAudio");
+  if(!ganadoresAudio){
+    ganadoresAudio = document.createElement("audio");
+    ganadoresAudio.id = "ganadoresAudio";
+    ganadoresAudio.src = "https://res.cloudinary.com/daxmlrngo/video/upload/v1773625290/Star_Wars_The_Clone_Wars_Main_Title_Original_-_Kevin_Kiner_oywm1u.mp3";
+    ganadoresAudio.loop = true;
+    ganadoresAudio.volume = 0.55;
+    document.body.appendChild(ganadoresAudio);
+  }
+  // Reiniciar desde el inicio cada vez
+  ganadoresAudio.currentTime = 0;
+  ganadoresAudio.volume = 0;
+  const playPromise = ganadoresAudio.play();
+  if(playPromise !== undefined){
+    playPromise.catch(()=>{
+      // Autoplay bloqueado — el usuario deberá interactuar primero
+      // Mostrar botón de reproducir si fue bloqueado
+      const closeBtn = screen.querySelector(".ganadores-close");
+      if(closeBtn){
+        const playBtn = document.createElement("button");
+        playBtn.className = "ganadores-play-btn";
+        playBtn.innerHTML = '<i class="bi bi-music-note-beamed"></i>';
+        playBtn.title = "Activar música";
+        playBtn.onclick = ()=>{
+          ganadoresAudio.play();
+          // Fade in
+          let v=0; const fi=setInterval(()=>{ v=Math.min(v+0.05,0.55); ganadoresAudio.volume=v; if(v>=0.55) clearInterval(fi); },80);
+          playBtn.remove();
+        };
+        screen.querySelector(".ganadores-content").appendChild(playBtn);
+      }
+    });
+  }
+  // Fade in gradual
+  let vol=0;
+  const fadeIn=setInterval(()=>{ vol=Math.min(vol+0.04,0.55); ganadoresAudio.volume=vol; if(vol>=0.55) clearInterval(fadeIn); },100);
 };
 
 window.cerrarGanadoresScreen=()=>{
   const s=document.getElementById("ganadoresScreen");
   if(!s) return;
+  // Fade out música
+  const audio=document.getElementById("ganadoresAudio");
+  if(audio&&!audio.paused){
+    let v=audio.volume;
+    const fadeOut=setInterval(()=>{ v=Math.max(v-0.06,0); audio.volume=v; if(v<=0){ clearInterval(fadeOut); audio.pause(); audio.currentTime=0; }},80);
+  }
   s.classList.remove("open");
   document.body.style.overflow="";
   setTimeout(()=>s.remove(),400);
