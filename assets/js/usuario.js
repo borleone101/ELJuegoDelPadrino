@@ -1138,182 +1138,182 @@ async function loadFidelidad() {
   el.innerHTML=`<div class="spin-wrap"><div class="spinner"></div></div>`;
 
   const[{data:parts},{data:pays},{data:refs},{data:premios},{data:bgsDisp}]=await Promise.all([
-    supabase.from("participations").select("boletos,resultado,es_gratis,created_at").eq("user_id",MY_USER_ID),
-    supabase.from("payments").select("estado,monto,created_at").eq("user_id",MY_USER_ID),
+    supabase.from("participations").select("boletos,resultado,es_gratis").eq("user_id",MY_USER_ID),
+    supabase.from("payments").select("estado,monto").eq("user_id",MY_USER_ID),
     supabase.from("referidos").select("estado,boleto_otorgado").eq("referidor_id",MY_USER_ID),
     supabase.from("prize_payments").select("lugar,monto").eq("user_id",MY_USER_ID),
     supabase.from("boletos_gratis").select("id,origen,created_at").eq("user_id",MY_USER_ID).eq("usado",false).order("created_at",{ascending:true}),
   ]);
 
-  const totalBoletos=(parts||[]).reduce((s,p)=>s+(p.boletos||1),0);
-  const totalAprobados=(pays||[]).filter(p=>p.estado==="aprobado"&&p.monto>0).length;
-  const totalGastado=(pays||[]).filter(p=>p.estado==="aprobado"&&p.monto>0).reduce((s,p)=>s+Number(p.monto||0),0);
-  const totalRefs=(refs||[]).length;
-  const refsActivos=(refs||[]).filter(r=>r.estado==="completado").length;
-  const totalGanadas=(parts||[]).filter(p=>p.resultado==="ganada").length;
-  const totalGanado=(premios||[]).reduce((s,p)=>s+Number(p.monto||0),0);
-  const primerLugar=(premios||[]).filter(p=>p.lugar===1).length;
-  const bgsTotal=bgsDisp?.length||0;
-  const nivel=getNivel(totalBoletos);
-  const proxNivel=getProximoNivel(totalBoletos);
+  const totalBoletos   = (parts||[]).reduce((s,p)=>s+(p.boletos||1),0);
+  const totalAprobados = (pays||[]).filter(p=>p.estado==="aprobado"&&p.monto>0).length;
+  const totalGastado   = (pays||[]).filter(p=>p.estado==="aprobado"&&p.monto>0).reduce((s,p)=>s+Number(p.monto||0),0);
+  const totalRefs      = (refs||[]).length;
+  const refsActivos    = (refs||[]).filter(r=>r.estado==="completado").length;
+  const totalGanadas   = (parts||[]).filter(p=>p.resultado==="ganada").length;
+  const totalGanado    = (premios||[]).reduce((s,p)=>s+Number(p.monto||0),0);
+  const primerLugar    = (premios||[]).filter(p=>p.lugar===1).length;
+  const bgsTotal       = bgsDisp?.length||0;
+  const nivel          = getNivel(totalBoletos);
+  const proxNivel      = getProximoNivel(totalBoletos);
 
-  // ── Logros con grupos y subgrupos ──
-  const gruposLogros = [
+  /* ── Definición de logros ── */
+  const grupos = [
     {
-      id:"iniciacion", label:"🚀 Iniciación", sub:"Primeros pasos en el juego",
+      label:"🚀 Iniciación", sub:"Primeros pasos",
       logros:[
-        {id:"primer_sorteo",nombre:"Bienvenido",desc:"Participa en tu primer sorteo",icono:"bi-door-open",logrado:totalBoletos>=1,progreso:Math.min(totalBoletos,1),max:1,xp:10},
-        {id:"cinco_sorteos",nombre:"Arrancando",desc:"Participa en 5 sorteos",icono:"bi-speedometer2",logrado:totalBoletos>=5,progreso:Math.min(totalBoletos,5),max:5,xp:25},
-        {id:"primer_win",nombre:"Primer golpe",desc:"Gana tu primer sorteo",icono:"bi-star-fill",logrado:totalGanadas>=1,progreso:Math.min(totalGanadas,1),max:1,xp:50},
+        {nombre:"Bienvenido",   desc:"Participa en tu primer sorteo",  icono:"bi-door-open-fill",  logrado:totalBoletos>=1,  prog:Math.min(totalBoletos,1),  max:1,   xp:10},
+        {nombre:"Arrancando",   desc:"Participa en 5 sorteos",         icono:"bi-speedometer2",    logrado:totalBoletos>=5,  prog:Math.min(totalBoletos,5),  max:5,   xp:25},
+        {nombre:"Primer golpe", desc:"Gana tu primer sorteo",          icono:"bi-star-fill",       logrado:totalGanadas>=1,  prog:Math.min(totalGanadas,1),  max:1,   xp:50},
       ]
     },
     {
-      id:"constancia", label:"📅 Constancia", sub:"Premios por seguir jugando",
+      label:"📅 Constancia", sub:"Premio a la lealtad",
       logros:[
-        {id:"diez_pag",nombre:"Décimo jugador",desc:"10 boletos pagados",icono:"bi-stack",logrado:totalAprobados>=10,progreso:Math.min(totalAprobados,10),max:10,xp:40},
-        {id:"veinte_sort",nombre:"Veterano",desc:"Participa en 20 sorteos",icono:"bi-calendar-check",logrado:totalBoletos>=20,progreso:Math.min(totalBoletos,20),max:20,xp:60},
-        {id:"cincuenta_sort",nombre:"El Fiel",desc:"Participa en 50 sorteos",icono:"bi-patch-star-fill",logrado:totalBoletos>=50,progreso:Math.min(totalBoletos,50),max:50,xp:100},
-        {id:"cien_sort",nombre:"Cien Rondas",desc:"100 sorteos participados",icono:"bi-award-fill",logrado:totalBoletos>=100,progreso:Math.min(totalBoletos,100),max:100,xp:200},
+        {nombre:"10 pagados",   desc:"Compra 10 boletos pagados",      icono:"bi-stack",           logrado:totalAprobados>=10,prog:Math.min(totalAprobados,10),max:10, xp:40},
+        {nombre:"Veterano",     desc:"Participa en 20 sorteos",        icono:"bi-calendar-check",  logrado:totalBoletos>=20, prog:Math.min(totalBoletos,20),  max:20,  xp:60},
+        {nombre:"El Fiel",      desc:"Participa en 50 sorteos",        icono:"bi-patch-star-fill", logrado:totalBoletos>=50, prog:Math.min(totalBoletos,50),  max:50,  xp:100},
+        {nombre:"Cien Rondas",  desc:"100 sorteos participados",       icono:"bi-award-fill",      logrado:totalBoletos>=100,prog:Math.min(totalBoletos,100), max:100, xp:200},
       ]
     },
     {
-      id:"inversion", label:"💰 Inversión", sub:"Metas de gasto acumulado",
+      label:"💰 Inversión", sub:"Metas de gasto",
       logros:[
-        {id:"gast50",nombre:"Apostador",desc:"Invierte Bs 50 en total",icono:"bi-bank2",logrado:totalGastado>=50,progreso:Math.min(totalGastado,50),max:50,xp:35},
-        {id:"gast200",nombre:"El Patrón",desc:"Invierte Bs 200 en total",icono:"bi-gem",logrado:totalGastado>=200,progreso:Math.min(totalGastado,200),max:200,xp:80},
-        {id:"gast500",nombre:"Gran Patrón",desc:"Invierte Bs 500 en total",icono:"bi-safe-fill",logrado:totalGastado>=500,progreso:Math.min(totalGastado,500),max:500,xp:150},
+        {nombre:"Apostador",    desc:"Invierte Bs 50 en total",        icono:"bi-bank2",           logrado:totalGastado>=50,  prog:Math.min(totalGastado,50),  max:50,  xp:35},
+        {nombre:"El Patrón",    desc:"Invierte Bs 200 en total",       icono:"bi-gem",             logrado:totalGastado>=200, prog:Math.min(totalGastado,200), max:200, xp:80},
+        {nombre:"Gran Patrón",  desc:"Invierte Bs 500 en total",       icono:"bi-safe-fill",       logrado:totalGastado>=500, prog:Math.min(totalGastado,500), max:500, xp:150},
       ]
     },
     {
-      id:"social", label:"👥 Social", sub:"Construye tu red",
+      label:"👥 Social", sub:"Construye tu red",
       logros:[
-        {id:"ref3",nombre:"Reclutador",desc:"Invita 3 amigos activos",icono:"bi-people-fill",logrado:refsActivos>=3,progreso:Math.min(refsActivos,3),max:3,xp:60},
-        {id:"ref10",nombre:"Red de contactos",desc:"Invita 10 amigos activos",icono:"bi-diagram-3-fill",logrado:refsActivos>=10,progreso:Math.min(refsActivos,10),max:10,xp:120},
+        {nombre:"Reclutador",   desc:"Invita 3 amigos activos",        icono:"bi-people-fill",     logrado:refsActivos>=3,  prog:Math.min(refsActivos,3),   max:3,   xp:60},
+        {nombre:"Red sólida",   desc:"Invita 10 amigos activos",       icono:"bi-diagram-3-fill",  logrado:refsActivos>=10, prog:Math.min(refsActivos,10),  max:10,  xp:120},
       ]
     },
     {
-      id:"elite", label:"👑 Élite", sub:"Para los mejores jugadores",
+      label:"👑 Élite", sub:"Solo para los mejores",
       logros:[
-        {id:"triple_corona",nombre:"Triple Corona",desc:"Gana 3 sorteos",icono:"bi-trophy-fill",logrado:totalGanadas>=3,progreso:Math.min(totalGanadas,3),max:3,xp:100},
-        {id:"gran_ganador",nombre:"Gran Ganador",desc:"Acumula Bs 100 en premios",icono:"bi-cash-coin",logrado:totalGanado>=100,progreso:Math.min(totalGanado,100),max:100,xp:150},
-        {id:"primero",nombre:"El Primero",desc:"Gana 2 veces en 1er lugar",icono:"bi-1-circle-fill",logrado:primerLugar>=2,progreso:Math.min(primerLugar,2),max:2,xp:200},
-        {id:"leyenda",nombre:"Leyenda",desc:"200 sorteos participados",icono:"bi-fire",logrado:totalBoletos>=200,progreso:Math.min(totalBoletos,200),max:200,xp:500},
+        {nombre:"Triple Corona",desc:"Gana 3 sorteos",                 icono:"bi-trophy-fill",     logrado:totalGanadas>=3,  prog:Math.min(totalGanadas,3),  max:3,   xp:100},
+        {nombre:"Gran Ganador", desc:"Acumula Bs 100 en premios",      icono:"bi-cash-coin",       logrado:totalGanado>=100, prog:Math.min(totalGanado,100), max:100, xp:150},
+        {nombre:"El Primero",   desc:"Gana 2 veces en 1er lugar",      icono:"bi-1-circle-fill",   logrado:primerLugar>=2,   prog:Math.min(primerLugar,2),   max:2,   xp:200},
+        {nombre:"Leyenda",      desc:"200 sorteos participados",       icono:"bi-fire",            logrado:totalBoletos>=200,prog:Math.min(totalBoletos,200), max:200, xp:500},
       ]
     }
   ];
 
-  const totalLogros=gruposLogros.flatMap(g=>g.logros).length;
-  const logradosTotal=gruposLogros.flatMap(g=>g.logros).filter(l=>l.logrado).length;
-  const xpTotal=gruposLogros.flatMap(g=>g.logros).filter(l=>l.logrado).reduce((s,l)=>s+l.xp,0);
+  const totalLogros   = grupos.flatMap(g=>g.logros).length;
+  const logradosTotal = grupos.flatMap(g=>g.logros).filter(l=>l.logrado).length;
+  const xpTotal       = grupos.flatMap(g=>g.logros).filter(l=>l.logrado).reduce((s,l)=>s+l.xp, 0);
 
-  // ── Estado visible inicial (pestaña activa) ──
-  let filtroGrupo="todos";
-
-  function renderLogros(filtro="todos") {
-    const grupos=filtro==="todos"?gruposLogros:gruposLogros.filter(g=>g.id===filtro);
-    return grupos.map(g=>{
-      const done=g.logros.filter(l=>l.logrado).length;
-      return`<div class="logro-grupo">
-        <div class="logro-grupo-header">
-          <div><div class="logro-grupo-title">${g.label}</div><div class="logro-grupo-sub">${g.sub}</div></div>
-          <div class="logro-grupo-count"><span style="color:#22c55e;font-weight:700">${done}</span>/${g.logros.length}</div>
-        </div>
-        <div class="logros-grid">
-          ${g.logros.map(l=>`
-          <div class="logro-card ${l.logrado?"logro-done":""}">
-            <div class="logro-icon-wrap ${l.logrado?"logro-icon-done":""}"><i class="bi ${l.icono}"></i></div>
-            <div class="logro-info">
-              <div class="logro-nombre ${l.logrado?"":"logro-locked"}">${l.nombre}</div>
-              <div class="logro-desc">${l.desc}</div>
-              <div class="logro-prog-wrap">
-                <div class="logro-prog-bar"><div class="logro-prog-fill ${l.logrado?"logro-fill-done":""}" style="width:${Math.min((l.progreso/l.max)*100,100)}%"></div></div>
-                <span class="logro-prog-txt">${l.progreso}/${l.max}</span>
+  /* ── Render de logros (sin filtros) ── */
+  function renderGrupos() {
+    return grupos.map(g => {
+      const done = g.logros.filter(l=>l.logrado).length;
+      const logroItems = g.logros.map(l => {
+        const pct = Math.min(Math.round((l.prog/l.max)*100), 100);
+        return `
+        <div class="lg-card ${l.logrado?"lg-done":""}">
+          <div class="lg-icon ${l.logrado?"lg-icon-done":""}">
+            <i class="bi ${l.icono}"></i>
+          </div>
+          <div class="lg-body">
+            <div class="lg-nombre">${l.nombre}</div>
+            <div class="lg-desc">${l.desc}</div>
+            <div class="lg-barra-wrap">
+              <div class="lg-barra">
+                <div class="lg-barra-fill ${l.logrado?"lg-barra-ok":""}" style="width:${pct}%"></div>
               </div>
+              <span class="lg-prog-txt">${l.prog}/${l.max}</span>
             </div>
-            <div class="logro-xp">${l.logrado?`<span class="logro-xp-val">+${l.xp} XP</span>`:`<span class="logro-xp-lock">${l.xp} XP</span>`}</div>
-          </div>`).join("")}
+          </div>
+          <div class="lg-xp ${l.logrado?"lg-xp-done":"lg-xp-lock"}">
+            ${l.logrado?`<i class="bi bi-check-circle-fill" style="font-size:.7rem"></i>`:`<i class="bi bi-lock-fill" style="font-size:.65rem"></i>`}
+            ${l.xp}
+          </div>
+        </div>`;
+      }).join("");
+
+      return `
+      <div class="lg-grupo">
+        <div class="lg-grupo-hdr">
+          <span class="lg-grupo-label">${g.label}</span>
+          <span class="lg-grupo-sub">${g.sub}</span>
+          <span class="lg-grupo-count">${done}/${g.logros.length}</span>
         </div>
+        <div class="lg-lista">${logroItems}</div>
       </div>`;
     }).join("");
   }
 
-  el.innerHTML=`
-  <!-- NIVEL CARD -->
+  /* ── HTML principal ── */
+  el.innerHTML = `
+
+  <!-- NIVEL -->
   <div class="panel nivel-panel-premium">
-    <div class="panel-body" style="position:relative;z-index:1">
-      <div style="display:flex;align-items:center;gap:.85rem;margin-bottom:${proxNivel?'.75rem':'0'};flex-wrap:wrap">
-        <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;border:2px solid rgba(212,160,23,.4)">
-          <i class="bi bi-person-badge-fill" style="color:#fff"></i>
+    <div class="panel-body nivel-body">
+      <div class="nivel-row">
+        <div class="nivel-avatar"><i class="bi bi-person-badge-fill"></i></div>
+        <div class="nivel-info">
+          <div class="nivel-nombre">${nivel.label}</div>
+          <div class="nivel-badge ${nivel.clase}"><i class="bi bi-star-fill"></i> ${totalBoletos} boleto${totalBoletos!==1?"s":""}</div>
         </div>
-        <div style="flex:1;min-width:120px">
-          <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:#fff;line-height:1.2">${nivel.label}</div>
-          <div class="nivel-badge ${nivel.clase}" style="margin-top:.2rem;font-size:.72rem"><i class="bi bi-star-fill"></i> ${totalBoletos} boletos</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:#fbbf24;font-weight:700">${xpTotal} XP</div>
-          <div style="font-size:.63rem;color:var(--muted)">${logradosTotal}/${totalLogros} logros</div>
+        <div class="nivel-xp-box">
+          <div class="nivel-xp-val">${xpTotal} <span>XP</span></div>
+          <div class="nivel-xp-sub">${logradosTotal}/${totalLogros} logros</div>
         </div>
       </div>
-      ${proxNivel?`<div style="font-size:.75rem;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:.3rem"><span>→ <strong style="color:var(--gold2)">${proxNivel.label}</strong></span><span>${proxNivel.progreso}/${proxNivel.requerido}</span></div>
-      <div style="height:5px;background:rgba(255,255,255,.06);border-radius:10px;overflow:hidden"><div style="height:100%;width:${proxNivel.pct}%;background:linear-gradient(90deg,var(--red),var(--gold2));border-radius:10px;transition:width .5s ease"></div></div>
-      <div style="font-size:.68rem;color:var(--dim);margin-top:.2rem">Faltan ${proxNivel.requerido-proxNivel.progreso} boletos más</div>`
-      :`<div style="background:rgba(212,160,23,.08);border:1px solid rgba(212,160,23,.2);border-radius:8px;padding:.6rem;font-size:.82rem;color:#fbbf24;text-align:center"><i class="bi bi-crown-fill"></i> ¡Nivel máximo alcanzado! 🏆</div>`}
+      ${proxNivel ? `
+      <div class="nivel-prog-row">
+        <span class="nivel-prog-lbl">→ <strong>${proxNivel.label}</strong></span>
+        <span class="nivel-prog-num">${proxNivel.progreso}/${proxNivel.requerido}</span>
+      </div>
+      <div class="nivel-barra-bg">
+        <div class="nivel-barra-fill" style="width:${proxNivel.pct}%"></div>
+      </div>
+      <div class="nivel-prog-hint">Faltan ${proxNivel.requerido-proxNivel.progreso} boleto${proxNivel.requerido-proxNivel.progreso!==1?"s":""} más</div>
+      ` : `
+      <div class="nivel-max-msg"><i class="bi bi-crown-fill"></i> ¡Nivel máximo alcanzado! 🏆</div>
+      `}
     </div>
   </div>
 
-  <!-- STATS RÁPIDAS — grid siempre 2 cols en mobile, 3 en desktop -->
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:1.2rem" class="fidelidad-stats-grid">
-    <div class="fid-stat"><i class="bi bi-ticket-perforated-fill"></i><div class="fid-stat-val">${totalBoletos}</div><div class="fid-stat-lbl">Boletos</div></div>
-    <div class="fid-stat"><i class="bi bi-trophy-fill" style="color:#fbbf24"></i><div class="fid-stat-val">${totalGanadas}</div><div class="fid-stat-lbl">Ganados</div></div>
-    <div class="fid-stat"><i class="bi bi-people-fill" style="color:#818cf8"></i><div class="fid-stat-val">${refsActivos}</div><div class="fid-stat-lbl">Referidos</div></div>
-    <div class="fid-stat"><i class="bi bi-gift-fill" style="color:#22c55e"></i><div class="fid-stat-val">${bgsTotal}</div><div class="fid-stat-lbl">Gratis disp.</div></div>
-    <div class="fid-stat"><i class="bi bi-cash-stack" style="color:#22c55e"></i><div class="fid-stat-val">${fmtMoney(totalGanado)}</div><div class="fid-stat-lbl">Tot. ganado</div></div>
-    <div class="fid-stat"><i class="bi bi-lightning-fill" style="color:#fbbf24"></i><div class="fid-stat-val">${xpTotal}</div><div class="fid-stat-lbl">XP total</div></div>
+  <!-- STATS 2x3 -->
+  <div class="fid-grid">
+    <div class="fid-cell"><i class="bi bi-ticket-perforated-fill fid-ico"></i><div class="fid-num">${totalBoletos}</div><div class="fid-lbl">Boletos</div></div>
+    <div class="fid-cell"><i class="bi bi-trophy-fill fid-ico" style="color:#fbbf24"></i><div class="fid-num">${totalGanadas}</div><div class="fid-lbl">Ganados</div></div>
+    <div class="fid-cell"><i class="bi bi-people-fill fid-ico" style="color:#818cf8"></i><div class="fid-num">${refsActivos}</div><div class="fid-lbl">Referidos</div></div>
+    <div class="fid-cell"><i class="bi bi-gift-fill fid-ico" style="color:#22c55e"></i><div class="fid-num">${bgsTotal}</div><div class="fid-lbl">Gratis</div></div>
+    <div class="fid-cell"><i class="bi bi-cash-stack fid-ico" style="color:#22c55e"></i><div class="fid-num">${fmtMoney(totalGanado)}</div><div class="fid-lbl">Ganado</div></div>
+    <div class="fid-cell"><i class="bi bi-lightning-fill fid-ico" style="color:#fbbf24"></i><div class="fid-num">${xpTotal}</div><div class="fid-lbl">XP</div></div>
   </div>
 
-  ${bgsTotal>0?`<div class="boleto-gratis-banner">
+  <!-- BOLETO GRATIS BANNER -->
+  ${bgsTotal>0 ? `
+  <div class="boleto-gratis-banner">
     <i class="bi bi-gift-fill bfb-icon"></i>
-    <div><div class="bfb-title">${bgsTotal} boleto${bgsTotal>1?"s":""} gratis disponible${bgsTotal>1?"s":""}</div><div class="bfb-sub">Solo 1 por sorteo · Vencen en 24h</div></div>
-    <button class="btn btn-green btn-sm" onclick="loadSection('sorteos')"><i class="bi bi-ticket-perforated-fill"></i> Usar ahora</button>
-  </div>`:""}
+    <div>
+      <div class="bfb-title">${bgsTotal} boleto${bgsTotal>1?"s":""} gratis disponible${bgsTotal>1?"s":""}</div>
+      <div class="bfb-sub">Solo 1 por sorteo · Vencen en 24h</div>
+    </div>
+    <button class="btn btn-green btn-sm" onclick="loadSection('sorteos')">
+      <i class="bi bi-ticket-perforated-fill"></i> Usar
+    </button>
+  </div>` : ""}
 
-  <!-- LOGROS con filtros -->
+  <!-- LOGROS — grupos sin filtros -->
   <div class="panel">
     <div class="panel-head">
-      <div class="panel-title"><i class="bi bi-stars"></i>Logros <span style="font-size:.75rem;font-weight:400;color:var(--muted)">(${logradosTotal}/${totalLogros})</span></div>
+      <div class="panel-title"><i class="bi bi-stars"></i>Logros</div>
+      <span class="lg-total-badge">${logradosTotal}/${totalLogros}</span>
     </div>
-    <div style="padding:.5rem .6rem;border-bottom:1px solid var(--border);overflow:hidden">
-      <div class="logros-filtros" id="logrosFiltros">
-        <button class="logro-filtro-btn active" data-filtro="todos">Todos</button>
-        ${gruposLogros.map(g=>`<button class="logro-filtro-btn" data-filtro="${g.id}">${g.label}</button>`).join("")}
-        <button class="logro-filtro-btn" data-filtro="completados">✅ Completados</button>
-        <button class="logro-filtro-btn" data-filtro="pendientes">⏳ Pendientes</button>
-      </div>
-    </div>
-    <div class="panel-body" id="logrosContainer" style="padding:.6rem .7rem">
-      ${renderLogros("todos")}
+    <div class="panel-body" style="padding:.5rem .75rem .75rem">
+      ${renderGrupos()}
     </div>
   </div>`;
-
-  // filtro interactivo logros
-  document.querySelectorAll(".logro-filtro-btn").forEach(btn=>{
-    btn.addEventListener("click",()=>{
-      document.querySelectorAll(".logro-filtro-btn").forEach(b=>b.classList.remove("active"));
-      btn.classList.add("active");
-      const f=btn.dataset.filtro;
-      const container=getEl("logrosContainer");
-      if(f==="completados"){
-        const completados=gruposLogros.map(g=>({...g,logros:g.logros.filter(l=>l.logrado)})).filter(g=>g.logros.length>0);
-        container.innerHTML=completados.length?completados.map(g=>`<div class="logro-grupo"><div class="logro-grupo-header"><div><div class="logro-grupo-title">${g.label}</div></div></div><div class="logros-grid">${g.logros.map(l=>`<div class="logro-card logro-done"><div class="logro-icon-wrap logro-icon-done"><i class="bi ${l.icono}"></i></div><div class="logro-info"><div class="logro-nombre">${l.nombre}</div><div class="logro-desc">${l.desc}</div></div><div class="logro-xp"><span class="logro-xp-val">+${l.xp} XP</span></div></div>`).join("")}</div></div>`).join(""):`<div class="empty" style="padding:1.5rem"><i class="bi bi-stars"></i><p>Aún no tienes logros completados.</p></div>`;
-      } else if(f==="pendientes"){
-        const pend=gruposLogros.map(g=>({...g,logros:g.logros.filter(l=>!l.logrado)})).filter(g=>g.logros.length>0);
-        container.innerHTML=pend.length?pend.map(g=>`<div class="logro-grupo"><div class="logro-grupo-header"><div><div class="logro-grupo-title">${g.label}</div></div></div><div class="logros-grid">${g.logros.map(l=>`<div class="logro-card"><div class="logro-icon-wrap"><i class="bi ${l.icono}"></i></div><div class="logro-info"><div class="logro-nombre logro-locked">${l.nombre}</div><div class="logro-desc">${l.desc}</div><div class="logro-prog-wrap"><div class="logro-prog-bar"><div class="logro-prog-fill" style="width:${Math.min((l.progreso/l.max)*100,100)}%"></div></div><span class="logro-prog-txt">${l.progreso}/${l.max}</span></div></div><div class="logro-xp"><span class="logro-xp-lock">${l.xp} XP</span></div></div>`).join("")}</div></div>`).join(""):`<div class="empty" style="padding:1.5rem"><i class="bi bi-check-circle"></i><p>¡Completaste todos los logros!</p></div>`;
-      } else {
-        container.innerHTML=renderLogros(f);
-      }
-    });
-  });
 }
+
+
 
 /* ═══════════════════════════════════════
    MI PERFIL
