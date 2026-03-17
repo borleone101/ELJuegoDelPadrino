@@ -513,7 +513,7 @@ async function pagos_pendientes() {
                     :`<span class="text-muted" style="font-size:.78rem">Sin imagen</span>`}</td>
                   <td><div class="gap2">
                     <button class="btn btn-success btn-sm" onclick="aprobarPagoId('${p.id}','${p.round_id}','${p.metodo||''}')"><i class="bi bi-check-lg"></i> Aprobar</button>
-                    <button class="btn btn-danger btn-sm" onclick="rechazarPagoId('${p.id}')"><i class="bi bi-x-lg"></i></button>
+                    <button class="btn btn-danger btn-sm" onclick="rechazarPagoId('${p.id}')" data-tip="Rechazar pago"><i class="bi bi-x-lg"></i></button>
                   </div></td>
                 </tr>`;
               }).join("")}</tbody>
@@ -645,11 +645,11 @@ async function sorteos() {
             <div class="sorteo-card-foot">
               <button class="btn btn-ghost btn-sm" onclick="verRondas('${g.id}','${g.nombre}')"><i class="bi bi-layers"></i> Rondas</button>
               ${ar?`
-                <button class="btn btn-info btn-sm" onclick="verParticipantes('${ar.id}','${g.nombre}','${ar.numero}')"><i class="bi bi-people"></i></button>
-                <button class="btn btn-ghost btn-sm" onclick="verComprobantes('${ar.id}','${g.nombre}','${ar.numero}')"><i class="bi bi-receipt"></i>${g.compPend>0?` <span style="background:var(--red2);color:#fff;border-radius:10px;padding:0 .35rem;font-size:.65rem">${g.compPend}</span>`:""}</button>
+                <button class="btn btn-info btn-sm" onclick="verParticipantes('${ar.id}','${g.nombre}','${ar.numero}')" data-tip="Ver participantes"><i class="bi bi-people"></i></button>
+                <button class="btn btn-ghost btn-sm" onclick="verComprobantes('${ar.id}','${g.nombre}','${ar.numero}')" data-tip="Ver comprobantes"><i class="bi bi-receipt"></i>${g.compPend>0?` <span style="background:var(--red2);color:#fff;border-radius:10px;padding:0 .35rem;font-size:.65rem">${g.compPend}</span>`:""}</button>
                 ${lleno?`<button class="btn btn-gold btn-sm" onclick="realizarSorteo('${ar.id}','${g.nombre}','${ar.numero}')"><i class="bi bi-shuffle"></i> Sortear</button>`:""}
-                <button class="btn btn-danger btn-sm" onclick="cerrarRonda('${ar.id}','${g.nombre}','${ar.numero}')"><i class="bi bi-lock"></i></button>
-                <button class="btn btn-dark btn-sm" onclick="editarPrecio('${g.id}','${g.nombre}',${g.precio_boleto||0})"><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-danger btn-sm" onclick="cerrarRonda('${ar.id}','${g.nombre}','${ar.numero}')" data-tip="Cerrar ronda"><i class="bi bi-lock"></i></button>
+                <button class="btn btn-dark btn-sm" onclick="editarPrecio('${g.id}','${g.nombre}',${g.precio_boleto||0})" data-tip="Editar precio"><i class="bi bi-pencil"></i></button>
               `:""}
             </div>
           </div>`;
@@ -719,10 +719,10 @@ window.verRondas=async(gameId,gameNombre)=>{
           <td style="font-size:.78rem;color:var(--muted)">${r.caso_sorteo?nombreCaso(r.caso_sorteo):"—"}${r.premio_especial?" 🎁":""}</td>
           <td class="text-muted" style="font-size:.82rem">${r.sorteado_at?fmtDate(r.sorteado_at):"—"}</td>
           <td><div class="gap2">
-            <button class="btn btn-info btn-sm" onclick="verParticipantes('${r.id}','${gameNombre}','${r.numero}')"><i class="bi bi-people"></i></button>
-            <button class="btn btn-ghost btn-sm" onclick="verComprobantes('${r.id}','${gameNombre}','${r.numero}')"><i class="bi bi-receipt"></i></button>
-            ${r.estado==="abierta"&&r.cupos>=25?`<button class="btn btn-gold btn-sm" onclick="realizarSorteo('${r.id}','${gameNombre}','${r.numero}')"><i class="bi bi-shuffle"></i></button>`:""}
-            ${r.estado==="abierta"?`<button class="btn btn-danger btn-sm" onclick="cerrarRonda('${r.id}','${gameNombre}','${r.numero}')"><i class="bi bi-lock"></i></button>`:""}
+            <button class="btn btn-info btn-sm" onclick="verParticipantes('${r.id}','${gameNombre}','${r.numero}')" data-tip="Participantes"><i class="bi bi-people"></i></button>
+            <button class="btn btn-ghost btn-sm" onclick="verComprobantes('${r.id}','${gameNombre}','${r.numero}')" data-tip="Comprobantes"><i class="bi bi-receipt"></i></button>
+            ${r.estado==="abierta"&&r.cupos>=25?`<button class="btn btn-gold btn-sm" onclick="realizarSorteo('${r.id}','${gameNombre}','${r.numero}')" data-tip="Realizar sorteo"><i class="bi bi-shuffle"></i></button>`:""}
+            ${r.estado==="abierta"?`<button class="btn btn-danger btn-sm" onclick="cerrarRonda('${r.id}','${gameNombre}','${r.numero}')" data-tip="Cerrar ronda"><i class="bi bi-lock"></i></button>`:""}
           </div></td>
         </tr>`).join("")}</tbody>
       </table>
@@ -839,7 +839,7 @@ window.verComprobantes=async(roundId,gameNombre,num)=>{
             <td>${badge(p.estado)}</td>
             <td class="text-muted" style="font-size:.82rem">${fmtDateShort(p.created_at)}</td>
             <td>${p.comprobante_url?`<button class="btn btn-ghost btn-sm" onclick="modalVerComprobante(window.__compMap['${p.id}'])"><i class="bi bi-image"></i> Ver</button>`:`<span class="text-muted" style="font-size:.78rem">—</span>`}</td>
-            <td>${p.estado==="pendiente"?`<div class="gap2"><button class="btn btn-success btn-sm" onclick="aprobarPago('${p.id}','${roundId}','${gameNombre}','${num}')"><i class="bi bi-check-lg"></i></button><button class="btn btn-danger btn-sm" onclick="rechazarPago('${p.id}','${roundId}','${gameNombre}','${num}')"><i class="bi bi-x-lg"></i></button></div>`:`<span class="text-muted" style="font-size:.78rem">—</span>`}</td>
+            <td>${p.estado==="pendiente"?`<div class="gap2"><button class="btn btn-success btn-sm" onclick="aprobarPago('${p.id}','${roundId}','${gameNombre}','${num}')" data-tip="Aprobar pago"><i class="bi bi-check-lg"></i></button><button class="btn btn-danger btn-sm" onclick="rechazarPago('${p.id}','${roundId}','${gameNombre}','${num}')" data-tip="Rechazar pago"><i class="bi bi-x-lg"></i></button></div>`:`<span class="text-muted" style="font-size:.78rem">—</span>`}</td>
           </tr>`;
         }).join("")}</tbody>
       </table>`}
@@ -1083,9 +1083,9 @@ function renderUsrRows(data) {
     if(!u.qr_cobro_url){
       qrCell=`<span class="text-muted" style="font-size:.78rem"><i class="bi bi-x-circle"></i> Sin QR</span>`;
     } else if(!u.qr_verificado){
-      qrCell=`<div class="gap2"><span class="bdg bdg-p"><i class="bi bi-hourglass-split"></i> Pendiente</span><button class="btn btn-ghost btn-sm" onclick="verQrUsuario(window.__usrMap['${u.id}'])"><i class="bi bi-eye"></i></button><button class="btn btn-success btn-sm" onclick="accionVerificarQr('${u.id}','${u.username}')"><i class="bi bi-check-lg"></i></button><button class="btn btn-danger btn-sm" onclick="accionRechazarQr('${u.id}','${u.username}')"><i class="bi bi-x-lg"></i></button></div>`;
+      qrCell=`<div class="gap2"><span class="bdg bdg-p"><i class="bi bi-hourglass-split"></i> Pendiente</span><button class="btn btn-ghost btn-sm" onclick="verQrUsuario(window.__usrMap['${u.id}'])" data-tip="Ver QR"><i class="bi bi-eye"></i></button><button class="btn btn-success btn-sm" onclick="accionVerificarQr('${u.id}','${u.username}')" data-tip="Verificar QR"><i class="bi bi-check-lg"></i></button><button class="btn btn-danger btn-sm" onclick="accionRechazarQr('${u.id}','${u.username}')" data-tip="Rechazar QR"><i class="bi bi-x-lg"></i></button></div>`;
     } else {
-      qrCell=`<div class="gap2"><span class="bdg bdg-ok"><i class="bi bi-check-circle-fill"></i> OK</span>${u.qr_metodo?`<span style="font-size:.72rem;color:var(--muted)">${mlM[u.qr_metodo]||u.qr_metodo}</span>`:""}<button class="btn btn-ghost btn-sm" onclick="verQrUsuario(window.__usrMap['${u.id}'])"><i class="bi bi-eye"></i></button></div>`;
+      qrCell=`<div class="gap2"><span class="bdg bdg-ok"><i class="bi bi-check-circle-fill"></i> OK</span>${u.qr_metodo?`<span style="font-size:.72rem;color:var(--muted)">${mlM[u.qr_metodo]||u.qr_metodo}</span>`:""}<button class="btn btn-ghost btn-sm" onclick="verQrUsuario(window.__usrMap['${u.id}'])" data-tip="Ver QR"><i class="bi bi-eye"></i></button></div>`;
     }
     return `<tr>
       <td><strong>${u.username}</strong></td>
@@ -1098,7 +1098,7 @@ function renderUsrRows(data) {
         ${u.estado==="activo"
           ?`<button class="btn btn-danger btn-sm" onclick="toggleUser('${u.id}','suspendido','${u.username}')"><i class="bi bi-slash-circle"></i> Suspender</button>`
           :`<button class="btn btn-success btn-sm" onclick="toggleUser('${u.id}','activo','${u.username}')"><i class="bi bi-check-circle"></i> Activar</button>`}
-        <button class="btn btn-dark btn-sm" onclick="verHistorialUsuario('${u.id}','${u.username}')"><i class="bi bi-clock-history"></i></button>
+        <button class="btn btn-dark btn-sm" onclick="verHistorialUsuario('${u.id}','${u.username}')" data-tip="Ver historial"><i class="bi bi-clock-history"></i></button>
       </div></td>
     </tr>`;
   }).join("");
@@ -1333,7 +1333,7 @@ async function trabajadores() {
           <td class="text-muted" style="font-size:.82rem">${fmtDateShort(t.created_at)}</td>
           <td><div class="gap2">
             ${t.estado==="activo"?`<button class="btn btn-danger btn-sm" onclick="toggleTrab('${t.id}','suspendido','${t.username}')"><i class="bi bi-slash-circle"></i> Suspender</button>`:`<button class="btn btn-success btn-sm" onclick="toggleTrab('${t.id}','activo','${t.username}')"><i class="bi bi-check-circle"></i> Activar</button>`}
-            <button class="btn btn-danger btn-sm" onclick="deleteTrab('${t.id}','${t.username}')"><i class="bi bi-trash"></i></button>
+            <button class="btn btn-danger btn-sm" onclick="deleteTrab('${t.id}','${t.username}')" data-tip="Eliminar trabajador"><i class="bi bi-trash"></i></button>
           </div></td>
         </tr>`).join("")}</tbody>
       </table>`}
@@ -1379,7 +1379,7 @@ async function premios_catalogo() {
         <div class="panel-body">
           <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:600;color:#fff;margin-bottom:.2rem">${p.nombre}</div>
           <div style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">${p.descripcion||"Sin descripción"}</div>
-          <div style="display:flex;align-items:center;justify-content:space-between">${badge(p.estado)}<button class="btn btn-danger btn-sm" onclick="deletePremio('${p.id}','${p.nombre}')"><i class="bi bi-trash"></i></button></div>
+          <div style="display:flex;align-items:center;justify-content:space-between">${badge(p.estado)}<button class="btn btn-danger btn-sm" onclick="deletePremio('${p.id}','${p.nombre}')" data-tip="Eliminar premio"><i class="bi bi-trash"></i></button></div>
         </div>
       </div>`).join("")}
     </div>`;
