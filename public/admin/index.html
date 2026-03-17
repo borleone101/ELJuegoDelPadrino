@@ -391,6 +391,56 @@ table.dataTable tbody tr:last-child td{border-bottom:none!important}
   .tb-pill span:not(.tb-pill strong){display:none}
 }
 @media(max-width:420px){.stat-grid{grid-template-columns:1fr}}
+
+/* ══════════════════════════════
+   TOOLTIPS SISTEMA
+══════════════════════════════ */
+[data-tip]{position:relative}
+[data-tip]::after{
+  content:attr(data-tip);
+  position:absolute;
+  bottom:calc(100% + 7px);
+  left:50%;
+  transform:translateX(-50%);
+  background:#0c0a07;
+  color:#e6dcc8;
+  font-family:'Source Sans 3',sans-serif;
+  font-size:.72rem;
+  font-weight:600;
+  white-space:nowrap;
+  padding:.28rem .65rem;
+  border-radius:6px;
+  border:1px solid rgba(212,160,23,.25);
+  box-shadow:0 4px 16px rgba(0,0,0,.5);
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .15s ease, transform .15s ease;
+  transform:translateX(-50%) translateY(4px);
+  z-index:9999;
+}
+[data-tip]::before{
+  content:'';
+  position:absolute;
+  bottom:calc(100% + 1px);
+  left:50%;
+  transform:translateX(-50%);
+  border:5px solid transparent;
+  border-top-color:#0c0a07;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .15s ease;
+  z-index:9999;
+}
+[data-tip]:hover::after,[data-tip]:hover::before{opacity:1;transform:translateX(-50%) translateY(0)}
+/* Tooltip hacia abajo si está en la primera fila visible */
+[data-tip].tip-down::after{bottom:auto;top:calc(100% + 7px);transform:translateX(-50%) translateY(-4px)}
+[data-tip].tip-down::before{bottom:auto;top:calc(100% + 1px);border-top-color:transparent;border-bottom-color:#0c0a07}
+[data-tip].tip-down:hover::after{transform:translateX(-50%) translateY(0)}
+/* Tooltip izquierda cuando el botón está al final de una fila */
+[data-tip].tip-left::after{left:auto;right:0;transform:none;transform:translateY(-4px)}
+[data-tip].tip-left::before{left:auto;right:12px;transform:none}
+[data-tip].tip-left:hover::after{transform:translateY(0)}
+
 </style>
 </head>
 <body>
