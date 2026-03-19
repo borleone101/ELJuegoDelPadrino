@@ -8,7 +8,7 @@ import { uploadFile } from "./cloudinary.js";
 const MC = () => document.getElementById("mainContent");
 const swal$ = { background:'#131009', color:'#e6dcc8', confirmButtonColor:'#8b1a1a', cancelButtonColor:'#221c14' };
 
-/* ── Notificaciones internas (stack en topbar) ── */
+/* ── Notificaciones internas ── */
 function notif(msg, tipo="ok", duracion=3500) {
   const stack = document.getElementById("notifStack");
   if (!stack) return;
@@ -31,6 +31,10 @@ function fmtDate(d)      { return new Date(d).toLocaleDateString("es-BO",{day:"2
 function fmtDateShort(d) { return new Date(d).toLocaleDateString("es-BO",{day:"2-digit",month:"short",year:"numeric"}); }
 function fmtMoney(n)     { return `Bs ${Number(n||0).toFixed(2)}`; }
 function fmtPct(n)       { return `${Number(n||0).toFixed(1)}%`; }
+
+/* ── Capacidad máxima por defecto ── */
+const CAPACIDAD_DEFAULT = 25;
+function getCapacidad(game) { return Number(game?.capacidad_max || CAPACIDAD_DEFAULT); }
 
 function badge(est) {
   const map = {
@@ -200,11 +204,12 @@ async function dashboard() {
     Promise.resolve([...new Set((rondasRecientes||[]).map(r=>r.game_id).filter(Boolean))])
   ]);
   let gamesMap={};
-  if(gameIds.length){const{data:gd}=await supabase.from("games").select("id,nombre").in("id",gameIds);(gd||[]).forEach(g=>{gamesMap[g.id]=g});}
+  if(gameIds.length){const{data:gd}=await supabase.from("games").select("id,nombre,capacidad_max").in("id",gameIds);(gd||[]).forEach(g=>{gamesMap[g.id]=g});}
 
   const rondasConCupos = await Promise.all((rondasRecientes||[]).map(async r=>{
     const{data:parts}=await supabase.from("participations").select("boletos").eq("round_id",r.id);
-    return{...r,cupos:(parts||[]).reduce((s,p)=>s+(p.boletos||1),0),game:gamesMap[r.game_id]};
+    const cap = getCapacidad(gamesMap[r.game_id]);
+    return{...r,cupos:(parts||[]).reduce((s,p)=>s+(p.boletos||1),0),capacidad:cap,game:gamesMap[r.game_id]};
   }));
 
   const totalPremiosHoy = (premiosHoy||[]).reduce((s,p)=>s+Number(p.monto||0),0);
@@ -291,15 +296,15 @@ async function dashboard() {
           ${!rondasConCupos.length
             ?`<div class="empty"><i class="bi bi-ticket-perforated"></i><p>Sin rondas</p></div>`
             :rondasConCupos.map(r=>{
-                const pct=Math.round((r.cupos/25)*100);
+                const pct=Math.round((r.cupos/r.capacidad)*100);
                 return `<div style="margin-bottom:.9rem">
                   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.28rem">
                     <span style="font-size:.88rem;font-weight:600;color:#fff">${r.game?.nombre||'—'} <span class="text-muted">R${r.numero}</span></span>
                     ${badge(r.estado)}
                   </div>
                   <div style="display:flex;align-items:center;gap:.65rem">
-                    <div style="flex:1"><div class="prog-bg"><div class="prog-fill${r.cupos>=25?" full":""}" style="width:${Math.min(pct,100)}%"></div></div></div>
-                    <span style="font-family:'Oswald',sans-serif;font-size:.82rem;color:var(--gold2);flex-shrink:0">${r.cupos}/25</span>
+                    <div style="flex:1"><div class="prog-bg"><div class="prog-fill${r.cupos>=r.capacidad?" full":""}" style="width:${Math.min(pct,100)}%"></div></div></div>
+                    <span style="font-family:'Oswald',sans-serif;font-size:.82rem;color:var(--gold2);flex-shrink:0">${r.cupos}/${r.capacidad}</span>
                   </div>
                 </div>`;
               }).join("")}
@@ -309,7 +314,7 @@ async function dashboard() {
 }
 
 /* ════════════════════════════════════════
-   FINANZAS — ANÁLISIS COMPLETO
+   FINANZAS
 ════════════════════════════════════════ */
 async function finanzas() {
   setActive("finanzas"); setCurrentView("finanzas"); loadingView();
@@ -341,19 +346,15 @@ async function finanzas() {
     const margen         = totalIngresado>0?(balance/totalIngresado)*100:0;
     const promedioPago   = pagosAprobados?.length>0?totalIngresado/pagosAprobados.length:0;
 
-    // Por método
     const byMetodo={};
     (paysMethods||[]).forEach(p=>{const k=p.metodo||"manual";byMetodo[k]=(byMetodo[k]||0)+Number(p.monto||0);});
 
-    // Por mes (últimos 6)
     const byMes={};
     (pagosAprobados||[]).forEach(p=>{const k=new Date(p.created_at).toLocaleDateString("es-BO",{month:"short",year:"numeric"});byMes[k]=(byMes[k]||0)+Number(p.monto||0);});
     const mesLabels=Object.keys(byMes).slice(-6);
     const mesMax=Math.max(...mesLabels.map(k=>byMes[k]),1);
 
     const metodoNames={yape:"Yape",qr:"QR/Tigo Money",transferencia:"Transferencia bancaria",manual:"Efectivo/Manual",gratis:"Boletos gratis"};
-
-    // Ratio riesgo
     const ratioGratis = (pagosAprobados?.length||0)>0 ? totalGratis/(pagosAprobados.length+totalGratis)*100 : 0;
 
     document.getElementById("finContent").innerHTML = `
@@ -513,7 +514,7 @@ async function pagos_pendientes() {
                     :`<span class="text-muted" style="font-size:.78rem">Sin imagen</span>`}</td>
                   <td><div class="gap2">
                     <button class="btn btn-success btn-sm" onclick="aprobarPagoId('${p.id}','${p.round_id}','${p.metodo||''}')"><i class="bi bi-check-lg"></i> Aprobar</button>
-                    <button class="btn btn-danger btn-sm" onclick="rechazarPagoId('${p.id}')" data-tip="Rechazar pago"><i class="bi bi-x-lg"></i></button>
+                    <button class="btn btn-danger btn-sm" onclick="rechazarPagoId('${p.id}')"><i class="bi bi-x-lg"></i></button>
                   </div></td>
                 </tr>`;
               }).join("")}</tbody>
@@ -590,13 +591,14 @@ window.modalVerComprobante=(p)=>{
 };
 
 /* ════════════════════════════════════════
-   SORTEOS
+   SORTEOS — CON EDICIÓN DE NOMBRE, DESCRIPCIÓN Y CAPACIDAD
 ════════════════════════════════════════ */
 async function sorteos() {
   setActive("sorteos"); setCurrentView("sorteos"); loadingView();
 
   const{data:games}=await supabase.from("games").select("*").order("created_at",{ascending:false});
   const gamesData=await Promise.all((games||[]).map(async g=>{
+    const capacidad = getCapacidad(g);
     const{data:roundsData}=await supabase.from("rounds").select("id,numero,estado").eq("game_id",g.id).order("numero",{ascending:false});
     const ar=roundsData?.find(r=>r.estado==="abierta");
     let cuposActivos=0,compPend=0;
@@ -606,7 +608,7 @@ async function sorteos() {
       const{count:cp}=await supabase.from("payments").select("*",{count:"exact",head:true}).eq("round_id",ar.id).eq("estado","pendiente");
       compPend=cp??0;
     }
-    return{...g,rounds:roundsData||[],activeRound:ar,cuposActivos,compPend,totalRondas:roundsData?.length??0};
+    return{...g,capacidad,rounds:roundsData||[],activeRound:ar,cuposActivos,compPend,totalRondas:roundsData?.length??0};
   }));
 
   MC().innerHTML=`
@@ -620,41 +622,118 @@ async function sorteos() {
     ${!gamesData.length
       ?`<div class="panel"><div class="panel-body"><div class="empty"><i class="bi bi-ticket-perforated"></i><p>Sin sorteos. Crea el primero.</p></div></div></div>`
       :`<div class="sorteo-grid">${gamesData.map(g=>{
-          const ar=g.activeRound;const pct=ar?Math.round((g.cuposActivos/25)*100):0;const lleno=ar&&g.cuposActivos>=25;
+          const ar=g.activeRound;const pct=ar?Math.round((g.cuposActivos/g.capacidad)*100):0;const lleno=ar&&g.cuposActivos>=g.capacidad;
           return `<div class="sorteo-card">
             <div class="sorteo-card-head">
               <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem">
-                <div><h3>${g.nombre}</h3><p>${g.descripcion||"Sin descripción"}</p></div>
-                ${badge(g.estado)}
+                <div>
+                  <h3>${g.nombre}</h3>
+                  <p>${g.descripcion||"Sin descripción"}</p>
+                </div>
+                <div style="display:flex;align-items:center;gap:.4rem;flex-shrink:0">
+                  ${badge(g.estado)}
+                  <button class="btn btn-ghost btn-sm" onclick="modalEditarSorteo('${g.id}','${(g.nombre||'').replace(/'/g,"\\'")}','${(g.descripcion||'').replace(/'/g,"\\'")}',${g.precio_boleto||0},${g.capacidad})" data-tip="Editar sorteo"><i class="bi bi-pencil-fill"></i></button>
+                </div>
               </div>
-              <div style="margin-top:.5rem;display:flex;align-items:center;gap:.6rem;font-size:.78rem;color:var(--muted)">
-                <i class="bi bi-arrow-repeat"></i>${g.totalRondas} ronda${g.totalRondas!==1?"s":""}
-                ${g.precio_boleto>0?`<span>·</span><i class="bi bi-tag"></i>${fmtMoney(g.precio_boleto)}/boleto`:""}
+              <div style="margin-top:.5rem;display:flex;align-items:center;gap:.6rem;font-size:.78rem;color:var(--muted);flex-wrap:wrap">
+                <span><i class="bi bi-arrow-repeat"></i> ${g.totalRondas} ronda${g.totalRondas!==1?"s":""}</span>
+                ${g.precio_boleto>0?`<span>·</span><span><i class="bi bi-tag"></i> ${fmtMoney(g.precio_boleto)}/boleto</span>`:""}
+                <span>·</span><span><i class="bi bi-people"></i> ${g.capacidad} cupos máx.</span>
               </div>
             </div>
             <div class="sorteo-card-mid">
               ${ar
-                ?`<div class="prog-label"><span style="color:var(--muted)">Ronda #${ar.numero}</span><span class="prog-val">${g.cuposActivos}/25 ${lleno?"✅":""}</span></div>
+                ?`<div class="prog-label"><span style="color:var(--muted)">Ronda #${ar.numero}</span><span class="prog-val">${g.cuposActivos}/${g.capacidad} ${lleno?"✅":""}</span></div>
                   <div class="prog-bg"><div class="prog-fill${lleno?" full":""}" style="width:${Math.min(pct,100)}%"></div></div>
                   ${g.compPend>0?`<div style="margin-top:.5rem;font-size:.77rem;color:#f59e0b"><i class="bi bi-exclamation-triangle"></i> ${g.compPend} comprobante${g.compPend>1?"s":""} pendiente${g.compPend>1?"s":""}</div>`:""}`
                 :`<div style="text-align:center;padding:.6rem 0;color:var(--muted);font-size:.87rem">
                     <i class="bi bi-moon-stars"></i> Sin ronda activa
-                    ${g.estado==="activo"?`<br><button class="btn btn-gold btn-sm" style="margin-top:.5rem" onclick="iniciarRonda('${g.id}','${g.nombre}',${g.totalRondas})"><i class="bi bi-play-fill"></i> Iniciar ronda ${g.totalRondas+1}</button>`:""}
+                    ${g.estado==="activo"?`<br><button class="btn btn-gold btn-sm" style="margin-top:.5rem" onclick="iniciarRonda('${g.id}','${(g.nombre||'').replace(/'/g,"\\'")}',${g.totalRondas})"><i class="bi bi-play-fill"></i> Iniciar ronda ${g.totalRondas+1}</button>`:""}
                   </div>`}
             </div>
             <div class="sorteo-card-foot">
-              <button class="btn btn-ghost btn-sm" onclick="verRondas('${g.id}','${g.nombre}')"><i class="bi bi-layers"></i> Rondas</button>
+              <button class="btn btn-ghost btn-sm" onclick="verRondas('${g.id}','${(g.nombre||'').replace(/'/g,"\\'")}')"><i class="bi bi-layers"></i> Rondas</button>
               ${ar?`
-                <button class="btn btn-info btn-sm" onclick="verParticipantes('${ar.id}','${g.nombre}','${ar.numero}')" data-tip="Ver participantes"><i class="bi bi-people"></i></button>
-                <button class="btn btn-ghost btn-sm" onclick="verComprobantes('${ar.id}','${g.nombre}','${ar.numero}')" data-tip="Ver comprobantes"><i class="bi bi-receipt"></i>${g.compPend>0?` <span style="background:var(--red2);color:#fff;border-radius:10px;padding:0 .35rem;font-size:.65rem">${g.compPend}</span>`:""}</button>
-                ${lleno?`<button class="btn btn-gold btn-sm" onclick="realizarSorteo('${ar.id}','${g.nombre}','${ar.numero}')"><i class="bi bi-shuffle"></i> Sortear</button>`:""}
-                <button class="btn btn-danger btn-sm" onclick="cerrarRonda('${ar.id}','${g.nombre}','${ar.numero}')" data-tip="Cerrar ronda"><i class="bi bi-lock"></i></button>
-                <button class="btn btn-dark btn-sm" onclick="editarPrecio('${g.id}','${g.nombre}',${g.precio_boleto||0})" data-tip="Editar precio"><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-info btn-sm" onclick="verParticipantes('${ar.id}','${(g.nombre||'').replace(/'/g,"\\'")}','${ar.numero}')" data-tip="Ver participantes"><i class="bi bi-people"></i></button>
+                <button class="btn btn-ghost btn-sm" onclick="verComprobantes('${ar.id}','${(g.nombre||'').replace(/'/g,"\\'")}','${ar.numero}')" data-tip="Comprobantes"><i class="bi bi-receipt"></i>${g.compPend>0?` <span style="background:var(--red2);color:#fff;border-radius:10px;padding:0 .35rem;font-size:.65rem">${g.compPend}</span>`:""}</button>
+                ${lleno?`<button class="btn btn-gold btn-sm" onclick="realizarSorteo('${ar.id}','${(g.nombre||'').replace(/'/g,"\\'")}','${ar.numero}',${g.capacidad})"><i class="bi bi-shuffle"></i> Sortear</button>`:""}
+                <button class="btn btn-danger btn-sm" onclick="cerrarRonda('${ar.id}','${(g.nombre||'').replace(/'/g,"\\'")}','${ar.numero}')" data-tip="Cerrar ronda"><i class="bi bi-lock"></i></button>
               `:""}
             </div>
           </div>`;
         }).join("")}</div>`}`;
 }
+
+/* ════════════════════════════════════════
+   MODAL EDITAR SORTEO — nombre, descripción, precio, capacidad
+════════════════════════════════════════ */
+window.modalEditarSorteo = async (gameId, nombreActual, descActual, precioActual, capacidadActual) => {
+  const { value:v } = await Swal.fire({
+    title: "Editar sorteo",
+    html: `<div style="text-align:left">
+
+      <div style="background:rgba(212,160,23,.06);border:1px solid rgba(212,160,23,.15);border-radius:9px;padding:.65rem .9rem;margin-bottom:1rem;font-size:.8rem;color:var(--muted)">
+        <i class="bi bi-info-circle" style="color:var(--gold2)"></i>
+        Los cambios aplican desde ahora. Las rondas activas existentes no se modifican retroactivamente.
+      </div>
+
+      <div class="field" style="margin-bottom:.85rem">
+        <label>Nombre del sorteo *</label>
+        <input id="eNombre" class="swal2-input" value="${nombreActual}" placeholder="Ej. Mesa Premium" style="margin:0;width:100%">
+      </div>
+
+      <div class="field" style="margin-bottom:.85rem">
+        <label>Descripción</label>
+        <input id="eDesc" class="swal2-input" value="${descActual}" placeholder="Descripción breve (opcional)" style="margin:0;width:100%">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div class="field" style="margin-bottom:0">
+          <label>Precio por boleto (Bs)</label>
+          <input id="ePrecio" type="number" min="0" step="0.50" class="swal2-input" value="${precioActual}" style="margin:0;width:100%">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>Capacidad máxima <span style="color:var(--dim);font-size:.65rem;font-weight:400;text-transform:none;letter-spacing:0">(participantes por ronda)</span></label>
+          <input id="eCapacidad" type="number" min="2" max="500" step="1" class="swal2-input" value="${capacidadActual}" style="margin:0;width:100%">
+        </div>
+      </div>
+
+      <div style="margin-top:.85rem;background:rgba(139,26,26,.05);border:1px solid rgba(139,26,26,.15);border-radius:8px;padding:.55rem .85rem;font-size:.77rem;color:var(--muted);display:flex;align-items:center;gap:.5rem">
+        <i class="bi bi-exclamation-circle" style="color:#f87171;flex-shrink:0"></i>
+        Cambiar la capacidad afecta cuándo se puede sortear una ronda abierta.
+      </div>
+    </div>`,
+    showCancelButton: true,
+    confirmButtonText: '<i class="bi bi-check-lg"></i> Guardar cambios',
+    cancelButtonText: "Cancelar",
+    width: 520,
+    ...swal$,
+    preConfirm: () => {
+      const nombre = document.getElementById("eNombre").value.trim();
+      const desc   = document.getElementById("eDesc").value.trim();
+      const precio = parseFloat(document.getElementById("ePrecio").value) || 0;
+      const cap    = parseInt(document.getElementById("eCapacidad").value, 10);
+      if (!nombre) { Swal.showValidationMessage("El nombre es obligatorio"); return false; }
+      if (isNaN(cap) || cap < 2) { Swal.showValidationMessage("La capacidad debe ser al menos 2"); return false; }
+      if (cap > 500) { Swal.showValidationMessage("La capacidad máxima permitida es 500"); return false; }
+      if (precio < 0) { Swal.showValidationMessage("El precio no puede ser negativo"); return false; }
+      return { nombre, descripcion: desc, precio_boleto: precio, capacidad_max: cap };
+    }
+  });
+
+  if (!v) return;
+  loading$("Guardando cambios...");
+  const { error } = await supabase.from("games").update({
+    nombre: v.nombre,
+    descripcion: v.descripcion || null,
+    precio_boleto: v.precio_boleto,
+    capacidad_max: v.capacidad_max,
+  }).eq("id", gameId);
+  Swal.close();
+  if (error) { ok$("Error al guardar", error.message, "error"); return; }
+  toast(`✅ "${v.nombre}" actualizado correctamente`, "ok");
+  sorteos();
+};
 
 window.editarPrecio=async(gameId,gameNombre,precioActual)=>{
   const{value:v}=await Swal.fire({title:`Editar precio — ${gameNombre}`,input:"number",inputValue:precioActual,inputLabel:"Precio por boleto (Bs)",inputAttributes:{min:0,step:0.5},showCancelButton:true,confirmButtonText:"Guardar",...swal$,preConfirm:(v)=>{if(isNaN(v)||v<0){Swal.showValidationMessage("Precio inválido");return false;}return v;}});
@@ -667,10 +746,54 @@ window.editarPrecio=async(gameId,gameNombre,precioActual)=>{
 };
 
 window.modalNuevoSorteo=async()=>{
-  const{value:v}=await Swal.fire({title:"Nuevo Sorteo",html:`<div style="text-align:left"><div class="field" style="margin-bottom:.9rem"><label>Nombre *</label><input id="sNom" class="swal2-input" placeholder="ej. Mesa Premium" style="margin:0;width:100%"></div><div class="field" style="margin-bottom:.9rem"><label>Descripción</label><input id="sDesc" class="swal2-input" placeholder="Opcional" style="margin:0;width:100%"></div><div class="field"><label>Precio por boleto (Bs)</label><input id="sPrecio" class="swal2-input" type="number" min="0" step="0.50" placeholder="0.00" style="margin:0;width:100%"></div></div>`,showCancelButton:true,confirmButtonText:"Crear",...swal$,preConfirm:()=>{const n=document.getElementById("sNom").value.trim();if(!n){Swal.showValidationMessage("Nombre obligatorio");return false;}return{nombre:n,descripcion:document.getElementById("sDesc").value.trim(),precio:parseFloat(document.getElementById("sPrecio").value)||0};}});
+  const{value:v}=await Swal.fire({
+    title:"Nuevo Sorteo",
+    html:`<div style="text-align:left">
+      <div class="field" style="margin-bottom:.85rem">
+        <label>Nombre *</label>
+        <input id="sNom" class="swal2-input" placeholder="ej. Mesa Premium" style="margin:0;width:100%">
+      </div>
+      <div class="field" style="margin-bottom:.85rem">
+        <label>Descripción</label>
+        <input id="sDesc" class="swal2-input" placeholder="Opcional" style="margin:0;width:100%">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div class="field" style="margin-bottom:0">
+          <label>Precio por boleto (Bs)</label>
+          <input id="sPrecio" class="swal2-input" type="number" min="0" step="0.50" placeholder="0.00" style="margin:0;width:100%">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>Capacidad máxima <span style="color:var(--dim);font-size:.65rem;font-weight:400;text-transform:none;letter-spacing:0">(participantes)</span></label>
+          <input id="sCapacidad" class="swal2-input" type="number" min="2" max="500" step="1" placeholder="25" value="25" style="margin:0;width:100%">
+        </div>
+      </div>
+    </div>`,
+    showCancelButton:true,
+    confirmButtonText:"Crear",
+    width:520,
+    ...swal$,
+    preConfirm:()=>{
+      const n=document.getElementById("sNom").value.trim();
+      const cap=parseInt(document.getElementById("sCapacidad").value,10)||25;
+      if(!n){Swal.showValidationMessage("Nombre obligatorio");return false;}
+      if(cap<2){Swal.showValidationMessage("Mínimo 2 participantes");return false;}
+      return{
+        nombre:n,
+        descripcion:document.getElementById("sDesc").value.trim(),
+        precio:parseFloat(document.getElementById("sPrecio").value)||0,
+        capacidad_max:cap
+      };
+    }
+  });
   if(!v) return;
   loading$();
-  const{error}=await supabase.from("games").insert({nombre:v.nombre,descripcion:v.descripcion,precio_boleto:v.precio,estado:"activo"});
+  const{error}=await supabase.from("games").insert({
+    nombre:v.nombre,
+    descripcion:v.descripcion,
+    precio_boleto:v.precio,
+    capacidad_max:v.capacidad_max,
+    estado:"activo"
+  });
   Swal.close();
   if(error){ok$("Error",error.message,"error");return;}
   toast("Sorteo creado ✅","ok");
@@ -678,13 +801,16 @@ window.modalNuevoSorteo=async()=>{
 };
 
 window.iniciarRonda=async(gameId,gameNombre,totalRondas)=>{
-  const r=await confirm$(`Iniciar Ronda ${totalRondas+1}`,`<strong>${gameNombre}</strong> — Se abrirán 25 cupos.`,"🎟️ Iniciar");
+  // Obtener capacidad actual del juego
+  const{data:gameData}=await supabase.from("games").select("capacidad_max").eq("id",gameId).single();
+  const cap = getCapacidad(gameData);
+  const r=await confirm$(`Iniciar Ronda ${totalRondas+1}`,`<strong>${gameNombre}</strong> — Se abrirán <strong>${cap}</strong> cupos.`,"🎟️ Iniciar");
   if(!r.isConfirmed) return;
   loading$();
   const{error}=await supabase.from("rounds").insert({game_id:gameId,numero:totalRondas+1,estado:"abierta"});
   Swal.close();
   if(error){ok$("Error",error.message,"error");return;}
-  toast(`Ronda ${totalRondas+1} iniciada`,"ok");
+  toast(`Ronda ${totalRondas+1} iniciada (${cap} cupos)`,"ok");
   sorteos();
 };
 
@@ -697,16 +823,19 @@ window.cerrarRonda=async(roundId,gameNombre,num)=>{
 
 window.verRondas=async(gameId,gameNombre)=>{
   setCurrentView("__subview__");loadingView();
+  const{data:gameData}=await supabase.from("games").select("capacidad_max").eq("id",gameId).single();
+  const capacidad = getCapacidad(gameData);
+
   const{data:rounds}=await supabase.from("rounds").select("id,numero,estado,sorteado_at,created_at,ganador_id,ganador2_id,ganador3_id,caso_sorteo,premio_especial").eq("game_id",gameId).order("numero",{ascending:false});
   const allIds=(rounds||[]).flatMap(r=>[r.ganador_id,r.ganador2_id,r.ganador3_id].filter(Boolean));
   const ganadoresMap=await getProfilesMap(allIds);
   const roundsData=await Promise.all((rounds||[]).map(async r=>{
     const{data:parts}=await supabase.from("participations").select("boletos").eq("round_id",r.id);
-    return{...r,cupos:(parts||[]).reduce((s,p)=>s+(p.boletos||1),0),ganador:ganadoresMap[r.ganador_id],ganador2:ganadoresMap[r.ganador2_id],ganador3:ganadoresMap[r.ganador3_id]};
+    return{...r,cupos:(parts||[]).reduce((s,p)=>s+(p.boletos||1),0),capacidad,ganador:ganadoresMap[r.ganador_id],ganador2:ganadoresMap[r.ganador2_id],ganador3:ganadoresMap[r.ganador3_id]};
   }));
 
   MC().innerHTML=`
-    <div class="ph"><div><div class="ph-title"><i class="bi bi-layers"></i>Rondas — ${gameNombre}</div><div class="ph-sub">${roundsData.length} ronda${roundsData.length!==1?"s":""}</div></div>${renderBackBtn("Volver",sorteos)}</div>
+    <div class="ph"><div><div class="ph-title"><i class="bi bi-layers"></i>Rondas — ${gameNombre}</div><div class="ph-sub">${roundsData.length} ronda${roundsData.length!==1?"s":""} · ${capacidad} cupos por ronda</div></div>${renderBackBtn("Volver",sorteos)}</div>
     <div class="panel"><div class="panel-head"><div class="panel-title"><i class="bi bi-list-ol"></i>Historial</div></div>
     <div class="panel-body no-pad" style="overflow-x:auto">
       <table id="tblRondas" style="width:100%">
@@ -714,14 +843,14 @@ window.verRondas=async(gameId,gameNombre)=>{
         <tbody>${roundsData.map(r=>`<tr>
           <td><span style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:var(--gold2)">R${r.numero}</span></td>
           <td>${badge(r.estado)}</td>
-          <td><div style="display:flex;align-items:center;gap:.5rem"><div class="prog-bg" style="width:70px"><div class="prog-fill${r.cupos>=25?" full":""}" style="width:${Math.min(Math.round(r.cupos/25*100),100)}%"></div></div><span style="font-size:.8rem;color:var(--muted)">${r.cupos}/25</span></div></td>
+          <td><div style="display:flex;align-items:center;gap:.5rem"><div class="prog-bg" style="width:70px"><div class="prog-fill${r.cupos>=r.capacidad?" full":""}" style="width:${Math.min(Math.round(r.cupos/r.capacidad*100),100)}%"></div></div><span style="font-size:.8rem;color:var(--muted)">${r.cupos}/${r.capacidad}</span></div></td>
           <td><div style="font-size:.82rem">${r.ganador?`<div>🥇 <strong>${r.ganador.username}</strong></div>`:'<span class="text-muted">—</span>'}${r.ganador2?`<div style="color:#93c5fd">🥈 ${r.ganador2.username}</div>`:""}${r.ganador3?`<div style="color:#d97706">🥉 ${r.ganador3.username}</div>`:""}</div></td>
           <td style="font-size:.78rem;color:var(--muted)">${r.caso_sorteo?nombreCaso(r.caso_sorteo):"—"}${r.premio_especial?" 🎁":""}</td>
           <td class="text-muted" style="font-size:.82rem">${r.sorteado_at?fmtDate(r.sorteado_at):"—"}</td>
           <td><div class="gap2">
             <button class="btn btn-info btn-sm" onclick="verParticipantes('${r.id}','${gameNombre}','${r.numero}')" data-tip="Participantes"><i class="bi bi-people"></i></button>
             <button class="btn btn-ghost btn-sm" onclick="verComprobantes('${r.id}','${gameNombre}','${r.numero}')" data-tip="Comprobantes"><i class="bi bi-receipt"></i></button>
-            ${r.estado==="abierta"&&r.cupos>=25?`<button class="btn btn-gold btn-sm" onclick="realizarSorteo('${r.id}','${gameNombre}','${r.numero}')" data-tip="Realizar sorteo"><i class="bi bi-shuffle"></i></button>`:""}
+            ${r.estado==="abierta"&&r.cupos>=r.capacidad?`<button class="btn btn-gold btn-sm" onclick="realizarSorteo('${r.id}','${gameNombre}','${r.numero}',${r.capacidad})" data-tip="Realizar sorteo"><i class="bi bi-shuffle"></i></button>`:""}
             ${r.estado==="abierta"?`<button class="btn btn-danger btn-sm" onclick="cerrarRonda('${r.id}','${gameNombre}','${r.numero}')" data-tip="Cerrar ronda"><i class="bi bi-lock"></i></button>`:""}
           </div></td>
         </tr>`).join("")}</tbody>
@@ -730,8 +859,17 @@ window.verRondas=async(gameId,gameNombre)=>{
   initDT("tblRondas",{order:[[0,"desc"]],columnDefs:[{orderable:false,targets:6}]});
 };
 
-window.realizarSorteo=async(roundId,gameNombre,num)=>{
-  // Verificar que no hay pagos pendientes antes de sortear
+window.realizarSorteo=async(roundId,gameNombre,num,capacidadParam)=>{
+  // Obtener capacidad real del juego si no se pasó como parámetro
+  let capacidad = Number(capacidadParam) || CAPACIDAD_DEFAULT;
+  if (!capacidadParam) {
+    const{data:roundData}=await supabase.from("rounds").select("game_id").eq("id",roundId).single();
+    if(roundData?.game_id){
+      const{data:gameD}=await supabase.from("games").select("capacidad_max").eq("id",roundData.game_id).single();
+      capacidad = getCapacidad(gameD);
+    }
+  }
+
   const{count:pendCount}=await supabase.from("payments").select("*",{count:"exact",head:true}).eq("round_id",roundId).eq("estado","pendiente");
   if((pendCount||0)>0){
     const r2=await confirm$("Atención",`Hay <strong>${pendCount} pago${pendCount!==1?"s":""} pendiente${pendCount!==1?"s":""}</strong> sin aprobar en esta ronda.<br>¿Deseas sortear de todas formas?`,"Sortear de todas formas");
@@ -785,7 +923,7 @@ window.verParticipantes=async(roundId,gameNombre,num)=>{
   const gratisCnt=(parts||[]).filter(p=>p.es_gratis).length;
 
   MC().innerHTML=`
-    <div class="ph"><div><div class="ph-title"><i class="bi bi-people"></i>Participantes</div><div class="ph-sub">${gameNombre} · R${num} · ${totalBoletos}/25 boletos · ${parts?.length||0} participantes${gratisCnt>0?` · <span style="color:#4ade80">${gratisCnt} gratis</span>`:""}</div></div>${renderBackBtn("Volver",sorteos)}</div>
+    <div class="ph"><div><div class="ph-title"><i class="bi bi-people"></i>Participantes</div><div class="ph-sub">${gameNombre} · R${num} · ${totalBoletos} boletos · ${parts?.length||0} participantes${gratisCnt>0?` · <span style="color:#4ade80">${gratisCnt} gratis</span>`:""}</div></div>${renderBackBtn("Volver",sorteos)}</div>
     <div class="panel"><div class="panel-head"><div class="panel-title"><i class="bi bi-list-ol"></i>Lista</div><span class="text-muted" style="font-size:.82rem">${parts?.length||0} participantes · ${totalBoletos} boletos</span></div>
     <div class="panel-body no-pad" style="overflow-x:auto">
       ${!parts?.length?`<div class="empty"><i class="bi bi-people"></i><p>Sin participantes.</p></div>`:`
@@ -839,7 +977,7 @@ window.verComprobantes=async(roundId,gameNombre,num)=>{
             <td>${badge(p.estado)}</td>
             <td class="text-muted" style="font-size:.82rem">${fmtDateShort(p.created_at)}</td>
             <td>${p.comprobante_url?`<button class="btn btn-ghost btn-sm" onclick="modalVerComprobante(window.__compMap['${p.id}'])"><i class="bi bi-image"></i> Ver</button>`:`<span class="text-muted" style="font-size:.78rem">—</span>`}</td>
-            <td>${p.estado==="pendiente"?`<div class="gap2"><button class="btn btn-success btn-sm" onclick="aprobarPago('${p.id}','${roundId}','${gameNombre}','${num}')" data-tip="Aprobar pago"><i class="bi bi-check-lg"></i></button><button class="btn btn-danger btn-sm" onclick="rechazarPago('${p.id}','${roundId}','${gameNombre}','${num}')" data-tip="Rechazar pago"><i class="bi bi-x-lg"></i></button></div>`:`<span class="text-muted" style="font-size:.78rem">—</span>`}</td>
+            <td>${p.estado==="pendiente"?`<div class="gap2"><button class="btn btn-success btn-sm" onclick="aprobarPago('${p.id}','${roundId}','${gameNombre}','${num}')" data-tip="Aprobar"><i class="bi bi-check-lg"></i></button><button class="btn btn-danger btn-sm" onclick="rechazarPago('${p.id}','${roundId}','${gameNombre}','${num}')" data-tip="Rechazar"><i class="bi bi-x-lg"></i></button></div>`:`<span class="text-muted" style="font-size:.78rem">—</span>`}</td>
           </tr>`;
         }).join("")}</tbody>
       </table>`}
@@ -870,7 +1008,7 @@ window.rechazarPago=async(id,roundId,gameNombre,num)=>{
 };
 
 /* ════════════════════════════════════════
-   GANADORES — con QR visible para pagar
+   GANADORES
 ════════════════════════════════════════ */
 async function ganadores() {
   setActive("ganadores"); setCurrentView("ganadores"); loadingView();
@@ -924,7 +1062,6 @@ async function ganadores() {
   if(rounds?.length) initDT("tblGan",{order:[[9,"desc"]],columnDefs:[{orderable:false,targets:0}],scrollX:true});
 }
 
-/* ── Registrar premio con QR visible ── */
 window.registrarPremioConQR=async(roundId,userId,lugar,gameNombre,numRonda,username)=>{
   loading$("Cargando datos del ganador...");
   const{data:prof}=await supabase.from("profiles").select("qr_cobro_url,qr_metodo,qr_verificado,total_ganado").eq("id",userId).single();
@@ -992,7 +1129,6 @@ window.registrarPremioConQR=async(roundId,userId,lugar,gameNombre,numRonda,usern
   ganadores(); updateSidebarBadges();
 };
 
-// Alias para compatibilidad
 window.registrarPremio=window.registrarPremioConQR;
 
 /* ════════════════════════════════════════
@@ -1146,7 +1282,6 @@ window.verQrUsuario=(u)=>{
   });
 };
 
-/* ── QR helpers ── */
 async function _doVerificarQr(userId,username) {
   const r=await confirm$(`Verificar QR — ${username}`,"","✅ Verificar");if(!r.isConfirmed) return false;
   loading$();
@@ -1333,7 +1468,7 @@ async function trabajadores() {
           <td class="text-muted" style="font-size:.82rem">${fmtDateShort(t.created_at)}</td>
           <td><div class="gap2">
             ${t.estado==="activo"?`<button class="btn btn-danger btn-sm" onclick="toggleTrab('${t.id}','suspendido','${t.username}')"><i class="bi bi-slash-circle"></i> Suspender</button>`:`<button class="btn btn-success btn-sm" onclick="toggleTrab('${t.id}','activo','${t.username}')"><i class="bi bi-check-circle"></i> Activar</button>`}
-            <button class="btn btn-danger btn-sm" onclick="deleteTrab('${t.id}','${t.username}')" data-tip="Eliminar trabajador"><i class="bi bi-trash"></i></button>
+            <button class="btn btn-danger btn-sm" onclick="deleteTrab('${t.id}','${t.username}')"><i class="bi bi-trash"></i></button>
           </div></td>
         </tr>`).join("")}</tbody>
       </table>`}
@@ -1379,7 +1514,7 @@ async function premios_catalogo() {
         <div class="panel-body">
           <div style="font-family:'Oswald',sans-serif;font-size:.95rem;font-weight:600;color:#fff;margin-bottom:.2rem">${p.nombre}</div>
           <div style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">${p.descripcion||"Sin descripción"}</div>
-          <div style="display:flex;align-items:center;justify-content:space-between">${badge(p.estado)}<button class="btn btn-danger btn-sm" onclick="deletePremio('${p.id}','${p.nombre}')" data-tip="Eliminar premio"><i class="bi bi-trash"></i></button></div>
+          <div style="display:flex;align-items:center;justify-content:space-between">${badge(p.estado)}<button class="btn btn-danger btn-sm" onclick="deletePremio('${p.id}','${p.nombre}')"><i class="bi bi-trash"></i></button></div>
         </div>
       </div>`).join("")}
     </div>`;
@@ -1411,9 +1546,8 @@ window.deletePremio=async(id,nombre)=>{
 async function configuracion() {
   setActive("configuracion"); setCurrentView("configuracion"); loadingView();
 
-  // Cargar config del admin
   const{data:adminProf}=await supabase.from("profiles").select("qr_cobro_url,qr_metodo,qr_verificado,username,email").eq("id",user.id).single();
-  const{data:games}=await supabase.from("games").select("id,nombre,precio_boleto,estado").order("nombre");
+  const{data:games}=await supabase.from("games").select("id,nombre,precio_boleto,capacidad_max,estado").order("nombre");
 
   const mlM={tigo_money:"Tigo Money",billetera_bcb:"Billetera BCB",qr_simple:"QR Interbank",efectivo_cuenta:"Cuenta bancaria"};
 
@@ -1439,25 +1573,27 @@ async function configuracion() {
       </div>
     </div>
 
-    <!-- PRECIOS DE SORTEOS -->
+    <!-- SORTEOS — nombre, precio y capacidad -->
     <div class="panel">
-      <div class="panel-head"><div class="panel-title"><i class="bi bi-tag-fill"></i>Precios de boletos</div></div>
+      <div class="panel-head"><div class="panel-title"><i class="bi bi-ticket-perforated-fill"></i>Sorteos activos</div><span class="text-muted" style="font-size:.82rem">Nombre · precio · capacidad</span></div>
       <div class="panel-body">
         ${!games?.length?`<div class="empty"><i class="bi bi-ticket-perforated"></i><p>Sin sorteos</p></div>`:
         `<div style="display:flex;flex-direction:column;gap:.5rem">
           ${games.map(g=>`
           <div class="cfg-row">
-            <div><div class="cfg-lbl">${g.nombre}</div><div class="cfg-sub">${badge(g.estado)}</div></div>
+            <div>
+              <div class="cfg-lbl">${g.nombre}</div>
+              <div class="cfg-sub">${badge(g.estado)} <span style="margin-left:.3rem;color:var(--dim);font-size:.73rem">${fmtMoney(g.precio_boleto||0)}/boleto · ${getCapacidad(g)} cupos máx.</span></div>
+            </div>
             <div class="cfg-right">
-              <span style="font-family:'Oswald',sans-serif;color:var(--gold2);font-size:1rem">${fmtMoney(g.precio_boleto||0)}</span>
-              <button class="btn btn-ghost btn-sm" onclick="editarPrecio('${g.id}','${g.nombre}',${g.precio_boleto||0})"><i class="bi bi-pencil"></i> Editar</button>
+              <button class="btn btn-ghost btn-sm" onclick="modalEditarSorteo('${g.id}','${(g.nombre||'').replace(/'/g,"\\'")}','','${g.precio_boleto||0}',${getCapacidad(g)})"><i class="bi bi-pencil"></i> Editar</button>
             </div>
           </div>`).join("")}
         </div>`}
       </div>
     </div>
 
-    <!-- CAMBIAR CONTRASEÑA -->
+    <!-- SEGURIDAD -->
     <div class="panel">
       <div class="panel-head"><div class="panel-title"><i class="bi bi-key-fill"></i>Seguridad</div></div>
       <div class="panel-body">
@@ -1504,8 +1640,6 @@ window.modalCambiarPasswordAdmin=async()=>{
   if(error){ok$("Error",error.message,"error");return;}
   toast("Contraseña actualizada ✅","ok");
 };
-
-
 
 /* ════════════════════════════════════════
    ARRANQUE
