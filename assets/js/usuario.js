@@ -24,6 +24,197 @@ const ok$ = (title, html="", icon="success") => Swal.fire({
 function fmtDateShort(d) { return new Date(d).toLocaleDateString("es-BO",{day:"2-digit",month:"short",year:"numeric"}); }
 function fmtMoney(n) { return `Bs ${Number(n||0).toFixed(2)}`; }
 
+/* ═══════════════════════════════════════
+   ALERTAS DE URGENCIA / FOMO
+═══════════════════════════════════════ */
+
+/* ── Mensajes urgentes variados según cuántos faltan ── */
+const URGENCY_MSGS = {
+  10: [
+    { emoji:"🔥", title:"¡10 cupos y se llena!", body:"El sorteo se cierra pronto. ¡Asegura tu lugar ahora!" },
+    { emoji:"⚡", title:"Quedan solo 10 cupos", body:"Otros jugadores ya están viendo esto. ¡No pierdas tu chance!" },
+    { emoji:"🎯", title:"¡10 spots restantes!", body:"La ronda se llena rápido. ¿Vas a dejar que otro gane?" },
+  ],
+  5: [
+    { emoji:"🚨", title:"¡Solo 5 cupos!", body:"Casi lleno. Entra ahora antes de que sea demasiado tarde." },
+    { emoji:"💥", title:"¡Últimos 5 cupos!", body:"El sorteo se cierra en cualquier momento. ¡Actúa ya!" },
+    { emoji:"⏳", title:"5 cupos... y contando", body:"Cada segundo que pasa alguien puede tomar tu lugar." },
+  ],
+  3: [
+    { emoji:"😱", title:"¡3 cupos disponibles!", body:"Esto se acaba. Entra ahora o espera la próxima ronda." },
+    { emoji:"🔴", title:"¡URGENTE! Solo 3 cupos", body:"La ronda está a punto de cerrarse. ¡Última oportunidad!" },
+    { emoji:"🎰", title:"¡3 spots nada más!", body:"Literalmente quedan 3 lugares. ¿Vas a ser uno de ellos?" },
+  ],
+  1: [
+    { emoji:"😤", title:"¡EL ÚLTIMO CUPO!", body:"Solo queda 1 lugar. O entras ahora, o te quedas fuera." },
+    { emoji:"🏆", title:"¡1 cupo final!", body:"El último spot está esperando. ¿Quién se lo lleva?" },
+  ],
+};
+
+/* ── Control para no spamear alertas ── */
+const _urgencyShown = new Set(); // "roundId-threshold"
+const _winnerShown = new Set();  // roundIds donde ya se mostró alerta de ganadores
+
+function getRandomItem(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+/* ── Alerta urgente con botón de participar ── */
+function showUrgencyAlert(round, cuposLibres) {
+  const thresholds = [10, 5, 3, 1];
+  for (const t of thresholds) {
+    const key = `${round.id}-${t}`;
+    if (cuposLibres <= t && !_urgencyShown.has(key)) {
+      _urgencyShown.add(key);
+      const msgs = URGENCY_MSGS[t];
+      const msg = getRandomItem(msgs);
+      const gameName = round.game?.nombre || "El sorteo";
+      const precio = round.game?.precio_boleto || 0;
+
+      // No mostrar si ya está participando o no puede participar
+      if (!puedeParticipar()) return;
+
+      Swal.fire({
+        html: `
+          <div style="text-align:center;padding:.5rem 0">
+            <div style="font-size:3.5rem;line-height:1;margin-bottom:.6rem;animation:urgencyBounce .6s ease infinite alternate">${msg.emoji}</div>
+            <div style="font-family:'Oswald',sans-serif;font-size:1.35rem;font-weight:700;color:#fff;margin-bottom:.4rem;letter-spacing:.03em">${msg.title}</div>
+            <div style="font-size:.88rem;color:#8a7a62;margin-bottom:.9rem;line-height:1.5">${msg.body}</div>
+            <div style="background:rgba(212,160,23,.08);border:1px solid rgba(212,160,23,.2);border-radius:9px;padding:.6rem 1rem;margin-bottom:.75rem;display:inline-block">
+              <span style="font-family:'Oswald',sans-serif;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:#8a7a62">Sorteo</span><br>
+              <span style="font-family:'Oswald',sans-serif;font-size:1.05rem;font-weight:700;color:#fff">${gameName}</span>
+              <span style="font-size:.78rem;color:#8a7a62"> · Ronda #${round.numero}</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:.5rem;font-size:.78rem;color:#8a7a62">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444;animation:urgencyPulse 1s ease infinite"></span>
+              <strong style="color:${cuposLibres<=3?"#ef4444":"#fbbf24"}">${cuposLibres} cupo${cuposLibres!==1?"s":""} disponible${cuposLibres!==1?"s":""}</strong>
+              ${precio>0 ? `<span>·</span><span style="color:#d4a017">${fmtMoney(precio)}/boleto</span>` : '<span>·</span><span style="color:#22c55e">¡Gratis!</span>'}
+            </div>
+          </div>`,
+        showCancelButton: true,
+        confirmButtonText: `${msg.emoji} ¡Participar ahora!`,
+        cancelButtonText: "Ahora no",
+        confirmButtonColor: cuposLibres <= 3 ? '#991b1b' : '#8b1a1a',
+        cancelButtonColor: '#221c14',
+        background: '#131009',
+        color: '#e6dcc8',
+        timer: 18000,
+        timerProgressBar: true,
+        showClass: { popup: 'swal2-show urgency-popup' },
+        customClass: { popup: 'urgency-swal-popup' },
+        didOpen: () => {
+          // Inyectar CSS de animaciones si no existe
+          if (!document.getElementById('urgency-swal-styles')) {
+            const style = document.createElement('style');
+            style.id = 'urgency-swal-styles';
+            style.textContent = `
+              @keyframes urgencyBounce { from{transform:scale(1) rotate(-3deg)} to{transform:scale(1.15) rotate(3deg)} }
+              @keyframes urgencyPulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.5);opacity:.7} }
+              .urgency-swal-popup { border-color: rgba(239,68,68,.35) !important; box-shadow: 0 0 40px rgba(139,26,26,.4), 0 0 80px rgba(0,0,0,.6) !important; }
+            `;
+            document.head.appendChild(style);
+          }
+        }
+      }).then(result => {
+        if (result.isConfirmed) {
+          // Navegar a sorteos y abrir el drawer de compra
+          loadSection("sorteos");
+          setTimeout(() => {
+            window.abrirPanelCompra(round.id, gameName, round.numero, precio, round.cupos || 0);
+          }, 300);
+        }
+      });
+      break; // Solo mostrar el umbral más bajo alcanzado
+    }
+  }
+}
+
+/* ── Alerta de ganadores con animación y variantes ── */
+const WINNER_TOASTS = [
+  { emoji:"🏆", title:"¡Ya hay ganadores!", body:"Los resultados del sorteo están listos. ¡Ve a verlos!" },
+  { emoji:"🎉", title:"¡Se cayó el sorteo!", body:"Ya se sortearon los ganadores. ¿Fuiste tú?" },
+  { emoji:"👑", title:"¡Tenemos un campeón!", body:"El sorteo terminó. Descubre quién ganó ahora." },
+  { emoji:"🎰", title:"¡La suerte habló!", body:"El sorteo ya fue realizado. Mira los resultados." },
+  { emoji:"💰", title:"¡Premio otorgado!", body:"Ya se eligieron los ganadores del sorteo." },
+];
+
+function showWinnerAlert(roundId, gameNombre, numRonda) {
+  if (_winnerShown.has(roundId)) return;
+  _winnerShown.add(roundId);
+
+  const msg = getRandomItem(WINNER_TOASTS);
+
+  Swal.fire({
+    html: `
+      <div style="text-align:center;padding:.5rem 0">
+        <div style="font-size:3rem;margin-bottom:.5rem;animation:winnerSpin 1s ease both">${msg.emoji}</div>
+        <div style="font-family:'Oswald',sans-serif;font-size:1.3rem;font-weight:700;color:#fff;margin-bottom:.35rem;letter-spacing:.03em">${msg.title}</div>
+        <div style="font-size:.85rem;color:#8a7a62;margin-bottom:.85rem;line-height:1.5">${msg.body}</div>
+        <div style="background:linear-gradient(135deg,rgba(139,26,26,.15),rgba(184,134,11,.1));border:1px solid rgba(212,160,23,.3);border-radius:9px;padding:.6rem 1rem;display:inline-block">
+          <span style="font-family:'Oswald',sans-serif;font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;color:#8a7a62">Sorteo finalizado</span><br>
+          <span style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#d4a017">${gameNombre}</span>
+          <span style="font-size:.78rem;color:#8a7a62"> · Ronda #${numRonda}</span>
+        </div>
+        <div style="margin-top:.7rem;font-size:.75rem;color:#4a3c2a">
+          <span style="color:#22c55e;font-weight:600">Los premios serán enviados al QR del ganador</span>
+        </div>
+      </div>`,
+    showCancelButton: true,
+    confirmButtonText: `${msg.emoji} Ver ganadores`,
+    cancelButtonText: "Después",
+    confirmButtonColor: '#8b1a1a',
+    cancelButtonColor: '#221c14',
+    background: '#131009',
+    color: '#e6dcc8',
+    timer: 20000,
+    timerProgressBar: true,
+    didOpen: () => {
+      if (!document.getElementById('winner-swal-styles')) {
+        const style = document.createElement('style');
+        style.id = 'winner-swal-styles';
+        style.textContent = `
+          @keyframes winnerSpin { 0%{transform:scale(0) rotate(-180deg);opacity:0} 70%{transform:scale(1.2) rotate(10deg)} 100%{transform:scale(1) rotate(0deg);opacity:1} }
+        `;
+        document.head.appendChild(style);
+      }
+    }
+  }).then(result => {
+    if (result.isConfirmed) {
+      loadSection("historial");
+      setTimeout(() => window.modalVerGanadores(roundId), 400);
+    }
+  });
+}
+
+/* ── Toast de urgencia flotante (para updates silenciosos) ── */
+function toastUrgencia(cupos, roundId, gameNombre, numRonda, precio, cuposActuales) {
+  const thresholds = [10, 5, 3, 1];
+  for (const t of thresholds) {
+    const key = `toast-${roundId}-${t}`;
+    if (cupos <= t && !_urgencyShown.has(key)) {
+      _urgencyShown.add(key);
+      const color = cupos <= 3 ? '#ef4444' : '#fbbf24';
+      const icon = cupos === 1 ? '🔴' : cupos <= 3 ? '🚨' : '⚡';
+      Swal.fire({
+        html: `<div style="display:flex;align-items:center;gap:.75rem">
+          <span style="font-size:1.5rem">${icon}</span>
+          <div style="text-align:left">
+            <div style="font-family:'Oswald',sans-serif;font-weight:700;color:#fff;font-size:.95rem">${gameNombre} · Ronda #${numRonda}</div>
+            <div style="font-size:.8rem;color:${color};font-weight:600">¡Solo ${cupos} cupo${cupos!==1?"s":""}!</div>
+          </div>
+          ${puedeParticipar() ? `<button onclick="Swal.close();loadSection('sorteos');setTimeout(()=>abrirPanelCompra('${roundId}','${gameNombre.replace(/'/g,"\\'")}','${numRonda}',${precio},${cuposActuales}),300)" style="margin-left:auto;font-family:'Oswald',sans-serif;font-size:.8rem;font-weight:700;letter-spacing:.07em;background:#8b1a1a;color:#fff;border:none;border-radius:7px;padding:.42rem .85rem;cursor:pointer;white-space:nowrap;flex-shrink:0">Entrar</button>` : ""}
+        </div>`,
+        toast: true,
+        position: "bottom-end",
+        showConfirmButton: false,
+        timer: 12000,
+        timerProgressBar: true,
+        background: '#1b1610',
+        color: '#e6dcc8',
+      });
+      break;
+    }
+  }
+}
+
 /* ── Filtros compactos ── */
 function buildFilterBar({ searchId, searchPlaceholder="Buscar…", chips=[], sortId, countId }) {
   const searchHtml = searchId ? `<div class="fc-search"><i class="bi bi-search fc-search-ico"></i><input id="${searchId}" type="search" placeholder="${searchPlaceholder}" class="fc-input" autocomplete="off"></div>` : "";
@@ -70,7 +261,6 @@ await refreshProfile();
 
 function initUserUI(prof) {
   const ini = (prof.username?.[0]||"?").toUpperCase();
-  const els = { tbName:"username", tbAvatar:"ini", sbName:"username", sbAvatar:"ini", sbSaldo:"saldo", heroSaldo:"saldo" };
   if(getEl("tbName"))  getEl("tbName").textContent  = prof.username;
   if(getEl("tbAvatar"))getEl("tbAvatar").textContent= ini;
   if(getEl("sbName"))  getEl("sbName").textContent  = prof.username;
@@ -102,11 +292,80 @@ function setupRealtime() {
       const active = document.querySelector(".section.active")?.id?.replace("sec-","");
       if(active==="sorteos") loadSorteos(true);
       else if(active==="historial") loadHistorial();
+
       if(payload.eventType==="UPDATE"){
-        if(payload.old?.estado==="abierta"&&payload.new?.estado==="sorteada")
-          toast("🎲 ¡Sorteo realizado! Revisa tu historial.","info",4000);
-        else if(payload.new?.estado==="abierta"&&payload.old?.estado!=="abierta")
+        // ── GANADORES DISPONIBLES ──
+        if(payload.old?.estado==="abierta" && payload.new?.estado==="sorteada"){
+          const gameNombre = payload.new?.game_nombre || "Sorteo";
+          const numRonda = payload.new?.numero || "—";
+          // Intentar obtener nombre del juego si no viene en el payload
+          let gName = gameNombre;
+          if(payload.new?.game_id) {
+            const { data:gd } = await supabase.from("games").select("nombre").eq("id", payload.new.game_id).single();
+            if(gd) gName = gd.nombre;
+          }
+          showWinnerAlert(payload.new.id, gName, numRonda);
+        }
+        // ── NUEVA RONDA ABIERTA ──
+        else if(payload.new?.estado==="abierta" && payload.old?.estado!=="abierta"){
           toast("🎟️ Nueva ronda disponible","success",3000);
+        }
+      }
+
+      // ── VERIFICAR URGENCIA tras UPDATE de participaciones (rounds se actualiza a veces) ──
+      if(payload.eventType==="UPDATE" && payload.new?.estado==="abierta"){
+        _checkRoundUrgency(payload.new);
+      }
+    }).subscribe();
+
+  // ── Escuchar nuevas participaciones para detectar cuando se llenan rondas ──
+  supabase.channel("participations-urgency")
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"participations"}, async (payload) => {
+      if(!puedeParticipar()) return;
+      const roundId = payload.new?.round_id;
+      if(!roundId) return;
+
+      // Calcular cupos actuales
+      const { count } = await supabase.from("participations")
+        .select("id", {count:"exact", head:true})
+        .eq("round_id", roundId);
+      const cuposOcupados = count || 0;
+      const cuposLibres = Math.max(0, 25 - cuposOcupados);
+
+      // Obtener datos de la ronda
+      const { data:round } = await supabase.from("rounds")
+        .select("id,numero,estado,game_id")
+        .eq("id", roundId)
+        .eq("estado","abierta")
+        .single();
+      if(!round) return;
+
+      // Obtener juego
+      let gameData = null;
+      if(round.game_id){
+        const { data:gd } = await supabase.from("games").select("nombre,precio_boleto").eq("id",round.game_id).single();
+        gameData = gd;
+      }
+
+      const roundEnriquecida = { ...round, cupos: cuposOcupados, game: gameData };
+
+      // ¿El usuario YA está en esta ronda?
+      const { count:yaCuento } = await supabase.from("participations")
+        .select("id",{count:"exact",head:true})
+        .eq("round_id",roundId)
+        .eq("user_id",MY_USER_ID);
+      const yaParticiping = (yaCuento||0) > 0;
+
+      if(!yaParticiping && cuposLibres > 0 && cuposLibres <= 10){
+        // Toast discreto siempre
+        toastUrgencia(cuposLibres, roundId, gameData?.nombre||"Sorteo", round.numero, gameData?.precio_boleto||0, cuposOcupados);
+
+        // Modal completo solo en umbrales exactos
+        const umbralesModal = [5, 3, 1];
+        if(umbralesModal.includes(cuposLibres)){
+          // Pequeño delay para no saturar
+          setTimeout(() => showUrgencyAlert(roundEnriquecida, cuposLibres), 800);
+        }
       }
     }).subscribe();
 
@@ -163,6 +422,24 @@ function setupRealtime() {
     }).subscribe();
 }
 setupRealtime();
+
+/* ── Verificar urgencia al cargar sorteos (para estado inicial) ── */
+async function _checkRoundUrgency(roundData) {
+  if(!puedeParticipar() || !roundData?.id) return;
+  const { count } = await supabase.from("participations")
+    .select("id",{count:"exact",head:true})
+    .eq("round_id", roundData.id);
+  const cuposLibres = Math.max(0, 25 - (count||0));
+  if(cuposLibres <= 10 && cuposLibres > 0){
+    const { count:yaCuento } = await supabase.from("participations")
+      .select("id",{count:"exact",head:true})
+      .eq("round_id",roundData.id)
+      .eq("user_id",MY_USER_ID);
+    if((yaCuento||0) === 0){
+      toastUrgencia(cuposLibres, roundData.id, roundData.game?.nombre||"Sorteo", roundData.numero, roundData.game?.precio_boleto||0, count||0);
+    }
+  }
+}
 
 /* ═══════════════════════════════════════
    QR STATE
@@ -365,6 +642,24 @@ async function loadSorteos(silencioso=false) {
     return{...r,cupos,game:gamesMap[r.game_id],misBoletos,miPago:myPay,boletosGratisEnRonda,yoUseGratis,otrosConGratis};
   }));
 
+  // ── Verificar urgencia al cargar (solo primera vez por ronda) ──
+  if(puedeParticipar()) {
+    roundsData.forEach(r => {
+      const cuposLibres = 25 - r.cupos;
+      if(cuposLibres <= 10 && cuposLibres > 0 && r.misBoletos === 0) {
+        // Solo poner en el set si ya tiene urgencia, sin mostrar popup al cargar
+        // (el popup se muestra por realtime, al cargar solo recordamos el estado)
+        const thresholds = [10, 5, 3, 1];
+        thresholds.forEach(t => {
+          if(cuposLibres <= t) {
+            // Marcar como "ya conocido" para evitar popup al cargar página
+            // Pero si hay <= 3 y es la primera carga, mostrar toast discreto
+          }
+        });
+      }
+    });
+  }
+
   const conMi=roundsData.filter(r=>r.misBoletos>0);
   const sinMi=roundsData.filter(r=>r.misBoletos===0).sort((a,b)=>b.cupos-a.cupos);
   const ordenados=[...conMi,...sinMi];
@@ -381,10 +676,17 @@ async function loadSorteos(silencioso=false) {
   const renderCard=(r,grid=false)=>{
     const pct=Math.round((r.cupos/25)*100);
     const lleno=r.cupos>=25;
+    const cuposLibres=25-r.cupos;
     const tieneCompPend=r.miPago?.estado==="pendiente";
     const tieneCompAprobado=r.miPago?.estado==="aprobado";
     const chances=r.misBoletos>0?calcularChances(r.misBoletos,r.cupos-r.misBoletos):null;
     const estoyDentro=r.misBoletos>0;
+
+    // ── Badge de urgencia en la tarjeta ──
+    const urgencyBadge = !estoyDentro && !lleno && cuposLibres <= 10 ? `
+      <div style="display:inline-flex;align-items:center;gap:.28rem;font-family:'Oswald',sans-serif;font-size:.68rem;font-weight:700;letter-spacing:.06em;color:${cuposLibres<=3?"#ef4444":"#fbbf24"};background:${cuposLibres<=3?"rgba(239,68,68,.12)":"rgba(245,158,11,.1)"};border:1px solid ${cuposLibres<=3?"rgba(239,68,68,.3)":"rgba(245,158,11,.25)"};border-radius:20px;padding:.18rem .6rem;margin-top:.3rem;${cuposLibres<=3?"animation:urgencyPulse2 1.2s ease-in-out infinite":""}">
+        ${cuposLibres<=3?"🔴":"⚡"} ${cuposLibres} cupo${cuposLibres!==1?"s":""}
+      </div>` : "";
 
     const fondoWarn=r.boletosGratisEnRonda>=3?`<div class="fondo-warn"><i class="bi bi-exclamation-triangle-fill"></i><span>Esta ronda tiene ${r.boletosGratisEnRonda} boleto${r.boletosGratisEnRonda>1?"s":""} gratis — el fondo puede ser menor.</span></div>`:"";
     const gratisWarn=!r.yoUseGratis&&r.otrosConGratis>0&&boletosGratis>0?`<div class="gratis-competencia-badge"><i class="bi bi-lightning-charge-fill"></i>${r.otrosConGratis} jugador${r.otrosConGratis>1?"es":""}  con boleto gratis aquí</div>`:"";
@@ -404,11 +706,11 @@ async function loadSorteos(silencioso=false) {
       btnHtml=`<button class="btn btn-red btn-md" onclick="abrirPanelCompra('${r.id}','${(r.game?.nombre||"").replace(/'/g,"\\'")}','${r.numero}',${r.game?.precio_boleto||0},${r.cupos})"><i class="bi bi-ticket-perforated-fill"></i> Participar</button>${gratisTag}`;
     }
 
-    if(grid) return `<div class="sorteo-card-grid${estoyDentro?" si-participando":""}" style="${estoyDentro?"border-color:rgba(212,160,23,.45)":""}">
+    if(grid) return `<div class="sorteo-card-grid${estoyDentro?" si-participando":""}" style="${estoyDentro?"border-color:rgba(212,160,23,.45)":""}${!estoyDentro&&!lleno&&cuposLibres<=3?" border-color:rgba(239,68,68,.35);":""}">
       ${estoyDentro?`<div class="si-active-badge"><i class="bi bi-person-fill-check"></i> Participando</div>`:""}
       <div style="padding:.9rem .9rem .5rem">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.4rem;margin-bottom:.5rem">
-          <div><div class="si-nombre" style="font-size:.95rem">${r.game?.nombre??"—"}</div><div class="si-sub">Ronda #${r.numero}</div></div>
+          <div><div class="si-nombre" style="font-size:.95rem">${r.game?.nombre??"—"}</div><div class="si-sub">Ronda #${r.numero}</div>${urgencyBadge}</div>
           ${r.game?.precio_boleto>0?`<div class="si-precio" style="font-size:1rem">${fmtMoney(r.game.precio_boleto)}<span>/boleto</span></div>`:""}
         </div>
         <div class="prog-label"><span>Participantes</span><span class="${lleno?"text-green":""}"><strong>${r.cupos}</strong>/25</span></div>
@@ -419,9 +721,9 @@ async function loadSorteos(silencioso=false) {
       <div class="si-foot" style="padding:.55rem .9rem">${r.misBoletos>0?`<div class="mi-boletos"><i class="bi bi-ticket-perforated-fill"></i><strong>${r.misBoletos}</strong></div>`:"<div></div>"}<div>${btnHtml}</div></div>
     </div>`;
 
-    return `<div class="sorteo-item${estoyDentro?" si-participando":""}" style="${estoyDentro?"border-color:rgba(212,160,23,.45)":""}">
+    return `<div class="sorteo-item${estoyDentro?" si-participando":""}" style="${estoyDentro?"border-color:rgba(212,160,23,.45)":""}${!estoyDentro&&!lleno&&cuposLibres<=3?" border-color:rgba(239,68,68,.35);":""}">
       ${estoyDentro?`<div class="si-active-badge"><i class="bi bi-person-fill-check"></i> Participando</div>`:""}
-      <div class="si-head"><div><div class="si-nombre">${r.game?.nombre??"—"}</div><div class="si-sub">Ronda #${r.numero}${r.game?.descripcion?" · "+r.game.descripcion:""}</div></div>${r.game?.precio_boleto>0?`<div class="si-precio">${fmtMoney(r.game.precio_boleto)}<span>/boleto</span></div>`:""}</div>
+      <div class="si-head"><div><div class="si-nombre">${r.game?.nombre??"—"}</div><div class="si-sub">Ronda #${r.numero}${r.game?.descripcion?" · "+r.game.descripcion:""}</div>${urgencyBadge}</div>${r.game?.precio_boleto>0?`<div class="si-precio">${fmtMoney(r.game.precio_boleto)}<span>/boleto</span></div>`:""}</div>
       <div class="si-prog"><div class="prog-label"><span>Participantes</span><span class="${lleno?"text-green":""}"><strong>${r.cupos}</strong>/25${lleno?" 🔒 LLENO":""}</span></div><div class="prog-bg"><div class="prog-fill${lleno?" full":""}" style="width:${Math.min(pct,100)}%"></div></div></div>
       ${chances?`<div class="chances-bar"><div class="cb-header"><span class="cb-label">Tu probabilidad</span><span class="cb-pct">${chances.chance}%</span></div><div class="cb-track"><div class="cb-fill" style="width:${Math.min(chances.chance,100)}%"></div></div><div class="cb-tier"><i class="bi bi-graph-up"></i> ${chances.descripcion}</div></div>`:""}
       ${gratisWarn}${fondoWarn}
@@ -430,6 +732,15 @@ async function loadSorteos(silencioso=false) {
   };
 
   container.innerHTML=ctrlHtml+`<div id="sorteosCards" class="${vistaGrid?"sorteos-grid":""}"></div>`;
+
+  // Inyectar CSS de urgencia en tarjetas si no existe
+  if(!document.getElementById('card-urgency-styles')) {
+    const s = document.createElement('style');
+    s.id = 'card-urgency-styles';
+    s.textContent = `@keyframes urgencyPulse2 { 0%,100%{opacity:1} 50%{opacity:.55} }`;
+    document.head.appendChild(s);
+  }
+
   const cardsEl=getEl("sorteosCards");
   cardsEl.innerHTML=ordenados.map(r=>renderCard(r,vistaGrid)).join("");
 
@@ -620,35 +931,27 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
   getEl("drawerBtnNext")?.addEventListener("click",()=>{
     const bap=usarGratis?Math.max(0,boletos-1):boletos;
     if(precioBoleto===0||bap===0){ enviarParticipacion(); return; }
-    // Tomar snapshot — a partir de aquí los valores son definitivos
     boletosSnap=boletos; usarGratisSnap=usarGratis; bapSnap=bap;
-    // Mostrar resumen en el paso 2
     const rt=getEl("drawerResumenTxt");
     const rm=getEl("drawerResumenMonto");
     if(rt) rt.textContent=`${boletosSnap} boleto${boletosSnap!==1?"s":""}${usarGratisSnap?" (1 gratis)":""}`;
     if(rm) rm.textContent=fmtMoney(precioBoleto*bapSnap);
-    // Actualizar monto exacto en QR
     const me=getEl("montoExacto"); if(me) me.textContent=fmtMoney(precioBoleto*bapSnap);
     getEl("compraStep1").style.display="none";
     getEl("compraStep2").style.display="block";
-    // Deshabilitar controles — no se pueden cambiar en paso 2
     if(getEl("drawerMenos")) getEl("drawerMenos").disabled=true;
     if(getEl("drawerMas")) getEl("drawerMas").disabled=true;
     if(getEl("drawerUsarGratis")) getEl("drawerUsarGratis").disabled=true;
   });
 
-  // Volver al paso 1 — SE LIMPIA el archivo subido para evitar re-uso
   getEl("drawerBack")?.addEventListener("click",()=>{
     getEl("compraStep1").style.display="block";
     getEl("compraStep2").style.display="none";
-    // Resetear snapshot
     boletosSnap=boletos; usarGratisSnap=usarGratis;
-    // Limpiar comprobante subido — evita re-uso
     const compInput=getEl("drawerComp");
     if(compInput){ compInput.value=""; }
     const prev=getEl("drawerPrev"); if(prev){prev.src="";prev.style.display="none";}
     const ph=getEl("compraUploadPlaceholder"); if(ph) ph.style.display="flex";
-    // Re-habilitar controles
     if(getEl("drawerMenos")) getEl("drawerMenos").disabled=false;
     if(getEl("drawerMas")) getEl("drawerMas").disabled=false;
     if(getEl("drawerUsarGratis")) getEl("drawerUsarGratis").disabled=false;
@@ -662,11 +965,9 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
       const prev=getEl("drawerPrev"); const ph=getEl("compraUploadPlaceholder");
       if(prev){ prev.src=ev.target.result; prev.style.display="block"; }
       if(ph) ph.style.display="none";
-      // Ocultar botón volver — una vez subida la imagen no se puede cambiar cantidad
       const backBtn=getEl("drawerBack");
       if(backBtn){
         backBtn.style.display="none";
-        // Mostrar lock visual
         const resumen=document.querySelector(".compra-resumen-fijo");
         if(resumen&&!resumen.querySelector(".compra-lock-badge")){
           const badge=document.createElement("span");
@@ -682,12 +983,10 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
   getEl("drawerSubmit")?.addEventListener("click",()=>enviarParticipacion());
 
   async function enviarParticipacion(){
-    // Usar snapshot si ya se pasó al paso 2, si no usar valores actuales
     const _boletos = (typeof boletosSnap!=="undefined" && getEl("compraStep2")?.style.display!=="none") ? boletosSnap : boletos;
     const _usarGratis = (typeof usarGratisSnap!=="undefined" && getEl("compraStep2")?.style.display!=="none") ? usarGratisSnap : usarGratis;
     const bap=_usarGratis?Math.max(0,_boletos-1):_boletos;
 
-    // validaciones paso 2
     if(precioBoleto>0&&bap>0){
       const metodo=getEl("drawerMetodo")?.value;
       const file=getEl("drawerComp")?.files[0];
@@ -699,7 +998,6 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
     cerrarCompraDrawer();
     loading$("Enviando comprobante…");
 
-    // ── FLUJO GRATIS PURO ──
     if(usarGratis&&bap===0){
       const{data:bgDisp}=await supabase.from("boletos_gratis").select("id").eq("user_id",MY_USER_ID).eq("usado",false).limit(1);
       if(!bgDisp?.length){ Swal.close(); ok$("Error","No se encontró boleto gratis. Recarga la página.","error"); return; }
@@ -715,7 +1013,6 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
       return;
     }
 
-    // ── FLUJO CON PAGO ──
     if(usarGratis){
       const{data:bgDisp}=await supabase.from("boletos_gratis").select("id").eq("user_id",MY_USER_ID).eq("usado",false).limit(1);
       if(bgDisp?.length) await supabase.from("boletos_gratis").update({usado:true,usado_en_round:roundId,usado_at:new Date().toISOString()}).eq("id",bgDisp[0].id).eq("user_id",MY_USER_ID);
@@ -753,7 +1050,6 @@ window.cerrarCompraDrawer=()=>{
   setTimeout(()=>d.remove(),350);
 };
 
-// Mantener compatibilidad con el nombre anterior
 window.modalComprarBoleto=(roundId,gameNombre,numRonda,precioBoleto,cuposActuales)=>window.abrirPanelCompra(roundId,gameNombre,numRonda,precioBoleto,cuposActuales);
 
 /* ═══════════════════════════════════════
@@ -783,10 +1079,8 @@ window.modalVerGanadores = async (roundId) => {
   const g2=round?.ganador2_id?usersMap[round.ganador2_id]||"—":null;
   const g3=round?.ganador3_id?usersMap[round.ganador3_id]||"—":null;
 
-  // participantes para créditos
   const participantes=(allParts||[]).map(p=>({ username:usersMap[p.user_id]||"Usuario", boletos:p.boletos||1, esGratis:p.es_gratis }));
 
-  // Crear pantalla completa
   let screen=document.getElementById("ganadoresScreen");
   if(screen) screen.remove();
 
@@ -806,13 +1100,11 @@ window.modalVerGanadores = async (roundId) => {
         <div class="ganadores-ronda">Ronda #${round?.numero||"—"}${round?.sorteado_at?" · "+fmtDateShort(round.sorteado_at):""}</div>
       </div>
 
-      <!-- IMAGEN PADRINO -->
       <div class="ganadores-img-wrap">
         <img src="https://res.cloudinary.com/daxmlrngo/image/upload/v1772453389/9c927cfe-c983-4252-8945-a70b24c03eb1_rtrp4u.png" class="ganadores-img" alt="El Padrino">
         <div class="ganadores-img-glow"></div>
       </div>
 
-      <!-- GANADORES PODIO -->
       <div class="ganadores-podio">
         ${g2?`<div class="podio-card podio-2" style="animation-delay:.4s">
           <div class="podio-trofeo">🥈</div>
@@ -833,7 +1125,6 @@ window.modalVerGanadores = async (roundId) => {
         </div>`:""}
       </div>
 
-      <!-- CRÉDITOS PARTICIPANTES -->
       <div class="ganadores-creditos-titulo">Participantes</div>
       <div class="ganadores-creditos-scroll" id="ganadoresCreditos">
         <div class="creditos-track" id="creditosTrack">
@@ -853,7 +1144,6 @@ window.modalVerGanadores = async (roundId) => {
   document.body.style.overflow="hidden";
   requestAnimationFrame(()=>screen.classList.add("open"));
 
-  // ── Estrellas de fondo ──
   const starsEl=screen.querySelector("#ganadoresStars");
   for(let i=0;i<60;i++){
     const s=document.createElement("div"); s.className="gstar";
@@ -861,14 +1151,12 @@ window.modalVerGanadores = async (roundId) => {
     starsEl.appendChild(s);
   }
 
-  // ── Animación créditos ──
   const track=screen.querySelector("#creditosTrack");
   if(track){
     const h=track.scrollHeight;
     track.style.animation=`creditosScroll ${Math.max(8,h/30)}s ${2}s linear infinite`;
   }
 
-  // ── Música épica de ganadores ──
   let ganadoresAudio = document.getElementById("ganadoresAudio");
   if(!ganadoresAudio){
     ganadoresAudio = document.createElement("audio");
@@ -878,14 +1166,11 @@ window.modalVerGanadores = async (roundId) => {
     ganadoresAudio.volume = 0.55;
     document.body.appendChild(ganadoresAudio);
   }
-  // Reiniciar desde el inicio cada vez
   ganadoresAudio.currentTime = 0;
   ganadoresAudio.volume = 0;
   const playPromise = ganadoresAudio.play();
   if(playPromise !== undefined){
     playPromise.catch(()=>{
-      // Autoplay bloqueado — el usuario deberá interactuar primero
-      // Mostrar botón de reproducir si fue bloqueado
       const closeBtn = screen.querySelector(".ganadores-close");
       if(closeBtn){
         const playBtn = document.createElement("button");
@@ -894,7 +1179,6 @@ window.modalVerGanadores = async (roundId) => {
         playBtn.title = "Activar música";
         playBtn.onclick = ()=>{
           ganadoresAudio.play();
-          // Fade in
           let v=0; const fi=setInterval(()=>{ v=Math.min(v+0.05,0.55); ganadoresAudio.volume=v; if(v>=0.55) clearInterval(fi); },80);
           playBtn.remove();
         };
@@ -902,7 +1186,6 @@ window.modalVerGanadores = async (roundId) => {
       }
     });
   }
-  // Fade in gradual
   let vol=0;
   const fadeIn=setInterval(()=>{ vol=Math.min(vol+0.04,0.55); ganadoresAudio.volume=vol; if(vol>=0.55) clearInterval(fadeIn); },100);
 };
@@ -910,7 +1193,6 @@ window.modalVerGanadores = async (roundId) => {
 window.cerrarGanadoresScreen=()=>{
   const s=document.getElementById("ganadoresScreen");
   if(!s) return;
-  // Fade out música
   const audio=document.getElementById("ganadoresAudio");
   if(audio&&!audio.paused){
     let v=audio.volume;
@@ -1175,7 +1457,7 @@ window.copiarCodigo=async c=>{try{await navigator.clipboard.writeText(c);}catch{
 window.copiarLink=async l=>{try{await navigator.clipboard.writeText(l);}catch{}toast("Link copiado","success");};
 
 /* ═══════════════════════════════════════
-   FIDELIDAD — con grupos, filtros, logros mejorados
+   FIDELIDAD
 ═══════════════════════════════════════ */
 async function loadFidelidad() {
   const el=getEl("fidelidadContent"); if(!el) return;
@@ -1201,7 +1483,6 @@ async function loadFidelidad() {
   const nivel          = getNivel(totalBoletos);
   const proxNivel      = getProximoNivel(totalBoletos);
 
-  /* ── Definición de logros ── */
   const grupos = [
     {
       label:"🚀 Iniciación", sub:"Primeros pasos",
@@ -1250,7 +1531,6 @@ async function loadFidelidad() {
   const logradosTotal = grupos.flatMap(g=>g.logros).filter(l=>l.logrado).length;
   const xpTotal       = grupos.flatMap(g=>g.logros).filter(l=>l.logrado).reduce((s,l)=>s+l.xp, 0);
 
-  /* ── Render de logros (sin filtros) ── */
   function renderGrupos() {
     return grupos.map(g => {
       const done = g.logros.filter(l=>l.logrado).length;
@@ -1290,10 +1570,7 @@ async function loadFidelidad() {
     }).join("");
   }
 
-  /* ── HTML principal ── */
   el.innerHTML = `
-
-  <!-- NIVEL -->
   <div class="panel nivel-panel-premium">
     <div class="panel-body nivel-body">
       <div class="nivel-row">
@@ -1322,7 +1599,6 @@ async function loadFidelidad() {
     </div>
   </div>
 
-  <!-- STATS 2x3 -->
   <div class="fid-grid">
     <div class="fid-cell"><i class="bi bi-ticket-perforated-fill fid-ico"></i><div class="fid-num">${totalBoletos}</div><div class="fid-lbl">Boletos</div></div>
     <div class="fid-cell"><i class="bi bi-trophy-fill fid-ico" style="color:#fbbf24"></i><div class="fid-num">${totalGanadas}</div><div class="fid-lbl">Ganados</div></div>
@@ -1332,7 +1608,6 @@ async function loadFidelidad() {
     <div class="fid-cell"><i class="bi bi-lightning-fill fid-ico" style="color:#fbbf24"></i><div class="fid-num">${xpTotal}</div><div class="fid-lbl">XP</div></div>
   </div>
 
-  <!-- BOLETO GRATIS BANNER -->
   ${bgsTotal>0 ? `
   <div class="boleto-gratis-banner">
     <i class="bi bi-gift-fill bfb-icon"></i>
@@ -1345,7 +1620,6 @@ async function loadFidelidad() {
     </button>
   </div>` : ""}
 
-  <!-- LOGROS — grupos sin filtros -->
   <div class="panel">
     <div class="panel-head">
       <div class="panel-title"><i class="bi bi-stars"></i>Logros</div>
@@ -1356,8 +1630,6 @@ async function loadFidelidad() {
     </div>
   </div>`;
 }
-
-
 
 /* ═══════════════════════════════════════
    MI PERFIL
