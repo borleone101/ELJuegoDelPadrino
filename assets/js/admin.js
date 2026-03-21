@@ -324,7 +324,7 @@ async function dashboard() {
   const payProfiles = await getProfilesMap((recientes||[]).map(p=>p.user_id));
   const gameIds = [...new Set((rondasRecientes||[]).map(r=>r.game_id).filter(Boolean))];
   let gamesMap={};
-  if(gameIds.length){const{data:gd}=await supabase.from("games").select("id,nombre,capacidad_max,imagen_url").in("id",gameIds);(gd||[]).forEach(g=>{gamesMap[g.id]=g});}
+  if(gameIds.length){const{data:gd}=await supabase.from("games").select("id,nombre,capacidad_max,imagen_url,visible,auto_siguiente_ronda").in("id",gameIds);(gd||[]).forEach(g=>{gamesMap[g.id]=g});}
 
   const rondasConCupos = await Promise.all((rondasRecientes||[]).map(async r=>{
     const{data:parts}=await supabase.from("participations").select("boletos").eq("round_id",r.id);
@@ -432,7 +432,7 @@ async function dashboard() {
 async function sorteos() {
   setActive("sorteos"); setCurrentView("sorteos"); loadingView();
 
-  const{data:games}=await supabase.from("games").select("*").order("created_at",{ascending:false});
+  const{data:games}=await supabase.from("games").select("*,visible,auto_siguiente_ronda").order("created_at",{ascending:false});
   const gamesData=await Promise.all((games||[]).map(async g=>{
     const capacidad = getCapacidad(g);
     const{data:roundsData}=await supabase.from("rounds").select("id,numero,estado").eq("game_id",g.id).order("numero",{ascending:false});
@@ -472,53 +472,75 @@ async function sorteos() {
           const theme=getSorteoTheme(g.nombre||"");
           const premioEstimado = ar&&g.precio_boleto>0 ? Math.round((g.cuposActivos*g.precio_boleto*0.70)/5)*5 : 0;
 
-          return `<div class="sorteo-card">
-            ${_sorteoHeaderHtml(g, {height:"78px"})}
+                    const nombreSafe = (g.nombre||'').replace(/'/g,"\'").replace(/`/g,"\`");
+          const isOculto = g.visible === false;
+
+          return `<div class="sorteo-card ${isOculto?"sorteo-oculto":""}">
+            <div class="scard-vis-ribbon" style="${isOculto?"":"display:none"}">
+              <i class="bi bi-eye-slash-fill"></i> Oculto para usuarios
+            </div>
+            ${_sorteoHeaderHtml(g, {height:"86px"})}
             <div class="sorteo-card-head">
-              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem">
-                <div>
-                  <h3>${g.nombre}</h3>
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.4rem">
+                <div style="min-width:0">
+                  <h3 style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${g.nombre}</h3>
                   <p>${g.descripcion||"Sin descripción"}</p>
                 </div>
-                <div style="display:flex;align-items:center;gap:.35rem;flex-shrink:0">
+                <div style="display:flex;align-items:center;gap:.3rem;flex-shrink:0">
                   ${badge(g.estado)}
-                  <button class="btn btn-ghost btn-sm" onclick="modalEditarSorteo('${g.id}')" data-tip="Editar sorteo"><i class="bi bi-pencil-fill"></i></button>
+                  <div class="menu3-wrap" style="position:relative">
+                    <button class="btn btn-dark btn-sm menu3-btn" onclick="toggleMenu3('menu3-${g.id}')" style="width:28px;height:28px;padding:0;border-radius:6px;font-size:.9rem"><i class="bi bi-three-dots-vertical"></i></button>
+                    <div id="menu3-${g.id}" class="menu3-dropdown" style="display:none">
+                      <button onclick="closeAllMenu3();drawerEditarSorteo('${g.id}')"><i class="bi bi-pencil-fill"></i> Editar sorteo</button>
+                      <button onclick="closeAllMenu3();toggleVisibilidad('${g.id}','${nombreSafe}',${isOculto})">${isOculto?'<i class="bi bi-eye-fill"></i> Hacer visible':'<i class="bi bi-eye-slash-fill"></i> Ocultar'}</button>
+                      <button onclick="closeAllMenu3();verHistorialSorteo('${g.id}','${nombreSafe}')"><i class="bi bi-clock-history"></i> Historial</button>
+                      <div class="menu3-sep"></div>
+                      <button onclick="closeAllMenu3();verRondas('${g.id}','${nombreSafe}')"><i class="bi bi-layers"></i> Ver rondas</button>
+                      ${ar?`<button onclick="closeAllMenu3();verParticipantes('${ar.id}','${nombreSafe}','${ar.numero}')"><i class="bi bi-people-fill"></i> Participantes</button>`:""}
+                      ${ar?`<button onclick="closeAllMenu3();verComprobantes('${ar.id}','${nombreSafe}','${ar.numero}')"><i class="bi bi-receipt"></i> Comprobantes</button>`:""}
+                      <div class="menu3-sep"></div>
+                      <button class="menu3-danger" onclick="closeAllMenu3();eliminarSorteo('${g.id}','${nombreSafe}')"><i class="bi bi-trash-fill"></i> Eliminar sorteo</button>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div style="margin-top:.45rem;display:flex;align-items:center;gap:.5rem;font-size:.75rem;color:var(--muted);flex-wrap:wrap">
-                <span>${modo===1?"🥇 1 ganador":"🏅 3 ganadores"}</span>
+              <div style="margin-top:.4rem;display:flex;align-items:center;gap:.4rem;font-size:.73rem;color:var(--muted);flex-wrap:wrap">
+                <span style="color:${modo===1?"#fcd34d":"#c7d2fe"}">${modo===1?"🥇 1G":"🏅 3G"}</span>
                 <span>·</span>
-                <span><i class="bi bi-arrow-repeat"></i> ${g.totalRondas} ronda${g.totalRondas!==1?"s":""}</span>
-                ${g.precio_boleto>0?`<span>·</span><span><i class="bi bi-tag"></i> ${fmtMoney(g.precio_boleto)}/boleto</span>`:`<span>·</span><span style="color:#22c55e">Gratis</span>`}
-                <span>·</span><span><i class="bi bi-people"></i> ${g.capacidad} cupos</span>
-                ${g.imagen_url?`<span>·</span><span style="color:var(--gold2)"><i class="bi bi-image-fill"></i> Con imagen</span>`:""}
+                <span>${g.totalRondas} ronda${g.totalRondas!==1?"s":""}</span>
+                ${g.precio_boleto>0?`<span>·</span><span><i class="bi bi-tag"></i> ${fmtMoney(g.precio_boleto)}</span>`:`<span>·</span><span style="color:#22c55e">Gratis</span>`}
+                <span>·</span><span>${g.capacidad} cupos</span>
+                ${g.auto_siguiente_ronda?`<span>·</span><span style="color:#a78bfa" title="Auto-inicio de ronda"><i class="bi bi-arrow-repeat"></i> Auto</span>`:""}
               </div>
             </div>
             <div class="sorteo-card-mid">
               ${ar
                 ?`<div class="prog-label">
-                    <span style="color:var(--muted)">Ronda #${ar.numero}</span>
-                    <div style="display:flex;align-items:center;gap:.4rem">
-                      <span class="prog-val" style="color:${theme.accent}">${g.cuposActivos}/${g.capacidad}</span>
+                    <span style="color:var(--muted);font-size:.8rem">Ronda #${ar.numero}</span>
+                    <div style="display:flex;align-items:center;gap:.35rem">
+                      <span class="prog-val" style="color:${theme.accent};font-size:.85rem">${g.cuposActivos}/${g.capacidad}</span>
                       ${lleno?'<span style="font-size:.75rem">✅</span>':""}
                     </div>
                   </div>
                   <div class="prog-bg"><div class="prog-fill${lleno?" full":""}" style="width:${Math.min(pct,100)}%;background:linear-gradient(90deg,${theme.accent}88,${theme.accent})"></div></div>
-                  ${premioEstimado>0?`<div style="margin-top:.4rem;font-size:.72rem;color:#22c55e"><i class="bi bi-cash-stack"></i> Premio estimado: <strong>${fmtMoneyR(premioEstimado)}</strong></div>`:""}
-                  ${g.compPend>0?`<div style="margin-top:.35rem;font-size:.77rem;color:#f59e0b;display:flex;align-items:center;gap:.3rem"><i class="bi bi-exclamation-triangle"></i> ${g.compPend} comprobante${g.compPend>1?"s":""} pendiente${g.compPend>1?"s":""}</div>`:""}`
-                :`<div style="text-align:center;padding:.5rem 0;color:var(--muted);font-size:.87rem">
+                  ${premioEstimado>0?`<div style="margin-top:.35rem;font-size:.71rem;color:#22c55e"><i class="bi bi-cash-stack"></i> Premio est.: <strong>${fmtMoneyR(premioEstimado)}</strong></div>`:""}
+                  ${g.compPend>0?`<div style="margin-top:.3rem;font-size:.72rem;color:#f59e0b;display:flex;align-items:center;gap:.3rem"><i class="bi bi-exclamation-triangle"></i> ${g.compPend} pago${g.compPend>1?"s":""} pendiente${g.compPend>1?"s":""}</div>`:""}`
+                :`<div style="text-align:center;padding:.45rem 0;color:var(--muted);font-size:.84rem">
                     <i class="bi bi-moon-stars"></i> Sin ronda activa
-                    ${g.estado==="activo"&&sorteoAbiertos<4?`<br><button class="btn btn-gold btn-sm" style="margin-top:.45rem" onclick="iniciarRonda('${g.id}','${(g.nombre||'').replace(/'/g,"\\'")}',${g.totalRondas})"><i class="bi bi-play-fill"></i> Iniciar ronda ${g.totalRondas+1}</button>`:""}
+                    ${g.estado==="activo"&&!isOculto&&sorteoAbiertos<4?`<br><button class="btn btn-gold btn-sm" style="margin-top:.4rem" onclick="iniciarRonda('${g.id}','${nombreSafe}',${g.totalRondas})"><i class="bi bi-play-fill"></i> Iniciar R.${g.totalRondas+1}</button>`:""}
+                    ${isOculto?`<div style="font-size:.7rem;color:#f59e0b;margin-top:.3rem"><i class="bi bi-eye-slash"></i> Haz visible para iniciar</div>`:""}
                   </div>`}
             </div>
             <div class="sorteo-card-foot">
-              <button class="btn btn-ghost btn-sm" onclick="verRondas('${g.id}','${(g.nombre||'').replace(/'/g,"\\'")}')"><i class="bi bi-layers"></i> Rondas</button>
               ${ar?`
-                <button class="btn btn-info btn-sm" onclick="verParticipantes('${ar.id}','${(g.nombre||'').replace(/'/g,"\\'")}','${ar.numero}')" data-tip="Participantes"><i class="bi bi-people"></i></button>
-                <button class="btn btn-ghost btn-sm" onclick="verComprobantes('${ar.id}','${(g.nombre||'').replace(/'/g,"\\'")}','${ar.numero}')" data-tip="Comprobantes"><i class="bi bi-receipt"></i>${g.compPend>0?` <span style="background:var(--red2);color:#fff;border-radius:10px;padding:0 .35rem;font-size:.65rem">${g.compPend}</span>`:""}</button>
-                ${lleno?`<button class="btn btn-gold btn-sm" onclick="realizarSorteo('${ar.id}','${(g.nombre||'').replace(/'/g,"\\'")}','${ar.numero}',${g.capacidad})"><i class="bi bi-shuffle"></i> ¡Sortear!</button>`:""}
-                <button class="btn btn-danger btn-sm" onclick="cerrarRonda('${ar.id}','${(g.nombre||'').replace(/'/g,"\\'")}','${ar.numero}')" data-tip="Cerrar ronda"><i class="bi bi-lock"></i></button>
-              `:""}
+                <button class="btn btn-info btn-sm" onclick="verParticipantes('${ar.id}','${nombreSafe}','${ar.numero}')"><i class="bi bi-people"></i></button>
+                <button class="btn btn-ghost btn-sm" onclick="verComprobantes('${ar.id}','${nombreSafe}','${ar.numero}')" style="position:relative">
+                  <i class="bi bi-receipt"></i>${g.compPend>0?` <span style="position:absolute;top:-4px;right:-4px;background:var(--red2);color:#fff;border-radius:8px;padding:0 .28rem;font-size:.6rem;font-family:'Oswald',sans-serif">${g.compPend}</span>`:""}
+                </button>
+                ${lleno?`<button class="btn btn-gold btn-sm" onclick="realizarSorteo('${ar.id}','${nombreSafe}','${ar.numero}',${g.capacidad})"><i class="bi bi-shuffle"></i> ¡Sortear!</button>`:`<button class="btn btn-dark btn-sm" onclick="verRondas('${g.id}','${nombreSafe}')"><i class="bi bi-layers"></i> Rondas</button>`}
+                <button class="btn btn-danger btn-sm" onclick="cerrarRonda('${ar.id}','${nombreSafe}','${ar.numero}')"><i class="bi bi-lock"></i></button>
+              `:`<button class="btn btn-dark btn-sm" onclick="verRondas('${g.id}','${nombreSafe}')"><i class="bi bi-layers"></i> Rondas</button>`}
+              <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="drawerEditarSorteo('${g.id}')"><i class="bi bi-pencil"></i></button>
             </div>
           </div>`;
         }).join("")}</div>`}`;
@@ -696,6 +718,384 @@ window.modalEditarSorteo = async (gameId) => {
   sorteos();
 };
 
+
+/* ════════════════════════════════════════
+   MENÚ 3 PUNTOS — Toggle & Close
+════════════════════════════════════════ */
+window.toggleMenu3 = (id) => {
+  const all = document.querySelectorAll('.menu3-dropdown');
+  all.forEach(m => { if(m.id !== id) m.style.display='none'; });
+  const el = document.getElementById(id);
+  if(el) el.style.display = el.style.display==='none'?'block':'none';
+};
+window.closeAllMenu3 = () => {
+  document.querySelectorAll('.menu3-dropdown').forEach(m => m.style.display='none');
+};
+document.addEventListener('click', (e) => {
+  if(!e.target.closest('.menu3-wrap')) window.closeAllMenu3();
+});
+
+/* ════════════════════════════════════════
+   VISIBILIDAD DE SORTEO
+════════════════════════════════════════ */
+window.toggleVisibilidad = async (gameId, gameNombre, esOculto) => {
+  const nuevoEstado = !esOculto; // true = visible, false = oculto
+  const accion = nuevoEstado ? 'hacer visible' : 'ocultar';
+  const r = await confirm$(
+    `${nuevoEstado?"Mostrar":"Ocultar"} sorteo`,
+    `<strong>${gameNombre}</strong><br>${nuevoEstado
+      ? "Los usuarios podrán ver y participar en este sorteo."
+      : "Los usuarios NO verán este sorteo. Las rondas activas siguen funcionando internamente."
+    }`,
+    nuevoEstado ? "👁️ Hacer visible" : "🙈 Ocultar"
+  );
+  if(!r.isConfirmed) return;
+  loading$();
+  const{error}=await supabase.from("games").update({visible:nuevoEstado}).eq("id",gameId);
+  // Registrar en historial
+  await supabase.from("games_historial").insert({
+    game_id:gameId, admin_id:user.id,
+    accion:"visibilidad",
+    detalle:{anterior:esOculto?false:true, nuevo:nuevoEstado, nombre:gameNombre}
+  }).catch(()=>{});
+  Swal.close();
+  if(error){ok$("Error",error.message,"error");return;}
+  toast(nuevoEstado?`"${gameNombre}" ahora es visible`:`"${gameNombre}" ocultado para usuarios`,"ok");
+  sorteos();
+};
+
+/* ════════════════════════════════════════
+   ELIMINAR SORTEO
+════════════════════════════════════════ */
+window.eliminarSorteo = async (gameId, gameNombre) => {
+  // Verificar si tiene rondas activas o pagos pendientes
+  const[{count:rondasActivas},{count:pagosPend}]=await Promise.all([
+    supabase.from("rounds").select("*",{count:"exact",head:true}).eq("game_id",gameId).eq("estado","abierta"),
+    supabase.from("payments").select("*",{count:"exact",head:true})
+      .eq("estado","pendiente")
+      .in("round_id", await supabase.from("rounds").select("id").eq("game_id",gameId).then(({data})=>(data||[]).map(r=>r.id)))
+  ]);
+
+  let warningHtml = `<p>¿Eliminar el sorteo <strong>${gameNombre}</strong>?</p>`;
+  if(rondasActivas>0) warningHtml += `<div style="margin-top:.6rem;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:8px;padding:.5rem .8rem;font-size:.82rem;color:#f87171"><i class="bi bi-exclamation-triangle-fill"></i> Tiene ${rondasActivas} ronda${rondasActivas>1?"s":""} activa${rondasActivas>1?"s":""}. Se cerrarán.</div>`;
+  warningHtml += `<div style="margin-top:.5rem;font-size:.78rem;color:#f87171;text-align:center;font-weight:600">⚠️ Esta acción no se puede deshacer</div>`;
+
+  const r = await Swal.fire({
+    title:"Eliminar sorteo",
+    html:warningHtml,
+    icon:"warning",
+    input:"text",
+    inputPlaceholder:`Escribe "${gameNombre}" para confirmar`,
+    showCancelButton:true,
+    confirmButtonText:"🗑️ Eliminar",
+    cancelButtonText:"Cancelar",
+    confirmButtonColor:"#991b1b",
+    ...swal$,
+    preConfirm:(val)=>{
+      if(val!==gameNombre){Swal.showValidationMessage(`Escribe exactamente: ${gameNombre}`);return false;}
+      return true;
+    }
+  });
+  if(!r.isConfirmed) return;
+  loading$("Eliminando...");
+  // Primero cerrar rondas activas
+  await supabase.from("rounds").update({estado:"cerrada"}).eq("game_id",gameId).eq("estado","abierta");
+  // Soft delete: marcar como inactivo (no destruir datos históricos)
+  const{error}=await supabase.from("games").update({estado:"inactivo",visible:false}).eq("id",gameId);
+  await supabase.from("games_historial").insert({game_id:gameId,admin_id:user.id,accion:"eliminado",detalle:{nombre:gameNombre}}).catch(()=>{});
+  Swal.close();
+  if(error){ok$("Error",error.message,"error");return;}
+  toast(`Sorteo "${gameNombre}" eliminado`,"warn");
+  sorteos();
+};
+
+/* ════════════════════════════════════════
+   HISTORIAL DE CAMBIOS DEL SORTEO
+════════════════════════════════════════ */
+window.verHistorialSorteo = async (gameId, gameNombre) => {
+  loading$("Cargando historial...");
+  const[{data:hist},{data:rondas}]=await Promise.all([
+    supabase.from("games_historial").select("id,accion,detalle,created_at,admin_id").eq("game_id",gameId).order("created_at",{ascending:false}).limit(50),
+    supabase.from("rounds").select("id,numero,estado,created_at,sorteado_at").eq("game_id",gameId).order("numero",{ascending:false}).limit(20),
+  ]);
+  const adminIds=[...new Set((hist||[]).map(h=>h.admin_id).filter(Boolean))];
+  const adminsMap=await getProfilesMap(adminIds);
+  Swal.close();
+
+  const accionIcon={
+    creado:"bi-plus-circle-fill text-green",editado:"bi-pencil-fill text-gold",
+    eliminado:"bi-trash-fill text-red",visibilidad:"bi-eye-fill",
+    ronda_iniciada:"bi-play-fill text-green",ronda_cerrada:"bi-lock-fill",
+    ronda_sorteada:"bi-trophy-fill text-gold",
+  };
+  const accionLabel={
+    creado:"Sorteo creado",editado:"Editado",eliminado:"Eliminado",
+    visibilidad:"Visibilidad cambiada",ronda_iniciada:"Ronda iniciada",
+    ronda_cerrada:"Ronda cerrada",ronda_sorteada:"Ronda sorteada",
+  };
+
+  await Swal.fire({
+    title:`Historial — ${gameNombre}`,
+    html:`<div style="text-align:left;max-height:60vh;overflow-y:auto">
+      ${!hist?.length&&!rondas?.length
+        ?`<div style="text-align:center;padding:1.5rem;color:var(--muted)"><i class="bi bi-clock-history" style="font-size:2rem;display:block;margin-bottom:.5rem"></i>Sin historial registrado</div>`
+        :`
+        ${hist?.length?`
+        <div style="font-family:'Oswald',sans-serif;font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem">Cambios de configuración</div>
+        <div style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:1rem">
+          ${hist.map(h=>{
+            const ico=accionIcon[h.accion]||"bi-info-circle";
+            const lbl=accionLabel[h.accion]||h.accion;
+            const admin=adminsMap[h.admin_id]||{};
+            let detHtml="";
+            if(h.accion==="visibilidad") detHtml=`→ ${h.detalle?.nuevo?"Visible":"Oculto"}`;
+            else if(h.accion==="editado"&&h.detalle?.cambios) detHtml=Object.entries(h.detalle.cambios).map(([k,v])=>`${k}: ${v.de}→${v.a}`).join(", ");
+            return `<div style="display:flex;align-items:flex-start;gap:.6rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:.5rem .7rem">
+              <i class="bi ${ico}" style="flex-shrink:0;margin-top:.1rem;font-size:.9rem"></i>
+              <div style="min-width:0;flex:1">
+                <div style="font-size:.85rem;color:#fff;font-weight:600">${lbl}</div>
+                ${detHtml?`<div style="font-size:.73rem;color:var(--muted);margin-top:.08rem">${detHtml}</div>`:""}
+                <div style="font-size:.7rem;color:var(--dim);margin-top:.08rem">${admin.username||"Admin"} · ${fmtDate(h.created_at)}</div>
+              </div>
+            </div>`;
+          }).join("")}
+        </div>`:""
+        }
+        ${rondas?.length?`
+        <div style="font-family:'Oswald',sans-serif;font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem">Rondas</div>
+        <div style="display:flex;flex-direction:column;gap:.3rem">
+          ${rondas.map(r=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:.35rem .7rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:7px">
+            <div style="display:flex;align-items:center;gap:.5rem">
+              <span style="font-family:'Oswald',sans-serif;color:var(--gold2)">R${r.numero}</span>
+              <span>${badge(r.estado)}</span>
+            </div>
+            <span style="font-size:.72rem;color:var(--muted)">${r.sorteado_at?fmtDateShort(r.sorteado_at):fmtDateShort(r.created_at)}</span>
+          </div>`).join("")}
+        </div>`:""
+        }
+      `}
+    </div>`,
+    showConfirmButton:false,showCloseButton:true,width:520,...swal$
+  });
+};
+
+/* ════════════════════════════════════════
+   DRAWER EDITAR SORTEO — Panel deslizable derecha
+════════════════════════════════════════ */
+window.drawerEditarSorteo = async (gameId) => {
+  // Cerrar drawer anterior si existe
+  const prevDrawer = document.getElementById("sorteoDrawer");
+  if(prevDrawer) { prevDrawer.classList.remove("open"); await new Promise(r=>setTimeout(r,300)); prevDrawer.remove(); }
+
+  loading$("Cargando...");
+  const{data:game,error:gErr}=await supabase.from("games").select("*").eq("id",gameId).single();
+  Swal.close();
+  if(gErr||!game){ok$("Error","No se encontró el sorteo","error");return;}
+
+  const drawer = document.createElement("div");
+  drawer.id = "sorteoDrawer";
+  drawer.className = "sorteo-drawer";
+
+  const theme = getSorteoTheme(game.nombre||"");
+  const modo = getModoGanadores(getCapacidad(game));
+  const premioEst = game.precio_boleto>0 ? Math.round(getCapacidad(game)*game.precio_boleto*0.70/5)*5 : 0;
+
+  drawer.innerHTML = `
+  <div class="sorteo-drawer-overlay" onclick="cerrarSorteoDrawer()"></div>
+  <div class="sorteo-drawer-panel">
+
+    <!-- Header con gradiente del tema -->
+    <div class="sorteo-drawer-header" style="background:${game.imagen_url?`url('${game.imagen_url}') center/cover no-repeat`:theme.gradient}">
+      <div class="sdh-overlay"></div>
+      <div class="sdh-content">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;color:#fff;letter-spacing:.04em">${game.nombre}</div>
+            <div style="font-size:.75rem;color:rgba(255,255,255,.7);margin-top:.15rem">
+              ${modo===1?"🥇 1 Ganador":"🏅 3 Ganadores"} · ${getCapacidad(game)} cupos
+              ${premioEst>0?` · Premio est. <strong style="color:#4ade80">Bs ${premioEst}</strong>`:""}
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:.5rem">
+            <span style="font-size:1.8rem;line-height:1">${game.imagen_url?"🖼️":theme.icon}</span>
+            <button class="sorteo-drawer-close" onclick="cerrarSorteoDrawer()"><i class="bi bi-x-lg"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Body del drawer -->
+    <div class="sorteo-drawer-body">
+
+      <!-- Sección: Visibilidad rápida -->
+      <div class="sdb-section">
+        <div class="sdb-section-title"><i class="bi bi-eye-fill"></i> Visibilidad</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--ink3);border:1px solid var(--border);border-radius:9px;padding:.75rem 1rem">
+          <div>
+            <div style="font-size:.88rem;font-weight:600;color:#fff">${game.visible!==false?"Visible para usuarios":"Oculto para usuarios"}</div>
+            <div style="font-size:.73rem;color:var(--muted);margin-top:.08rem">${game.visible!==false?"Los usuarios pueden ver y participar":"Solo el admin puede verlo"}</div>
+          </div>
+          <label class="toggle" style="flex-shrink:0">
+            <input type="checkbox" id="sdDrawerVisible" ${game.visible!==false?"checked":""} onchange="toggleVisibilidadInline('${gameId}','${game.nombre.replace(/'/g,"\'")}',this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Sección: Auto-ronda -->
+      <div class="sdb-section">
+        <div class="sdb-section-title"><i class="bi bi-arrow-repeat"></i> Automatización</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--ink3);border:1px solid var(--border);border-radius:9px;padding:.75rem 1rem">
+          <div>
+            <div style="font-size:.88rem;font-weight:600;color:#fff">Iniciar siguiente ronda automáticamente</div>
+            <div style="font-size:.73rem;color:var(--muted);margin-top:.08rem">Al sortear, la siguiente ronda se abre al instante</div>
+          </div>
+          <label class="toggle" style="flex-shrink:0">
+            <input type="checkbox" id="sdAutoRonda" ${game.auto_siguiente_ronda?"checked":""} onchange="toggleAutoRondaInline('${gameId}',this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Sección: Datos del sorteo -->
+      <div class="sdb-section">
+        <div class="sdb-section-title"><i class="bi bi-pencil-fill"></i> Datos del sorteo</div>
+        <div style="display:flex;flex-direction:column;gap:.65rem">
+          <div>
+            <label class="sdb-label">Nombre *</label>
+            <input id="sdNombre" class="sdb-input" value="${(game.nombre||'').replace(/"/g,'&quot;')}" placeholder="Nombre del sorteo">
+          </div>
+          <div>
+            <label class="sdb-label">Descripción</label>
+            <input id="sdDesc" class="sdb-input" value="${(game.descripcion||'').replace(/"/g,'&quot;')}" placeholder="Descripción breve">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
+            <div>
+              <label class="sdb-label">Precio boleto (Bs)</label>
+              <select id="sdPrecio" class="sdb-select">
+                <option value="0" ${!game.precio_boleto?"selected":""}>Gratis</option>
+                <option value="5" ${game.precio_boleto==5?"selected":""}>Bs 5</option>
+                <option value="10" ${game.precio_boleto==10?"selected":""}>Bs 10</option>
+                <option value="15" ${game.precio_boleto==15?"selected":""}>Bs 15</option>
+              </select>
+            </div>
+            <div>
+              <label class="sdb-label">Capacidad máx. <span style="font-size:.62rem;font-weight:400;color:var(--dim)">≤25→1G · &gt;25→3G</span></label>
+              <input id="sdCapacidad" class="sdb-input" type="number" min="10" max="200" value="${game.capacidad_max||25}">
+            </div>
+          </div>
+          <div>
+            <label class="sdb-label">Estado</label>
+            <select id="sdEstado" class="sdb-select">
+              <option value="activo" ${game.estado==="activo"?"selected":""}>Activo</option>
+              <option value="inactivo" ${game.estado==="inactivo"?"selected":""}>Inactivo</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sección: Imagen -->
+      <div class="sdb-section">
+        <div class="sdb-section-title"><i class="bi bi-image-fill"></i> Imagen del sorteo</div>
+        ${_campoImagenSwal(game.imagen_url)}
+      </div>
+
+      <!-- Preview dinámico -->
+      <div id="sdPreviewBox" style="background:rgba(212,160,23,.06);border:1px solid rgba(212,160,23,.18);border-radius:8px;padding:.55rem .85rem;font-size:.8rem;color:var(--muted);display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">
+        <i class="bi bi-info-circle" style="color:var(--gold2);flex-shrink:0"></i>
+        <span id="sdPreviewTxt">— Ajusta capacidad y precio para ver el cálculo —</span>
+      </div>
+
+    </div>
+
+    <!-- Footer del drawer -->
+    <div class="sorteo-drawer-footer">
+      <button class="btn btn-dark btn-md" onclick="verHistorialSorteo('${gameId}','${game.nombre.replace(/'/g,"\'")}')"><i class="bi bi-clock-history"></i> Historial</button>
+      <div style="display:flex;gap:.5rem">
+        <button class="btn btn-dark btn-md" onclick="cerrarSorteoDrawer()">Cancelar</button>
+        <button class="btn btn-red btn-md" onclick="guardarDrawerSorteo('${gameId}')"><i class="bi bi-check-lg"></i> Guardar cambios</button>
+      </div>
+    </div>
+  </div>`;
+
+  document.body.appendChild(drawer);
+  requestAnimationFrame(()=>{ drawer.classList.add("open"); document.body.style.overflow="hidden"; });
+
+  // Preview dinámico en drawer
+  const updateDrawerPreview = () => {
+    const cap = parseInt(document.getElementById("sdCapacidad")?.value||25);
+    const precio = parseFloat(document.getElementById("sdPrecio")?.value||0);
+    const modo2 = cap<=25?1:3;
+    const premioEst2 = precio>0 ? Math.round(cap*precio*0.70/5)*5 : 0;
+    const el = document.getElementById("sdPreviewTxt");
+    if(el) el.innerHTML = `${cap} cupos → <strong style="color:${modo2===1?"#fcd34d":"#c7d2fe"}">${modo2===1?"🥇 1 ganador":"🏅 3 ganadores"}</strong>${premioEst2>0?` · Premio máx.: <strong style="color:#22c55e">Bs ${premioEst2}</strong>`:""}`;
+  };
+  document.getElementById("sdCapacidad")?.addEventListener("input", updateDrawerPreview);
+  document.getElementById("sdPrecio")?.addEventListener("change", updateDrawerPreview);
+  updateDrawerPreview();
+};
+
+window.cerrarSorteoDrawer = () => {
+  const d = document.getElementById("sorteoDrawer");
+  if(!d) return;
+  d.classList.remove("open");
+  document.body.style.overflow = "";
+  setTimeout(()=>d.remove(), 320);
+};
+
+window.toggleVisibilidadInline = async (gameId, gameNombre, visible) => {
+  await supabase.from("games").update({visible}).eq("id",gameId);
+  await supabase.from("games_historial").insert({game_id:gameId,admin_id:user.id,accion:"visibilidad",detalle:{nuevo:visible,nombre:gameNombre}}).catch(()=>{});
+  toast(visible?`"${gameNombre}" ahora visible`:`"${gameNombre}" ocultado`,"ok");
+  sorteos(); // Refrescar lista en background
+};
+
+window.toggleAutoRondaInline = async (gameId, valor) => {
+  await supabase.from("games").update({auto_siguiente_ronda:valor}).eq("id",gameId);
+  toast(valor?"Auto-ronda activado ♻️":"Auto-ronda desactivado","ok");
+};
+
+window.guardarDrawerSorteo = async (gameId) => {
+  const nombre    = document.getElementById("sdNombre")?.value?.trim();
+  const desc      = document.getElementById("sdDesc")?.value?.trim()||null;
+  const precio    = Number(document.getElementById("sdPrecio")?.value||0);
+  const capacidad = parseInt(document.getElementById("sdCapacidad")?.value||25,10);
+  const estado    = document.getElementById("sdEstado")?.value||"activo";
+
+  if(!nombre){ toast("El nombre es obligatorio","err"); return; }
+  if(isNaN(capacidad)||capacidad<10){ toast("Mínimo 10 participantes","err"); return; }
+  if(capacidad>200){ toast("Máximo 200","err"); return; }
+
+  // Obtener datos actuales para comparar cambios
+  const{data:gameAnt}=await supabase.from("games").select("nombre,descripcion,precio_boleto,capacidad_max,estado").eq("id",gameId).single();
+
+  const btnGuardar = document.querySelector(".sorteo-drawer-footer .btn-red");
+  if(btnGuardar){ btnGuardar.disabled=true; btnGuardar.innerHTML='<i class="bi bi-hourglass-split"></i> Guardando...'; }
+
+  const imagen_url = await _obtenerUrlImagenModal(gameAnt?.imagen_url||null);
+  if(imagen_url===false){ if(btnGuardar){btnGuardar.disabled=false;btnGuardar.innerHTML='<i class="bi bi-check-lg"></i> Guardar cambios';} return; }
+
+  const{error}=await supabase.from("games").update({
+    nombre,descripcion:desc,precio_boleto:precio,capacidad_max:capacidad,estado,imagen_url
+  }).eq("id",gameId);
+
+  if(error){ toast("Error al guardar: "+error.message,"err"); if(btnGuardar){btnGuardar.disabled=false;btnGuardar.innerHTML='<i class="bi bi-check-lg"></i> Guardar cambios';} return; }
+
+  // Registrar cambios en historial
+  const cambios={};
+  if(gameAnt?.nombre!==nombre) cambios.nombre={de:gameAnt.nombre,a:nombre};
+  if(gameAnt?.precio_boleto!==precio) cambios.precio={de:gameAnt.precio_boleto,a:precio};
+  if(gameAnt?.capacidad_max!==capacidad) cambios.capacidad={de:gameAnt.capacidad_max,a:capacidad};
+  if(gameAnt?.estado!==estado) cambios.estado={de:gameAnt.estado,a:estado};
+  if(Object.keys(cambios).length>0||imagen_url!==gameAnt?.imagen_url){
+    await supabase.from("games_historial").insert({game_id:gameId,admin_id:user.id,accion:"editado",detalle:{cambios,nombre}}).catch(()=>{});
+  }
+
+  toast(`✅ "${nombre}" actualizado`,"ok");
+  cerrarSorteoDrawer();
+  sorteos();
+};
+
 window.iniciarRonda=async(gameId,gameNombre,totalRondas)=>{
   const{data:gameData}=await supabase.from("games").select("capacidad_max,precio_boleto").eq("id",gameId).single();
   const cap = getCapacidad(gameData);
@@ -833,6 +1233,23 @@ window.realizarSorteo=async(roundId,gameNombre,num,capacidadParam)=>{
       <button onclick="Swal.close();document.querySelector('[data-view=enviar_premios]').click()" style="margin-top:.8rem;background:var(--gold2);color:#1a1209;border:none;padding:.5rem 1.2rem;border-radius:6px;font-family:'Oswald',sans-serif;font-weight:700;cursor:pointer;font-size:.88rem;letter-spacing:.07em"><i class="bi bi-cash-coin"></i> Enviar premios ahora</button>`,
     icon:"success", confirmButtonText:"OK", ...swal$
   });
+  // ── Auto-inicio siguiente ronda ──
+  const{data:gameInfo}=await supabase.from("rounds").select("game_id").eq("id",roundId).single();
+  if(gameInfo?.game_id){
+    const{data:gameD}=await supabase.from("games").select("auto_siguiente_ronda,nombre,capacidad_max").eq("id",gameInfo.game_id).single();
+    if(gameD?.auto_siguiente_ronda){
+      const{data:todasRondas}=await supabase.from("rounds").select("numero").eq("game_id",gameInfo.game_id).order("numero",{ascending:false}).limit(1);
+      const nextNum=(todasRondas?.[0]?.numero||0)+1;
+      const{error:newRErr}=await supabase.from("rounds").insert({game_id:gameInfo.game_id,numero:nextNum,estado:"abierta"});
+      if(!newRErr){
+        toast(`🔄 Ronda ${nextNum} de "${gameD.nombre}" iniciada automáticamente`,"ok");
+        // Registrar en historial
+        await supabase.from("games_historial").insert({game_id:gameInfo.game_id,admin_id:user.id,accion:"ronda_iniciada",detalle:{numero:nextNum,auto:true}}).catch(()=>{});
+      }
+    }
+    // Registrar sorteo en historial
+    await supabase.from("games_historial").insert({game_id:gameInfo.game_id,admin_id:user.id,accion:"ronda_sorteada",detalle:{ronda:num,caso,ganadores:ganadores.length}}).catch(()=>{});
+  }
   sorteos();
 };
 
@@ -1203,65 +1620,165 @@ window.registrarPremio=window.registrarPremioConQR;
 ════════════════════════════════════════ */
 async function enviar_premios() {
   setActive("enviar_premios"); setCurrentView("enviar_premios"); loadingView();
-  const{data:rounds}=await supabase.from("rounds").select("id,numero,sorteado_at,game_id,ganador_id,ganador2_id,ganador3_id,caso_sorteo").eq("estado","sorteada").not("ganador_id","is",null).order("sorteado_at",{ascending:false});
+
+  const{data:rounds}=await supabase.from("rounds")
+    .select("id,numero,sorteado_at,game_id,ganador_id,ganador2_id,ganador3_id,caso_sorteo,premio_especial")
+    .eq("estado","sorteada").not("ganador_id","is",null)
+    .order("sorteado_at",{ascending:false});
+
   const roundIds=(rounds||[]).map(r=>r.id);
   const allGIds=(rounds||[]).flatMap(r=>[r.ganador_id,r.ganador2_id,r.ganador3_id].filter(Boolean));
   const gameIds=[...new Set((rounds||[]).map(r=>r.game_id).filter(Boolean))];
-  const[ganadoresMap,gamesMap,{data:pagosReg}]=await Promise.all([
+
+  const[ganadoresMap,gamesMap,{data:pagosReg},{data:allParts}]=await Promise.all([
     getProfilesMap(allGIds),
-    (async()=>{if(!gameIds.length)return{};const{data}=await supabase.from("games").select("id,nombre,imagen_url").in("id",gameIds);const m={};(data||[]).forEach(g=>{m[g.id]=g});return m;})(),
-    roundIds.length?supabase.from("prize_payments").select("round_id,user_id,lugar,monto").in("round_id",roundIds):{data:[]},
+    (async()=>{if(!gameIds.length)return{};const{data}=await supabase.from("games").select("id,nombre,imagen_url,precio_boleto,capacidad_max").in("id",gameIds);const m={};(data||[]).forEach(g=>{m[g.id]=g});return m;})(),
+    roundIds.length?supabase.from("prize_payments").select("round_id,user_id,lugar,monto,metodo,estado").in("round_id",roundIds):{data:[]},
+    roundIds.length?supabase.from("participations").select("round_id,boletos,es_gratis").in("round_id",roundIds):{data:[]},
   ]);
 
-  const pagadosPorRonda={};
-  (pagosReg||[]).forEach(p=>{if(!pagadosPorRonda[p.round_id])pagadosPorRonda[p.round_id]=new Set();pagadosPorRonda[p.round_id].add(p.lugar);});
+  // Calcular totales por ronda
+  const totalPorRonda={};
+  (allParts||[]).forEach(p=>{
+    if(!totalPorRonda[p.round_id]) totalPorRonda[p.round_id]={boletos:0,gratis:0};
+    totalPorRonda[p.round_id].boletos+=(p.boletos||1);
+    if(p.es_gratis) totalPorRonda[p.round_id].gratis+=(p.boletos||1);
+  });
+
+  const pagosMap={};
+  (pagosReg||[]).forEach(p=>{pagosMap[`${p.round_id}_${p.lugar}`]=p;});
 
   const pendientes=[],completados=[];
   for(const r of (rounds||[])){
-    const pagados=pagadosPorRonda[r.id]||new Set();
+    const pagados=new Set((pagosReg||[]).filter(p=>p.round_id===r.id).map(p=>p.lugar));
     const lugares=[r.ganador_id?1:null,r.ganador2_id?2:null,r.ganador3_id?3:null].filter(Boolean);
     const todosPagados=lugares.every(l=>pagados.has(l));
-    if(todosPagados) completados.push(r);
+    if(todosPagados) completados.push({...r,pagados,lugares});
     else pendientes.push({...r,pagados,lugares});
   }
 
-  const renderRondaRow=(r,esPendiente)=>{
-    const game=gamesMap[r.game_id]||{};const g1=ganadoresMap[r.ganador_id]||{};const g2=ganadoresMap[r.ganador2_id]||{};const g3=ganadoresMap[r.ganador3_id]||{};const pagados=r.pagados||new Set();const gn=(game.nombre||"").replace(/'/g,"\\'");
-    const btnGanador=(uid,username,lugar)=>{
-      if(!uid) return"";const u=(username||"").replace(/'/g,"\\'");const emoji=lugar===1?"🥇":lugar===2?"🥈":"🥉";
-      if(pagados.has(lugar)) return`<span class="bdg bdg-ok">${emoji} ${username} ✅</span>`;
-      if(!esPendiente) return`<span class="bdg bdg-ok">${emoji} ${username} ✅</span>`;
-      return`<button class="btn btn-gold btn-sm" onclick="registrarPremioConQR('${r.id}','${uid}',${lugar},'${gn}','${r.numero}','${u}')"><i class="bi bi-cash-coin"></i> ${emoji} ${username}</button>`;
-    };
+  const renderRondaCard=(r,esPendiente)=>{
+    const game=gamesMap[r.game_id]||{};
+    const g1=ganadoresMap[r.ganador_id]||{};
+    const g2=ganadoresMap[r.ganador2_id]||{};
+    const g3=ganadoresMap[r.ganador3_id]||{};
+    const pagados=r.pagados||new Set();
+    const gn=(game.nombre||"").replace(/'/g,"\'");
     const theme=getSorteoTheme(game.nombre||"");
-    return`<div style="background:var(--ink3);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:.6rem">
-      ${_sorteoHeaderHtml(game,{height:"42px",showInfo:false})}
-      <div style="padding:.7rem 1rem">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:.4rem">
-          <div style="display:flex;align-items:center;gap:.45rem">
-            <span style="font-family:'Oswald',sans-serif;font-weight:600;color:#fff">${game.nombre||"—"}</span>
-            <span class="text-muted" style="font-size:.82rem">· Ronda ${r.numero}</span>
-            ${r.caso_sorteo?`<span class="bdg bdg-p" style="font-size:.62rem">${nombreCaso(r.caso_sorteo)}</span>`:""}
+    const stats=totalPorRonda[r.id]||{boletos:0,gratis:0};
+    const totalRecaudado=Math.max(0,(stats.boletos-stats.gratis))*(game.precio_boleto||0);
+    const modo=getModoGanadores(getCapacidad(game));
+
+    // Premios calculados
+    const pool=totalRecaudado*0.70;
+    const premios=modo===1
+      ?[{lugar:1,pct:100,monto:Math.round(pool/5)*5}]
+      :[{lugar:1,pct:50,monto:Math.round(pool*0.50/5)*5},{lugar:2,pct:30,monto:Math.round(pool*0.30/5)*5},{lugar:3,pct:20,monto:Math.round(pool*0.20/5)*5}];
+
+    const renderGanadorCard=(uid,username,lugar)=>{
+      if(!uid) return"";
+      const emoji=lugar===1?"🥇":lugar===2?"🥈":"🥉";
+      const lugarLabel=lugar===1?"1er Lugar":lugar===2?"2do Lugar":"3er Lugar";
+      const isPagado=pagados.has(lugar);
+      const pagoReg=pagosMap[`${r.id}_${lugar}`];
+      const premioCalc=premios.find(p=>p.lugar===lugar);
+      const ini=(username||"?")[0].toUpperCase();
+      const u=(username||"").replace(/'/g,"\'");
+
+      return `<div class="premio-ganador-card ${isPagado?"pgc-pagado":"pgc-pendiente"}">
+        <div class="pgc-header">
+          <div class="pgc-emoji">${emoji}</div>
+          <div class="pgc-info">
+            <div class="pgc-lugar">${lugarLabel}</div>
+            <div style="display:flex;align-items:center;gap:.45rem">
+              <div class="pgc-avatar">${ini}</div>
+              <div class="pgc-nombre">${username||"—"}</div>
+            </div>
           </div>
-          <span class="text-muted" style="font-size:.77rem">${r.sorteado_at?fmtDate(r.sorteado_at):""}</span>
+          <div class="pgc-estado">
+            ${isPagado
+              ?`<span class="bdg bdg-ok" style="font-size:.68rem">✅ ${fmtMoney(pagoReg?.monto||0)}</span>`
+              :premioCalc?.monto>0?`<span style="font-family:'Oswald',sans-serif;font-size:.85rem;color:#22c55e;font-weight:700">Bs ${premioCalc.monto}</span>`:""}
+          </div>
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:.4rem">${btnGanador(r.ganador_id,g1.username,1)}${btnGanador(r.ganador2_id,g2.username,2)}${btnGanador(r.ganador3_id,g3.username,3)}</div>
+        ${!isPagado&&esPendiente?`
+        <button class="pgc-btn-pagar" onclick="registrarPremioConQR('${r.id}','${uid}',${lugar},'${gn}','${r.numero}','${u}')">
+          <i class="bi bi-cash-coin"></i> Pagar premio
+        </button>`
+        :isPagado?`<div style="font-size:.72rem;color:var(--muted);text-align:center;padding:.2rem 0">${pagoReg?.metodo==="qr"?"QR":"Efectivo"}${pagoReg?.referencia?" · "+pagoReg.referencia:""}</div>`:""}
+      </div>`;
+    };
+
+    return `<div class="premio-ronda-card ${esPendiente?"prc-pendiente":"prc-completado"}">
+
+      <!-- Header imagen + info sorteo -->
+      <div class="prc-header" style="background:${game.imagen_url?`url('${game.imagen_url}') center/cover no-repeat`:theme.gradient}">
+        <div class="prc-header-overlay"></div>
+        <div class="prc-header-content">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div class="prc-game-nombre">${game.nombre||"—"}</div>
+              <div class="prc-game-sub">Ronda #${r.numero} · ${r.sorteado_at?fmtDate(r.sorteado_at):""}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:.5rem">
+              ${esPendiente?`<span class="bdg" style="background:rgba(245,158,11,.25);border:1px solid rgba(245,158,11,.4);color:#fbbf24;font-size:.65rem">⏳ Pendiente</span>`:`<span class="bdg bdg-ok" style="font-size:.65rem">✅ Completo</span>`}
+              ${r.premio_especial?`<span class="bdg bdg-win" style="font-size:.65rem">🎁 Especial</span>`:""}
+            </div>
+          </div>
+          ${totalRecaudado>0?`<div style="font-size:.75rem;color:rgba(255,255,255,.75);margin-top:.3rem;display:flex;align-items:center;gap:.5rem">
+            <span><i class="bi bi-people"></i> ${stats.boletos} boletos</span>
+            <span>·</span>
+            <span><i class="bi bi-cash-stack"></i> Recaudado: <strong style="color:#4ade80">${fmtMoney(totalRecaudado)}</strong></span>
+            <span>·</span>
+            <span>Premio pool: <strong style="color:#fbbf24">${fmtMoney(Math.round(pool/5)*5)}</strong></span>
+          </div>`:""}
+        </div>
+      </div>
+
+      <!-- Tarjetas de ganadores -->
+      <div class="prc-ganadores">
+        ${renderGanadorCard(r.ganador_id,g1.username,1)}
+        ${r.ganador2_id?renderGanadorCard(r.ganador2_id,g2.username,2):""}
+        ${r.ganador3_id?renderGanadorCard(r.ganador3_id,g3.username,3):""}
       </div>
     </div>`;
   };
 
+  const totalPendientes = pendientes.reduce((s,r)=>{
+    const game=gamesMap[r.game_id]||{};
+    const stats=totalPorRonda[r.id]||{boletos:0,gratis:0};
+    return s+Math.round((stats.boletos-stats.gratis)*(game.precio_boleto||0)*0.70/5)*5;
+  },0);
+
   MC().innerHTML=`
-    <div class="ph"><div><div class="ph-title"><i class="bi bi-cash-coin"></i>Enviar premios</div><div class="ph-sub">${pendientes.length} ronda${pendientes.length!==1?"s":""} con premios pendientes</div></div></div>
-    ${pendientes.length>0?`<div class="fondo-alert warn"><i class="bi bi-exclamation-triangle-fill"></i><div><div class="fondo-alert-title">${pendientes.length} ronda${pendientes.length!==1?"s":""} con premios por enviar</div><div class="fondo-alert-sub">Haz clic en el nombre del ganador para ver su QR y enviar el pago.</div></div></div>`:""}
-    <div class="panel"><div class="panel-head"><div class="panel-title"><i class="bi bi-hourglass-split"></i>Pendientes</div><span class="text-muted" style="font-size:.82rem">${pendientes.length}</span></div>
-    <div class="panel-body">${!pendientes.length?`<div class="empty"><i class="bi bi-check-circle" style="color:#22c55e"></i><p>¡Todo enviado!</p></div>`:pendientes.map(r=>renderRondaRow(r,true)).join("")}</div></div>
-    ${completados.length>0?`<div class="panel"><div class="panel-head"><div class="panel-title"><i class="bi bi-check-circle-fill" style="color:#22c55e"></i>Completados</div><span class="text-muted" style="font-size:.82rem">${completados.length}</span></div>
-    <div class="panel-body">${completados.map(r=>renderRondaRow(r,false)).join("")}</div></div>`:""}`;
+    <div class="ph">
+      <div>
+        <div class="ph-title"><i class="bi bi-cash-coin"></i>Enviar premios</div>
+        <div class="ph-sub">${pendientes.length} ronda${pendientes.length!==1?"s":""} pendiente${pendientes.length!==1?"s":""}${totalPendientes>0?` · Total a enviar: <strong style="color:#22c55e">${fmtMoney(totalPendientes)}</strong>`:""}</div>
+      </div>
+    </div>
+
+    ${pendientes.length>0?`<div class="fondo-alert warn"><i class="bi bi-exclamation-triangle-fill"></i><div><div class="fondo-alert-title">${pendientes.length} ronda${pendientes.length!==1?"s":""} con premios por enviar</div><div class="fondo-alert-sub">Haz clic en "Pagar premio" para ver el QR del ganador y registrar el pago.</div></div></div>`:""}
+
+    <!-- Pendientes -->
+    ${pendientes.length>0?`
+    <div style="margin-bottom:.75rem;font-family:'Oswald',sans-serif;font-size:.75rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)">⏳ Por pagar</div>
+    <div class="premios-grid">
+      ${pendientes.map(r=>renderRondaCard(r,true)).join("")}
+    </div>`:""}
+
+    <!-- Completados -->
+    ${completados.length>0?`
+    <div style="margin:1.2rem 0 .75rem;font-family:'Oswald',sans-serif;font-size:.75rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)">✅ Completados (${completados.length})</div>
+    <div class="premios-grid">
+      ${completados.map(r=>renderRondaCard(r,false)).join("")}
+    </div>`:""}
+
+    ${!rounds?.length?`<div class="empty"><i class="bi bi-trophy"></i><p>Sin sorteos realizados aún.</p></div>`:""}
+    ${rounds?.length&&!pendientes.length?`<div class="fondo-alert good"><i class="bi bi-check-circle-fill"></i><div><div class="fondo-alert-title">¡Todo al día!</div><div class="fondo-alert-sub">Todos los premios han sido enviados.</div></div></div>`:""}
+  `;
 }
 
-/* ════════════════════════════════════════
-   FINANZAS
-════════════════════════════════════════ */
 async function finanzas() {
   setActive("finanzas"); setCurrentView("finanzas"); loadingView();
 
@@ -1681,7 +2198,7 @@ async function configuracion() {
 
   const[{data:adminProf},{data:games}]=await Promise.all([
     supabase.from("profiles").select("qr_cobro_url,qr_metodo,qr_verificado,username,email").eq("id",user.id).single(),
-    supabase.from("games").select("id,nombre,precio_boleto,capacidad_max,estado,imagen_url").order("nombre"),
+    supabase.from("games").select("id,nombre,precio_boleto,capacidad_max,estado,imagen_url,visible,auto_siguiente_ronda").order("nombre"),
   ]);
 
   const mlM={tigo_money:"Tigo Money",billetera_bcb:"Billetera BCB",qr_simple:"QR Interbank",efectivo_cuenta:"Cuenta bancaria"};
@@ -1781,6 +2298,142 @@ window.modalCambiarPasswordAdmin=async()=>{
 /* ════════════════════════════════════════
    ARRANQUE
 ════════════════════════════════════════ */
+/* ════════════════════════════════════════
+   CSS INYECTADO — Drawer, Menú3, Premios Cards
+════════════════════════════════════════ */
+(function injectAdminCSS() {
+  if(document.getElementById('admin-extra-css')) return;
+  const s = document.createElement('style');
+  s.id = 'admin-extra-css';
+  s.textContent = `
+    /* ── Sorteo Oculto ── */
+    .sorteo-oculto { opacity:.72; }
+    .sorteo-oculto .sorteo-card-head { background:repeating-linear-gradient(-45deg,transparent,transparent 8px,rgba(139,26,26,.04) 8px,rgba(139,26,26,.04) 16px); }
+    .scard-vis-ribbon {
+      display:flex!important;align-items:center;gap:.35rem;
+      font-family:'Oswald',sans-serif;font-size:.65rem;font-weight:700;letter-spacing:.1em;
+      background:rgba(139,26,26,.2);border-bottom:1px solid rgba(139,26,26,.3);color:#f87171;
+      padding:.28rem .85rem;text-transform:uppercase;
+    }
+
+    /* ── Menú 3 puntos ── */
+    .menu3-dropdown {
+      position:absolute;top:calc(100% + 4px);right:0;z-index:999;
+      background:#1b1610;border:1px solid rgba(139,26,26,.3);border-radius:10px;
+      min-width:200px;padding:.35rem;
+      box-shadow:0 8px 32px rgba(0,0,0,.55);
+      animation:menu3In .15s ease;
+    }
+    @keyframes menu3In { from{opacity:0;transform:translateY(-6px) scale(.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+    .menu3-dropdown button {
+      display:flex;align-items:center;gap:.55rem;width:100%;
+      background:transparent;border:none;color:var(--cream);
+      font-family:'Source Sans 3',sans-serif;font-size:.87rem;
+      padding:.48rem .72rem;border-radius:7px;cursor:pointer;transition:background .14s;text-align:left;
+    }
+    .menu3-dropdown button:hover { background:rgba(212,160,23,.1); }
+    .menu3-dropdown button i { color:var(--gold);font-size:.82rem;width:15px;text-align:center; }
+    .menu3-dropdown .menu3-sep { height:1px;background:rgba(139,26,26,.2);margin:.25rem .35rem; }
+    .menu3-dropdown .menu3-danger { color:#f87171!important; }
+    .menu3-dropdown .menu3-danger:hover { background:rgba(139,26,26,.2)!important; }
+    .menu3-dropdown .menu3-danger i { color:#f87171!important; }
+
+    /* ── DRAWER EDITAR SORTEO ── */
+    .sorteo-drawer { position:fixed;inset:0;z-index:900;pointer-events:none; }
+    .sorteo-drawer.open { pointer-events:auto; }
+    .sorteo-drawer-overlay { position:absolute;inset:0;background:rgba(0,0,0,.62);opacity:0;transition:opacity .3s ease;backdrop-filter:blur(4px); }
+    .sorteo-drawer.open .sorteo-drawer-overlay { opacity:1; }
+    .sorteo-drawer-panel {
+      position:absolute;top:0;right:0;bottom:0;
+      width:100%;max-width:460px;
+      background:var(--ink2);border-left:1px solid var(--border);
+      display:flex;flex-direction:column;overflow:hidden;
+      transform:translateX(100%);transition:transform .32s cubic-bezier(.4,0,.2,1);
+    }
+    .sorteo-drawer.open .sorteo-drawer-panel { transform:translateX(0); }
+    .sorteo-drawer-header {
+      height:110px;position:relative;flex-shrink:0;overflow:hidden;
+    }
+    .sdh-overlay { position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.15) 0%,rgba(0,0,0,.7) 100%); }
+    .sdh-content { position:absolute;inset:0;padding:.85rem 1rem .7rem;display:flex;flex-direction:column;justify-content:flex-end; }
+    .sorteo-drawer-close {
+      width:32px;height:32px;border-radius:50%;
+      background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.2);
+      color:#fff;display:flex;align-items:center;justify-content:center;
+      font-size:.85rem;cursor:pointer;transition:background .18s;flex-shrink:0;
+    }
+    .sorteo-drawer-close:hover { background:rgba(139,26,26,.6); }
+    .sorteo-drawer-body { flex:1;overflow-y:auto;padding:1rem 1.1rem;-webkit-overflow-scrolling:touch; }
+    .sorteo-drawer-footer {
+      padding:.85rem 1.1rem;border-top:1px solid var(--border);
+      background:rgba(0,0,0,.15);display:flex;align-items:center;
+      justify-content:space-between;gap:.5rem;flex-shrink:0;
+    }
+    .sdb-section { margin-bottom:1.1rem; }
+    .sdb-section-title {
+      font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:600;
+      letter-spacing:.18em;text-transform:uppercase;color:var(--gold2);
+      margin-bottom:.5rem;display:flex;align-items:center;gap:.35rem;
+    }
+    .sdb-label {
+      display:block;font-family:'Oswald',sans-serif;font-size:.68rem;
+      letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:.3rem;
+    }
+    .sdb-input {
+      width:100%;background:var(--ink3);border:1px solid var(--border);
+      color:var(--cream);border-radius:7px;padding:.5rem .82rem;font-size:.92rem;
+      outline:none;transition:border-color .18s;font-family:inherit;
+    }
+    .sdb-input:focus { border-color:var(--gold2); }
+    .sdb-select {
+      width:100%;background:var(--ink3);border:1px solid var(--border);
+      color:var(--cream);border-radius:7px;padding:.5rem .82rem;font-size:.92rem;
+      outline:none;cursor:pointer;
+    }
+
+    /* ── PREMIOS CARDS redesign ── */
+    .premios-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.1rem;margin-bottom:1rem; }
+    .premio-ronda-card { background:var(--ink2);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:box-shadow .2s; }
+    .premio-ronda-card:hover { box-shadow:0 6px 28px rgba(0,0,0,.4); }
+    .prc-pendiente { border-color:rgba(245,158,11,.25); }
+    .prc-completado { border-color:rgba(34,197,94,.18);opacity:.82; }
+    .prc-header { position:relative;height:96px;overflow:hidden; }
+    .prc-header-overlay { position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.1) 0%,rgba(0,0,0,.72) 100%); }
+    .prc-header-content { position:absolute;inset:0;padding:.7rem .9rem;display:flex;flex-direction:column;justify-content:flex-end; }
+    .prc-game-nombre { font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#fff;line-height:1.1; }
+    .prc-game-sub { font-size:.72rem;color:rgba(255,255,255,.65);margin-top:.1rem; }
+    .prc-ganadores { padding:.8rem .9rem;display:flex;flex-direction:column;gap:.5rem; }
+    .premio-ganador-card { border-radius:9px;overflow:hidden;border:1px solid var(--border); }
+    .pgc-pendiente { background:var(--ink3);border-color:rgba(245,158,11,.2); }
+    .pgc-pagado { background:rgba(34,197,94,.04);border-color:rgba(34,197,94,.2); }
+    .pgc-header { display:flex;align-items:center;gap:.6rem;padding:.6rem .75rem; }
+    .pgc-emoji { font-size:1.3rem;flex-shrink:0;line-height:1; }
+    .pgc-info { flex:1;min-width:0; }
+    .pgc-lugar { font-family:'Oswald',sans-serif;font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.15rem; }
+    .pgc-avatar {
+      width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--gold2));
+      display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;
+      font-size:.65rem;font-weight:700;color:#fff;flex-shrink:0;
+    }
+    .pgc-nombre { font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .pgc-estado { flex-shrink:0;text-align:right; }
+    .pgc-btn-pagar {
+      display:flex;align-items:center;justify-content:center;gap:.4rem;
+      width:100%;padding:.48rem .75rem;background:linear-gradient(135deg,var(--red),var(--red2));
+      border:none;color:#fff;font-family:'Oswald',sans-serif;font-size:.82rem;
+      font-weight:700;letter-spacing:.08em;cursor:pointer;transition:opacity .18s;
+    }
+    .pgc-btn-pagar:hover { opacity:.88; }
+
+    @media(max-width:768px){
+      .sorteo-drawer-panel { max-width:100%; }
+      .premios-grid { grid-template-columns:1fr; }
+      .menu3-dropdown { min-width:175px; }
+    }
+  `;
+  document.head.appendChild(s);
+})();
+
 initRealtime();
 updateSidebarBadges();
 dashboard();
