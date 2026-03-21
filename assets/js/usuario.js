@@ -597,7 +597,7 @@ async function loadSorteos(silencioso=false) {
   const gameIds=[...new Set(rounds.map(r=>r.game_id).filter(Boolean))];
   let gamesMap={};
   if(gameIds.length){
-    const{data:gd}=await supabase.from("games").select("id,nombre,descripcion,precio_boleto,capacidad_max").in("id",gameIds);
+    const{data:gd}=await supabase.from("games").select("id,nombre,descripcion,precio_boleto,capacidad_max,imagen_url").in("id",gameIds);
     (gd||[]).forEach(g=>{gamesMap[g.id]=g;});
   }
 
@@ -682,17 +682,39 @@ async function loadSorteos(silencioso=false) {
     }
 
     // ── IMAGEN / HEADER DEL SORTEO ──
-    const imgHeader = `
-    <div class="sorteo-img-header ${theme.clase}" style="background:${theme.gradient};">
-      <div class="sih-overlay"></div>
-      <div class="sih-icon">${theme.icon}</div>
-      <div class="sih-badges">
-        ${modoBadge}
-        ${r.game?.precio_boleto===0?`<span class="sih-free-badge">GRATIS</span>`:""}
-      </div>
-      ${estoyDentro?`<div class="sih-participating"><i class="bi bi-person-fill-check"></i> Participando</div>`:""}
-      ${!estoyDentro&&!lleno&&cuposLibres<=5?`<div class="sih-urgency-ribbon">${cuposLibres===1?"¡ÚLTIMO CUPO!":"¡QUEDAN "+cuposLibres+"!"}</div>`:""}
-    </div>`;
+    // Si el admin subió imagen → foto real con overlay; si no → gradiente temático CSS
+    const imgUrl = r.game?.imagen_url || null;
+    const urgencyRibbon = !estoyDentro&&!lleno&&cuposLibres<=5
+      ? `<div class="sih-urgency-ribbon">${cuposLibres===1?"¡ÚLTIMO CUPO!":"¡QUEDAN "+cuposLibres+"!"}</div>` : "";
+    const participatingBadge = estoyDentro
+      ? `<div class="sih-participating"><i class="bi bi-person-fill-check"></i> Participando</div>` : "";
+    const badgesHtml = `<div class="sih-badges">${modoBadge}${r.game?.precio_boleto===0?`<span class="sih-free-badge">GRATIS</span>`:""}</div>`;
+
+    const imgHeader = imgUrl
+      ? /* ── Imagen real de Cloudinary ── */ `
+        <div class="sorteo-img-header sih-photo" data-loaded="false">
+          <img
+            src="${imgUrl}"
+            alt="${r.game?.nombre||""}"
+            class="sih-real-img"
+            loading="lazy"
+            decoding="async"
+            onload="this.closest('.sorteo-img-header').setAttribute('data-loaded','true')"
+            onerror="this.closest('.sorteo-img-header').classList.add('sih-fallback');this.style.display='none'"
+          >
+          <div class="sih-photo-overlay" style="background:linear-gradient(to bottom,rgba(0,0,0,.08) 0%,rgba(0,0,0,.62) 100%)"></div>
+          ${badgesHtml}
+          ${participatingBadge}
+          ${urgencyRibbon}
+        </div>`
+      : /* ── Fallback: gradiente temático ── */ `
+        <div class="sorteo-img-header ${theme.clase}" style="background:${theme.gradient};">
+          <div class="sih-overlay"></div>
+          <div class="sih-icon">${theme.icon}</div>
+          ${badgesHtml}
+          ${participatingBadge}
+          ${urgencyRibbon}
+        </div>`;
 
     if(grid) return `<div class="sorteo-card-grid${estoyDentro?" si-participando":""}" style="${!estoyDentro&&!lleno&&cuposLibres<=3?"border-color:rgba(239,68,68,.35);":""}">
       ${imgHeader}
@@ -755,99 +777,87 @@ function _inyectarCSSorteos() {
   s.id = 'sorteo-themes-css';
   s.textContent = `
     @keyframes urgencyPulse2 { 0%,100%{opacity:1} 50%{opacity:.55} }
-    @keyframes sihIconFloat { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-4px) scale(1.06)} }
-    @keyframes ribbonShine { 0%{opacity:.8} 50%{opacity:1} 100%{opacity:.8} }
+    @keyframes sihIconFloat { 0%,100%{transform:translateY(-50%) scale(1)} 50%{transform:translateY(calc(-50% - 4px)) scale(1.07)} }
+    @keyframes ribbonShine { 0%,100%{opacity:.85} 50%{opacity:1} }
+    @keyframes sihImgFadeIn { from{opacity:0;transform:scale(1.04)} to{opacity:1;transform:scale(1)} }
+    @keyframes sihShimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
 
-    /* ── Imagen/Header del sorteo ── */
     .sorteo-img-header {
-      position:relative;
-      height:90px;
-      overflow:hidden;
-      flex-shrink:0;
+      position:relative; overflow:hidden; flex-shrink:0; height:92px;
     }
-    .sorteo-item .sorteo-img-header { height:80px; border-radius:11px 11px 0 0; }
-    .sorteo-card-grid .sorteo-img-header { height:85px; border-radius:11px 11px 0 0; }
+    .sorteo-item .sorteo-img-header { height:86px; border-radius:11px 11px 0 0; }
+    .sorteo-card-grid .sorteo-img-header { height:88px; border-radius:11px 11px 0 0; }
 
+    /* ── Real image mode ── */
+    .sih-photo { background:#1b1610; }
+    .sih-photo:not([data-loaded="true"]) {
+      background:linear-gradient(90deg,#1b1610 25%,#241c12 50%,#1b1610 75%);
+      background-size:200% 100%;
+      animation:sihShimmer 1.2s ease-in-out infinite;
+    }
+    .sih-real-img {
+      position:absolute; inset:0; width:100%; height:100%;
+      object-fit:cover; object-position:center; display:block;
+      animation:sihImgFadeIn .35s ease both;
+      will-change:opacity;
+    }
+    .sih-photo[data-loaded="true"] { animation:none; background:#000; }
+    .sih-photo.sih-fallback {
+      background:linear-gradient(135deg,#1c1407,#3d2b0f,#8b1a1a) !important;
+      animation:none;
+    }
+    .sih-photo-overlay { position:absolute; inset:0; z-index:1; }
+
+    /* ── Gradient fallback mode ── */
     .sih-overlay {
-      position:absolute;inset:0;
-      background:linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,.5) 100%);
+      position:absolute; inset:0;
+      background:linear-gradient(to bottom,rgba(0,0,0,0) 0%,rgba(0,0,0,.52) 100%);
     }
     .sih-icon {
-      position:absolute;
-      right:1rem; top:50%; transform:translateY(-50%);
-      font-size:2.8rem;
-      filter:drop-shadow(0 2px 8px rgba(0,0,0,.5));
-      animation:sihIconFloat 3s ease-in-out infinite;
-      line-height:1;
+      position:absolute; right:.9rem; top:50%; transform:translateY(-50%);
+      font-size:2.6rem; line-height:1; z-index:2;
+      filter:drop-shadow(0 2px 6px rgba(0,0,0,.55));
+      animation:sihIconFloat 3.2s ease-in-out infinite;
+      will-change:transform;
     }
-    .sorteo-card-grid .sih-icon { font-size:2.2rem; right:.75rem; }
+    .sorteo-card-grid .sih-icon { font-size:2.1rem; right:.7rem; }
 
     .sih-badges {
-      position:absolute;
-      top:.55rem; left:.75rem;
-      display:flex;flex-direction:column;gap:.3rem;
+      position:absolute; top:.52rem; left:.72rem;
+      display:flex; flex-direction:column; gap:.28rem; z-index:2;
     }
-
-    .sih-participating {
-      position:absolute;
-      bottom:.5rem; left:.75rem;
-      font-family:'Oswald',sans-serif;
-      font-size:.65rem; font-weight:600; letter-spacing:.07em;
-      color:#fff;
-      background:rgba(34,197,94,.28);
-      border:1px solid rgba(34,197,94,.45);
-      border-radius:20px;
-      padding:.12rem .55rem;
-      display:inline-flex;align-items:center;gap:.25rem;
-    }
-
-    .sih-urgency-ribbon {
-      position:absolute;
-      bottom:0; right:0;
-      font-family:'Oswald',sans-serif;
-      font-size:.6rem; font-weight:700; letter-spacing:.1em;
-      color:#fff;
-      background:linear-gradient(135deg,#991b1b,#dc2626);
-      padding:.22rem .65rem;
-      border-radius:6px 0 0 0;
-      animation:ribbonShine 1.4s ease-in-out infinite;
-      box-shadow:0 -1px 6px rgba(239,68,68,.4);
-    }
-
-    /* ── Badges modo ganadores ── */
     .sorteo-modo-badge {
       font-family:'Oswald',sans-serif;
-      font-size:.6rem; font-weight:700; letter-spacing:.08em;
-      padding:.1rem .5rem;
-      border-radius:20px;
-      display:inline-flex;align-items:center;gap:.2rem;
+      font-size:.59rem; font-weight:700; letter-spacing:.07em;
+      padding:.1rem .48rem; border-radius:20px;
+      display:inline-flex; align-items:center; gap:.2rem;
+      backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    }
+    .modo-1 { background:rgba(212,160,23,.3); border:1px solid rgba(212,160,23,.55); color:#fcd34d; }
+    .modo-3 { background:rgba(99,102,241,.3); border:1px solid rgba(99,102,241,.55); color:#c7d2fe; }
+    .sih-free-badge {
+      font-family:'Oswald',sans-serif; font-size:.59rem; font-weight:700; letter-spacing:.1em;
+      background:rgba(34,197,94,.32); border:1px solid rgba(34,197,94,.55); color:#4ade80;
+      border-radius:20px; padding:.1rem .48rem;
+    }
+    .sih-participating {
+      position:absolute; bottom:.48rem; left:.72rem; z-index:2;
+      font-family:'Oswald',sans-serif; font-size:.63rem; font-weight:600; letter-spacing:.06em; color:#fff;
+      background:rgba(34,197,94,.3); border:1px solid rgba(34,197,94,.5); border-radius:20px;
+      padding:.11rem .52rem; display:inline-flex; align-items:center; gap:.22rem;
       backdrop-filter:blur(4px);
     }
-    .modo-1 {
-      background:rgba(212,160,23,.25);
-      border:1px solid rgba(212,160,23,.5);
-      color:#fcd34d;
+    .sih-urgency-ribbon {
+      position:absolute; bottom:0; right:0; z-index:2;
+      font-family:'Oswald',sans-serif; font-size:.59rem; font-weight:700; letter-spacing:.09em; color:#fff;
+      background:linear-gradient(135deg,#991b1b,#dc2626);
+      padding:.2rem .6rem; border-radius:6px 0 0 0;
+      animation:ribbonShine 1.3s ease-in-out infinite;
+      box-shadow:0 -1px 5px rgba(239,68,68,.45);
     }
-    .modo-3 {
-      background:rgba(99,102,241,.25);
-      border:1px solid rgba(99,102,241,.5);
-      color:#a5b4fc;
-    }
-    .sih-free-badge {
-      font-family:'Oswald',sans-serif;
-      font-size:.6rem; font-weight:700; letter-spacing:.1em;
-      background:rgba(34,197,94,.3);
-      border:1px solid rgba(34,197,94,.5);
-      color:#4ade80;
-      border-radius:20px;
-      padding:.1rem .5rem;
-    }
-
-    /* ── Premio hint ── */
     .sorteo-premio-hint {
-      font-size:.72rem;
-      color:var(--muted);
-      display:inline-flex;align-items:center;gap:.25rem;
+      font-size:.72rem; color:var(--muted);
+      display:inline-flex; align-items:center; gap:.22rem;
     }
     .sorteo-premio-hint strong { font-family:'Oswald',sans-serif; }
   `;
