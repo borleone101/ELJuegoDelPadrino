@@ -476,41 +476,22 @@ async function sorteos() {
           const isOculto = g.visible === false;
 
           return `<div class="sorteo-card ${isOculto?"sorteo-oculto":""}">
-            <div class="scard-vis-ribbon" style="${isOculto?"":"display:none"}">
-              <i class="bi bi-eye-slash-fill"></i> Oculto para usuarios
-            </div>
+            ${isOculto?'<div class="scard-vis-ribbon"><i class="bi bi-eye-slash-fill"></i> Oculto para usuarios</div>':""}
             ${_sorteoHeaderHtml(g, {height:"86px"})}
             <div class="sorteo-card-head">
               <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.4rem">
-                <div style="min-width:0">
+                <div style="min-width:0;flex:1">
                   <h3 style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${g.nombre}</h3>
-                  <p>${g.descripcion||"Sin descripción"}</p>
+                  <p style="font-size:.78rem;color:var(--muted)">${g.descripcion||"Sin descripción"}</p>
                 </div>
-                <div style="display:flex;align-items:center;gap:.3rem;flex-shrink:0">
-                  ${badge(g.estado)}
-                  <div class="menu3-wrap" style="position:relative">
-                    <button class="btn btn-dark btn-sm menu3-btn" onclick="toggleMenu3('menu3-${g.id}')" style="width:28px;height:28px;padding:0;border-radius:6px;font-size:.9rem"><i class="bi bi-three-dots-vertical"></i></button>
-                    <div id="menu3-${g.id}" class="menu3-dropdown" style="display:none">
-                      <button onclick="closeAllMenu3();drawerEditarSorteo('${g.id}')"><i class="bi bi-pencil-fill"></i> Editar sorteo</button>
-                      <button onclick="closeAllMenu3();toggleVisibilidad('${g.id}','${nombreSafe}',${isOculto})">${isOculto?'<i class="bi bi-eye-fill"></i> Hacer visible':'<i class="bi bi-eye-slash-fill"></i> Ocultar'}</button>
-                      <button onclick="closeAllMenu3();verHistorialSorteo('${g.id}','${nombreSafe}')"><i class="bi bi-clock-history"></i> Historial</button>
-                      <div class="menu3-sep"></div>
-                      <button onclick="closeAllMenu3();verRondas('${g.id}','${nombreSafe}')"><i class="bi bi-layers"></i> Ver rondas</button>
-                      ${ar?`<button onclick="closeAllMenu3();verParticipantes('${ar.id}','${nombreSafe}','${ar.numero}')"><i class="bi bi-people-fill"></i> Participantes</button>`:""}
-                      ${ar?`<button onclick="closeAllMenu3();verComprobantes('${ar.id}','${nombreSafe}','${ar.numero}')"><i class="bi bi-receipt"></i> Comprobantes</button>`:""}
-                      <div class="menu3-sep"></div>
-                      <button class="menu3-danger" onclick="closeAllMenu3();eliminarSorteo('${g.id}','${nombreSafe}')"><i class="bi bi-trash-fill"></i> Eliminar sorteo</button>
-                    </div>
-                  </div>
-                </div>
+                ${badge(g.estado)}
               </div>
-              <div style="margin-top:.4rem;display:flex;align-items:center;gap:.4rem;font-size:.73rem;color:var(--muted);flex-wrap:wrap">
-                <span style="color:${modo===1?"#fcd34d":"#c7d2fe"}">${modo===1?"🥇 1G":"🏅 3G"}</span>
-                <span>·</span>
-                <span>${g.totalRondas} ronda${g.totalRondas!==1?"s":""}</span>
+              <div style="margin-top:.42rem;display:flex;align-items:center;gap:.4rem;font-size:.73rem;color:var(--muted);flex-wrap:wrap">
+                <span style="color:${modo===1?"#fcd34d":"#c7d2fe"}">${modo===1?"🥇 1 Ganador":"🏅 3 Ganadores"}</span>
+                <span>·</span><span>${g.totalRondas} ronda${g.totalRondas!==1?"s":""}</span>
                 ${g.precio_boleto>0?`<span>·</span><span><i class="bi bi-tag"></i> ${fmtMoney(g.precio_boleto)}</span>`:`<span>·</span><span style="color:#22c55e">Gratis</span>`}
                 <span>·</span><span>${g.capacidad} cupos</span>
-                ${g.auto_siguiente_ronda?`<span>·</span><span style="color:#a78bfa" title="Auto-inicio de ronda"><i class="bi bi-arrow-repeat"></i> Auto</span>`:""}
+                ${g.auto_siguiente_ronda?`<span>·</span><span style="color:#a78bfa"><i class="bi bi-arrow-repeat"></i> Auto-ronda</span>`:""}
               </div>
             </div>
             <div class="sorteo-card-mid">
@@ -519,28 +500,51 @@ async function sorteos() {
                     <span style="color:var(--muted);font-size:.8rem">Ronda #${ar.numero}</span>
                     <div style="display:flex;align-items:center;gap:.35rem">
                       <span class="prog-val" style="color:${theme.accent};font-size:.85rem">${g.cuposActivos}/${g.capacidad}</span>
-                      ${lleno?'<span style="font-size:.75rem">✅</span>':""}
+                      ${lleno?'<span>✅</span>':""}
                     </div>
                   </div>
                   <div class="prog-bg"><div class="prog-fill${lleno?" full":""}" style="width:${Math.min(pct,100)}%;background:linear-gradient(90deg,${theme.accent}88,${theme.accent})"></div></div>
-                  ${premioEstimado>0?`<div style="margin-top:.35rem;font-size:.71rem;color:#22c55e"><i class="bi bi-cash-stack"></i> Premio est.: <strong>${fmtMoneyR(premioEstimado)}</strong></div>`:""}
-                  ${g.compPend>0?`<div style="margin-top:.3rem;font-size:.72rem;color:#f59e0b;display:flex;align-items:center;gap:.3rem"><i class="bi bi-exclamation-triangle"></i> ${g.compPend} pago${g.compPend>1?"s":""} pendiente${g.compPend>1?"s":""}</div>`:""}`
+                  ${premioEstimado>0?`<div style="margin-top:.35rem;font-size:.71rem;color:#22c55e"><i class="bi bi-cash-stack"></i> Premio estimado: <strong>${fmtMoneyR(premioEstimado)}</strong></div>`:""}
+                  ${g.compPend>0?`<div style="margin-top:.3rem;font-size:.72rem;color:#f59e0b;display:flex;align-items:center;gap:.28rem"><i class="bi bi-exclamation-triangle-fill"></i> ${g.compPend} comprobante${g.compPend>1?"s":""} pendiente${g.compPend>1?"s":""}</div>`:""}`
                 :`<div style="text-align:center;padding:.45rem 0;color:var(--muted);font-size:.84rem">
                     <i class="bi bi-moon-stars"></i> Sin ronda activa
-                    ${g.estado==="activo"&&!isOculto&&sorteoAbiertos<4?`<br><button class="btn btn-gold btn-sm" style="margin-top:.4rem" onclick="iniciarRonda('${g.id}','${nombreSafe}',${g.totalRondas})"><i class="bi bi-play-fill"></i> Iniciar R.${g.totalRondas+1}</button>`:""}
-                    ${isOculto?`<div style="font-size:.7rem;color:#f59e0b;margin-top:.3rem"><i class="bi bi-eye-slash"></i> Haz visible para iniciar</div>`:""}
+                    ${g.estado==="activo"&&!isOculto&&sorteoAbiertos<4?`<br><button class="btn btn-gold btn-sm" style="margin-top:.4rem" onclick="iniciarRonda('${g.id}','${nombreSafe}',${g.totalRondas})"><i class="bi bi-play-fill"></i> Iniciar Ronda ${g.totalRondas+1}</button>`:""}
+                    ${isOculto?`<div style="font-size:.7rem;color:#f59e0b;margin-top:.28rem"><i class="bi bi-eye-slash"></i> Haz visible para iniciar ronda</div>`:""}
                   </div>`}
             </div>
-            <div class="sorteo-card-foot">
+
+            <!-- FOOTER: botones con etiquetas claras -->
+            <div class="sorteo-card-foot" style="flex-wrap:wrap;gap:.35rem">
               ${ar?`
-                <button class="btn btn-info btn-sm" onclick="verParticipantes('${ar.id}','${nombreSafe}','${ar.numero}')"><i class="bi bi-people"></i></button>
-                <button class="btn btn-ghost btn-sm" onclick="verComprobantes('${ar.id}','${nombreSafe}','${ar.numero}')" style="position:relative">
-                  <i class="bi bi-receipt"></i>${g.compPend>0?` <span style="position:absolute;top:-4px;right:-4px;background:var(--red2);color:#fff;border-radius:8px;padding:0 .28rem;font-size:.6rem;font-family:'Oswald',sans-serif">${g.compPend}</span>`:""}
+                <button class="scf-btn scf-blue" onclick="verParticipantes('${ar.id}','${nombreSafe}','${ar.numero}')">
+                  <i class="bi bi-people-fill"></i> Participantes
                 </button>
-                ${lleno?`<button class="btn btn-gold btn-sm" onclick="realizarSorteo('${ar.id}','${nombreSafe}','${ar.numero}',${g.capacidad})"><i class="bi bi-shuffle"></i> ¡Sortear!</button>`:`<button class="btn btn-dark btn-sm" onclick="verRondas('${g.id}','${nombreSafe}')"><i class="bi bi-layers"></i> Rondas</button>`}
-                <button class="btn btn-danger btn-sm" onclick="cerrarRonda('${ar.id}','${nombreSafe}','${ar.numero}')"><i class="bi bi-lock"></i></button>
-              `:`<button class="btn btn-dark btn-sm" onclick="verRondas('${g.id}','${nombreSafe}')"><i class="bi bi-layers"></i> Rondas</button>`}
-              <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="drawerEditarSorteo('${g.id}')"><i class="bi bi-pencil"></i></button>
+                <button class="scf-btn scf-ghost" onclick="verComprobantes('${ar.id}','${nombreSafe}','${ar.numero}')" style="position:relative">
+                  <i class="bi bi-receipt"></i> Pagos
+                  ${g.compPend>0?`<span style="position:absolute;top:-5px;right:-5px;background:#dc2626;color:#fff;border-radius:8px;padding:0 .3rem;font-size:.6rem;font-family:'Oswald',sans-serif;line-height:1.4">${g.compPend}</span>`:""}
+                </button>
+                ${lleno?`<button class="scf-btn scf-gold" onclick="realizarSorteo('${ar.id}','${nombreSafe}','${ar.numero}',${g.capacidad})"><i class="bi bi-shuffle"></i> ¡Sortear!</button>`:""}
+                <button class="scf-btn scf-muted" onclick="verRondas('${g.id}','${nombreSafe}')"><i class="bi bi-layers"></i> Rondas</button>
+                <button class="scf-btn scf-red" onclick="cerrarRonda('${ar.id}','${nombreSafe}','${ar.numero}')"><i class="bi bi-lock-fill"></i> Cerrar ronda</button>
+              `:`
+                <button class="scf-btn scf-muted" onclick="verRondas('${g.id}','${nombreSafe}')"><i class="bi bi-layers"></i> Ver rondas</button>
+              `}
+            </div>
+
+            <!-- ROW DE GESTIÓN: editar, visibilidad, historial, eliminar -->
+            <div class="sorteo-card-mgmt">
+              <button class="scm-btn scm-primary" onclick="drawerEditarSorteo('${g.id}')">
+                <i class="bi bi-pencil-fill"></i> Editar sorteo
+              </button>
+              <button class="scm-btn ${isOculto?"scm-green":"scm-ghost"}" onclick="toggleVisibilidad('${g.id}','${nombreSafe}',${isOculto})" title="${isOculto?"Hacer visible para usuarios":"Ocultar de usuarios"}">
+                <i class="bi bi-eye${isOculto?"-fill":"-slash-fill"}"></i> ${isOculto?"Mostrar":"Ocultar"}
+              </button>
+              <button class="scm-btn scm-ghost" onclick="verHistorialSorteo('${g.id}','${nombreSafe}')" title="Historial de cambios">
+                <i class="bi bi-clock-history"></i> Historial
+              </button>
+              <button class="scm-btn scm-danger" onclick="eliminarSorteo('${g.id}','${nombreSafe}')" title="Eliminar sorteo">
+                <i class="bi bi-trash3-fill"></i> Eliminar
+              </button>
             </div>
           </div>`;
         }).join("")}</div>`}`;
@@ -719,21 +723,7 @@ window.modalEditarSorteo = async (gameId) => {
 };
 
 
-/* ════════════════════════════════════════
-   MENÚ 3 PUNTOS — Toggle & Close
-════════════════════════════════════════ */
-window.toggleMenu3 = (id) => {
-  const all = document.querySelectorAll('.menu3-dropdown');
-  all.forEach(m => { if(m.id !== id) m.style.display='none'; });
-  const el = document.getElementById(id);
-  if(el) el.style.display = el.style.display==='none'?'block':'none';
-};
-window.closeAllMenu3 = () => {
-  document.querySelectorAll('.menu3-dropdown').forEach(m => m.style.display='none');
-};
-document.addEventListener('click', (e) => {
-  if(!e.target.closest('.menu3-wrap')) window.closeAllMenu3();
-});
+
 
 /* ════════════════════════════════════════
    VISIBILIDAD DE SORTEO
@@ -1626,158 +1616,169 @@ async function enviar_premios() {
     .eq("estado","sorteada").not("ganador_id","is",null)
     .order("sorteado_at",{ascending:false});
 
-  const roundIds=(rounds||[]).map(r=>r.id);
-  const allGIds=(rounds||[]).flatMap(r=>[r.ganador_id,r.ganador2_id,r.ganador3_id].filter(Boolean));
-  const gameIds=[...new Set((rounds||[]).map(r=>r.game_id).filter(Boolean))];
-
-  const[ganadoresMap,gamesMap,{data:pagosReg},{data:allParts}]=await Promise.all([
-    getProfilesMap(allGIds),
-    (async()=>{if(!gameIds.length)return{};const{data}=await supabase.from("games").select("id,nombre,imagen_url,precio_boleto,capacidad_max").in("id",gameIds);const m={};(data||[]).forEach(g=>{m[g.id]=g});return m;})(),
-    roundIds.length?supabase.from("prize_payments").select("round_id,user_id,lugar,monto,metodo,estado").in("round_id",roundIds):{data:[]},
-    roundIds.length?supabase.from("participations").select("round_id,boletos,es_gratis").in("round_id",roundIds):{data:[]},
-  ]);
-
-  // Calcular totales por ronda
-  const totalPorRonda={};
-  (allParts||[]).forEach(p=>{
-    if(!totalPorRonda[p.round_id]) totalPorRonda[p.round_id]={boletos:0,gratis:0};
-    totalPorRonda[p.round_id].boletos+=(p.boletos||1);
-    if(p.es_gratis) totalPorRonda[p.round_id].gratis+=(p.boletos||1);
-  });
-
-  const pagosMap={};
-  (pagosReg||[]).forEach(p=>{pagosMap[`${p.round_id}_${p.lugar}`]=p;});
-
-  const pendientes=[],completados=[];
-  for(const r of (rounds||[])){
-    const pagados=new Set((pagosReg||[]).filter(p=>p.round_id===r.id).map(p=>p.lugar));
-    const lugares=[r.ganador_id?1:null,r.ganador2_id?2:null,r.ganador3_id?3:null].filter(Boolean);
-    const todosPagados=lugares.every(l=>pagados.has(l));
-    if(todosPagados) completados.push({...r,pagados,lugares});
-    else pendientes.push({...r,pagados,lugares});
+  if(!rounds?.length){
+    MC().innerHTML=`<div class="ph"><div><div class="ph-title"><i class="bi bi-cash-coin"></i>Enviar premios</div><div class="ph-sub">Sin sorteos realizados aún</div></div></div><div class="empty"><i class="bi bi-trophy"></i><p>Aún no hay sorteos finalizados.</p></div>`;
+    return;
   }
 
-  const renderRondaCard=(r,esPendiente)=>{
-    const game=gamesMap[r.game_id]||{};
-    const g1=ganadoresMap[r.ganador_id]||{};
-    const g2=ganadoresMap[r.ganador2_id]||{};
-    const g3=ganadoresMap[r.ganador3_id]||{};
-    const pagados=r.pagados||new Set();
-    const gn=(game.nombre||"").replace(/'/g,"\'");
-    const theme=getSorteoTheme(game.nombre||"");
-    const stats=totalPorRonda[r.id]||{boletos:0,gratis:0};
-    const totalRecaudado=Math.max(0,(stats.boletos-stats.gratis))*(game.precio_boleto||0);
+  const roundIds=rounds.map(r=>r.id);
+  const allGIds=rounds.flatMap(r=>[r.ganador_id,r.ganador2_id,r.ganador3_id].filter(Boolean));
+  const gameIds=[...new Set(rounds.map(r=>r.game_id).filter(Boolean))];
+
+  const[ganadoresMap,{data:pagosReg},{data:allParts}]=await Promise.all([
+    getProfilesMap(allGIds),
+    supabase.from("prize_payments").select("round_id,user_id,lugar,monto,metodo").in("round_id",roundIds),
+    supabase.from("participations").select("round_id,boletos,es_gratis").in("round_id",roundIds),
+  ]);
+  let gamesMap={};
+  if(gameIds.length){const{data}=await supabase.from("games").select("id,nombre,imagen_url,precio_boleto,capacidad_max").in("id",gameIds);(data||[]).forEach(g=>{gamesMap[g.id]=g});}
+
+  // Stats por ronda
+  const statsPorRonda={};
+  (allParts||[]).forEach(p=>{
+    if(!statsPorRonda[p.round_id]) statsPorRonda[p.round_id]={total:0,gratis:0};
+    statsPorRonda[p.round_id].total+=(p.boletos||1);
+    if(p.es_gratis) statsPorRonda[p.round_id].gratis+=(p.boletos||1);
+  });
+  const pagadosSet=new Map(); // roundId_lugar -> pagoObj
+  (pagosReg||[]).forEach(p=>{ pagadosSet.set(`${p.round_id}_${p.lugar}`,p); });
+
+  const pendientes=[], completados=[];
+  for(const r of rounds){
+    const lugares=[r.ganador_id?1:null,r.ganador2_id?2:null,r.ganador3_id?3:null].filter(Boolean);
+    const todosOk=lugares.every(l=>pagadosSet.has(`${r.id}_${l}`));
+    if(todosOk) completados.push(r);
+    else pendientes.push(r);
+  }
+
+  // Calcular total pendiente a pagar
+  let totalAPagar=0;
+  for(const r of pendientes){
+    const game=gamesMap[r.game_id]||{}; const stats=statsPorRonda[r.id]||{total:0,gratis:0};
+    const recaudado=Math.max(0,stats.total-stats.gratis)*(game.precio_boleto||0);
     const modo=getModoGanadores(getCapacidad(game));
+    const pool=recaudado*0.70;
+    const lugares=[r.ganador_id?1:null,r.ganador2_id?2:null,r.ganador3_id?3:null].filter(Boolean);
+    for(const lugar of lugares){
+      if(!pagadosSet.has(`${r.id}_${lugar}`)&&pool>0){
+        const pct=modo===1?1.0:lugar===1?0.5:lugar===2?0.3:0.2;
+        totalAPagar+=Math.round(pool*pct/5)*5;
+      }
+    }
+  }
 
-    // Premios calculados
-    const pool=totalRecaudado*0.70;
-    const premios=modo===1
-      ?[{lugar:1,pct:100,monto:Math.round(pool/5)*5}]
-      :[{lugar:1,pct:50,monto:Math.round(pool*0.50/5)*5},{lugar:2,pct:30,monto:Math.round(pool*0.30/5)*5},{lugar:3,pct:20,monto:Math.round(pool*0.20/5)*5}];
+  const renderRondaCard=(r)=>{
+    const game=gamesMap[r.game_id]||{};
+    const theme=getSorteoTheme(game.nombre||"");
+    const stats=statsPorRonda[r.id]||{total:0,gratis:0};
+    const recaudado=Math.max(0,stats.total-stats.gratis)*(game.precio_boleto||0);
+    const modo=getModoGanadores(getCapacidad(game));
+    const pool=recaudado*0.70;
+    const gn=(game.nombre||"").replace(/'/g,"\'");
 
-    const renderGanadorCard=(uid,username,lugar)=>{
+    const calcPremio=(lugar)=>{
+      if(pool<=0) return 0;
+      const pct=modo===1?1.0:lugar===1?0.5:lugar===2?0.3:0.2;
+      return Math.round(pool*pct/5)*5;
+    };
+
+    const renderGanador=(uid,lugar)=>{
       if(!uid) return"";
+      const prof=ganadoresMap[uid]||{};
       const emoji=lugar===1?"🥇":lugar===2?"🥈":"🥉";
       const lugarLabel=lugar===1?"1er Lugar":lugar===2?"2do Lugar":"3er Lugar";
-      const isPagado=pagados.has(lugar);
-      const pagoReg=pagosMap[`${r.id}_${lugar}`];
-      const premioCalc=premios.find(p=>p.lugar===lugar);
-      const ini=(username||"?")[0].toUpperCase();
-      const u=(username||"").replace(/'/g,"\'");
+      const pago=pagadosSet.get(`${r.id}_${lugar}`);
+      const premio=calcPremio(lugar);
+      const ini=(prof.username||"?")[0].toUpperCase();
+      const u=(prof.username||"").replace(/'/g,"\'");
 
-      return `<div class="premio-ganador-card ${isPagado?"pgc-pagado":"pgc-pendiente"}">
-        <div class="pgc-header">
-          <div class="pgc-emoji">${emoji}</div>
-          <div class="pgc-info">
-            <div class="pgc-lugar">${lugarLabel}</div>
-            <div style="display:flex;align-items:center;gap:.45rem">
-              <div class="pgc-avatar">${ini}</div>
-              <div class="pgc-nombre">${username||"—"}</div>
-            </div>
+      return `<div class="ep-ganador ${pago?"ep-g-pagado":"ep-g-pendiente"}">
+        <div class="ep-g-meta">
+          <span class="ep-g-emoji">${emoji}</span>
+          <div class="ep-g-av">${ini}</div>
+          <div class="ep-g-info">
+            <div class="ep-g-nombre">${prof.username||"—"}</div>
+            <div class="ep-g-lugar">${lugarLabel}</div>
           </div>
-          <div class="pgc-estado">
-            ${isPagado
-              ?`<span class="bdg bdg-ok" style="font-size:.68rem">✅ ${fmtMoney(pagoReg?.monto||0)}</span>`
-              :premioCalc?.monto>0?`<span style="font-family:'Oswald',sans-serif;font-size:.85rem;color:#22c55e;font-weight:700">Bs ${premioCalc.monto}</span>`:""}
-          </div>
+          ${pago
+            ?`<div class="ep-g-monto pagado">
+                <div style="font-size:.65rem;color:#22c55e;text-transform:uppercase;letter-spacing:.08em">Enviado</div>
+                <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#22c55e">${fmtMoney(pago.monto)}</div>
+              </div>`
+            :premio>0?`<div class="ep-g-monto pendiente">
+                <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">A pagar</div>
+                <div style="font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#fbbf24">${fmtMoneyR(premio)}</div>
+              </div>`:""}
         </div>
-        ${!isPagado&&esPendiente?`
-        <button class="pgc-btn-pagar" onclick="registrarPremioConQR('${r.id}','${uid}',${lugar},'${gn}','${r.numero}','${u}')">
-          <i class="bi bi-cash-coin"></i> Pagar premio
-        </button>`
-        :isPagado?`<div style="font-size:.72rem;color:var(--muted);text-align:center;padding:.2rem 0">${pagoReg?.metodo==="qr"?"QR":"Efectivo"}${pagoReg?.referencia?" · "+pagoReg.referencia:""}</div>`:""}
+        ${!pago?`<button class="ep-btn-pagar" onclick="registrarPremioConQR('${r.id}','${uid}',${lugar},'${gn}','${r.numero}','${u}')">
+          <i class="bi bi-qr-code-scan"></i> Ver QR y registrar pago
+        </button>`:""}
       </div>`;
     };
 
-    return `<div class="premio-ronda-card ${esPendiente?"prc-pendiente":"prc-completado"}">
+    const isPendiente = !([r.ganador_id,r.ganador2_id,r.ganador3_id].filter(Boolean).every(uid=>{
+      const l=uid===r.ganador_id?1:uid===r.ganador2_id?2:3;
+      return pagadosSet.has(`${r.id}_${l}`);
+    }));
 
-      <!-- Header imagen + info sorteo -->
-      <div class="prc-header" style="background:${game.imagen_url?`url('${game.imagen_url}') center/cover no-repeat`:theme.gradient}">
-        <div class="prc-header-overlay"></div>
-        <div class="prc-header-content">
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <div>
-              <div class="prc-game-nombre">${game.nombre||"—"}</div>
-              <div class="prc-game-sub">Ronda #${r.numero} · ${r.sorteado_at?fmtDate(r.sorteado_at):""}</div>
-            </div>
-            <div style="display:flex;align-items:center;gap:.5rem">
-              ${esPendiente?`<span class="bdg" style="background:rgba(245,158,11,.25);border:1px solid rgba(245,158,11,.4);color:#fbbf24;font-size:.65rem">⏳ Pendiente</span>`:`<span class="bdg bdg-ok" style="font-size:.65rem">✅ Completo</span>`}
-              ${r.premio_especial?`<span class="bdg bdg-win" style="font-size:.65rem">🎁 Especial</span>`:""}
+    return `<div class="ep-ronda-card">
+      <!-- Header visual del sorteo -->
+      <div class="ep-ronda-header" style="background:${game.imagen_url?`url('${game.imagen_url}') center/cover no-repeat`:theme.gradient}">
+        <div class="ep-ronda-header-overlay"></div>
+        <div class="ep-ronda-header-body">
+          <div>
+            <div class="ep-ronda-nombre">${game.nombre||"—"}</div>
+            <div class="ep-ronda-sub">
+              Ronda #${r.numero}
+              ${r.sorteado_at?` · ${fmtDateShort(r.sorteado_at)}`:""}
+              ${r.caso_sorteo?` · ${nombreCaso(r.caso_sorteo)}`:""}
             </div>
           </div>
-          ${totalRecaudado>0?`<div style="font-size:.75rem;color:rgba(255,255,255,.75);margin-top:.3rem;display:flex;align-items:center;gap:.5rem">
-            <span><i class="bi bi-people"></i> ${stats.boletos} boletos</span>
-            <span>·</span>
-            <span><i class="bi bi-cash-stack"></i> Recaudado: <strong style="color:#4ade80">${fmtMoney(totalRecaudado)}</strong></span>
-            <span>·</span>
-            <span>Premio pool: <strong style="color:#fbbf24">${fmtMoney(Math.round(pool/5)*5)}</strong></span>
-          </div>`:""}
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.3rem">
+            ${isPendiente
+              ?`<span class="bdg" style="background:rgba(245,158,11,.28);border:1px solid rgba(245,158,11,.5);color:#fbbf24;font-size:.63rem">⏳ Pendiente</span>`
+              :`<span class="bdg bdg-ok" style="font-size:.63rem">✅ Completado</span>`}
+            ${recaudado>0?`<div style="font-size:.7rem;color:rgba(255,255,255,.7)"><i class="bi bi-cash-stack"></i> Recaudado: <strong style="color:#4ade80">${fmtMoney(recaudado)}</strong></div>`:""}
+          </div>
         </div>
       </div>
-
-      <!-- Tarjetas de ganadores -->
-      <div class="prc-ganadores">
-        ${renderGanadorCard(r.ganador_id,g1.username,1)}
-        ${r.ganador2_id?renderGanadorCard(r.ganador2_id,g2.username,2):""}
-        ${r.ganador3_id?renderGanadorCard(r.ganador3_id,g3.username,3):""}
+      <!-- Ganadores -->
+      <div class="ep-ganadores-list">
+        ${renderGanador(r.ganador_id,1)}
+        ${r.ganador2_id?renderGanador(r.ganador2_id,2):""}
+        ${r.ganador3_id?renderGanador(r.ganador3_id,3):""}
       </div>
     </div>`;
   };
-
-  const totalPendientes = pendientes.reduce((s,r)=>{
-    const game=gamesMap[r.game_id]||{};
-    const stats=totalPorRonda[r.id]||{boletos:0,gratis:0};
-    return s+Math.round((stats.boletos-stats.gratis)*(game.precio_boleto||0)*0.70/5)*5;
-  },0);
 
   MC().innerHTML=`
     <div class="ph">
       <div>
         <div class="ph-title"><i class="bi bi-cash-coin"></i>Enviar premios</div>
-        <div class="ph-sub">${pendientes.length} ronda${pendientes.length!==1?"s":""} pendiente${pendientes.length!==1?"s":""}${totalPendientes>0?` · Total a enviar: <strong style="color:#22c55e">${fmtMoney(totalPendientes)}</strong>`:""}</div>
+        <div class="ph-sub">
+          ${pendientes.length} ronda${pendientes.length!==1?"s":""} pendiente${pendientes.length!==1?"s":""}
+          ${totalAPagar>0?` · <strong style="color:#f59e0b">Total a pagar: ${fmtMoneyR(totalAPagar)}</strong>`:""}
+          · ${completados.length} completada${completados.length!==1?"s":""}
+        </div>
       </div>
     </div>
 
-    ${pendientes.length>0?`<div class="fondo-alert warn"><i class="bi bi-exclamation-triangle-fill"></i><div><div class="fondo-alert-title">${pendientes.length} ronda${pendientes.length!==1?"s":""} con premios por enviar</div><div class="fondo-alert-sub">Haz clic en "Pagar premio" para ver el QR del ganador y registrar el pago.</div></div></div>`:""}
+    ${pendientes.length>0?`<div class="fondo-alert warn"><i class="bi bi-exclamation-triangle-fill"></i><div><div class="fondo-alert-title">${pendientes.length} ronda${pendientes.length!==1?"s":""} con premios por pagar</div><div class="fondo-alert-sub">Toca <strong>"Ver QR y registrar pago"</strong> — se abrirá el QR del ganador para que puedas enviarlo y registrarlo.</div></div></div>`:""}
 
-    <!-- Pendientes -->
     ${pendientes.length>0?`
-    <div style="margin-bottom:.75rem;font-family:'Oswald',sans-serif;font-size:.75rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)">⏳ Por pagar</div>
-    <div class="premios-grid">
-      ${pendientes.map(r=>renderRondaCard(r,true)).join("")}
-    </div>`:""}
+    <div class="ep-section-title">⏳ Por pagar</div>
+    <div class="ep-grid">${pendientes.map(r=>renderRondaCard(r)).join("")}</div>
+    `:""}
 
-    <!-- Completados -->
     ${completados.length>0?`
-    <div style="margin:1.2rem 0 .75rem;font-family:'Oswald',sans-serif;font-size:.75rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)">✅ Completados (${completados.length})</div>
-    <div class="premios-grid">
-      ${completados.map(r=>renderRondaCard(r,false)).join("")}
-    </div>`:""}
+    <div class="ep-section-title" style="margin-top:${pendientes.length?"1.5rem":"0"}">✅ Completados (${completados.length})</div>
+    <div class="ep-grid">${completados.map(r=>renderRondaCard(r)).join("")}</div>
+    `:""}
 
-    ${!rounds?.length?`<div class="empty"><i class="bi bi-trophy"></i><p>Sin sorteos realizados aún.</p></div>`:""}
-    ${rounds?.length&&!pendientes.length?`<div class="fondo-alert good"><i class="bi bi-check-circle-fill"></i><div><div class="fondo-alert-title">¡Todo al día!</div><div class="fondo-alert-sub">Todos los premios han sido enviados.</div></div></div>`:""}
+    ${pendientes.length===0&&completados.length>0?`<div class="fondo-alert good"><i class="bi bi-check-circle-fill"></i><div><div class="fondo-alert-title">¡Todo al día! Todos los premios han sido enviados.</div></div></div>`:""}
   `;
 }
+
 
 async function finanzas() {
   setActive("finanzas"); setCurrentView("finanzas"); loadingView();
@@ -2101,29 +2102,48 @@ window.asignarBoletoGratis=async()=>{
 };
 
 /* ════════════════════════════════════════
-   TRABAJADORES
+   TRABAJADORES — Con gestión de QR
 ════════════════════════════════════════ */
 async function trabajadores() {
   setActive("trabajadores"); setCurrentView("trabajadores"); loadingView();
-  const{data}=await supabase.from("profiles").select("id,username,email,estado,created_at").eq("rol","trabajador").order("created_at",{ascending:false});
+  const{data}=await supabase.from("profiles").select("id,username,email,estado,created_at,qr_cobro_url,qr_metodo,qr_verificado").eq("rol","trabajador").order("created_at",{ascending:false});
+  const mlM={tigo_money:"Tigo Money",billetera_bcb:"BCB",qr_simple:"QR Interbank",efectivo_cuenta:"Cuenta"};
+
   MC().innerHTML=`
-    <div class="ph"><div><div class="ph-title"><i class="bi bi-person-badge-fill"></i>Trabajadores</div><div class="ph-sub">${data?.length||0} trabajador${data?.length!==1?"es":""}</div></div><button class="btn btn-red btn-md" onclick="modalNuevoTrabajador()"><i class="bi bi-person-plus-fill"></i> Nuevo trabajador</button></div>
+    <div class="ph">
+      <div><div class="ph-title"><i class="bi bi-person-badge-fill"></i>Trabajadores</div><div class="ph-sub">${data?.length||0} trabajador${data?.length!==1?"es":""}</div></div>
+      <button class="btn btn-red btn-md" onclick="modalNuevoTrabajador()"><i class="bi bi-person-plus-fill"></i> Nuevo trabajador</button>
+    </div>
     <div class="panel"><div class="panel-head"><div class="panel-title"><i class="bi bi-list-ul"></i>Lista</div></div>
     <div class="panel-body no-pad" style="overflow-x:auto">
-      ${!data?.length?`<div class="empty"><i class="bi bi-person-badge"></i><p>Sin trabajadores.</p></div>`:`
+      ${!data?.length?`<div class="empty"><i class="bi bi-person-badge"></i><p>Sin trabajadores. Crea el primero.</p></div>`:`
       <table id="tblTrab" style="width:100%">
-        <thead><tr><th>Usuario</th><th>Email</th><th>Estado</th><th>Alta</th><th>Acciones</th></tr></thead>
-        <tbody>${data.map(t=>`<tr>
-          <td><strong>${t.username}</strong></td><td class="text-muted">${t.email||"—"}</td><td>${badge(t.estado)}</td>
-          <td class="text-muted" style="font-size:.82rem">${fmtDateShort(t.created_at)}</td>
-          <td><div class="gap2">
-            ${t.estado==="activo"?`<button class="btn btn-danger btn-sm" onclick="toggleTrab('${t.id}','suspendido','${t.username}')"><i class="bi bi-slash-circle"></i> Suspender</button>`:`<button class="btn btn-success btn-sm" onclick="toggleTrab('${t.id}','activo','${t.username}')"><i class="bi bi-check-circle"></i> Activar</button>`}
-            <button class="btn btn-danger btn-sm" onclick="deleteTrab('${t.id}','${t.username}')"><i class="bi bi-trash"></i></button>
-          </div></td>
-        </tr>`).join("")}</tbody>
+        <thead><tr><th>Usuario</th><th>Email</th><th>Estado</th><th>Alta</th><th>QR Cobros</th><th>Acciones</th></tr></thead>
+        <tbody>${data.map(t=>{
+          let qrCell="";
+          if(!t.qr_cobro_url){
+            qrCell=`<div style="display:flex;align-items:center;gap:.4rem"><span class="text-muted" style="font-size:.78rem"><i class="bi bi-x-circle"></i> Sin QR</span><button class="btn btn-ghost btn-sm" onclick="modalSubirQRTrabajador('${t.id}','${t.username}')"><i class="bi bi-upload"></i> Subir QR</button></div>`;
+          } else if(!t.qr_verificado){
+            qrCell=`<div class="gap2"><span class="bdg bdg-p"><i class="bi bi-hourglass-split"></i> Pendiente</span><button class="btn btn-ghost btn-sm" onclick="verQrTrabajador(window.__trabMap['${t.id}'])"><i class="bi bi-eye"></i> Ver</button><button class="btn btn-success btn-sm" onclick="verificarQrTrab('${t.id}','${t.username}')"><i class="bi bi-check-lg"></i> Verificar</button><button class="btn btn-ghost btn-sm" onclick="modalSubirQRTrabajador('${t.id}','${t.username}')"><i class="bi bi-arrow-repeat"></i> Cambiar</button></div>`;
+          } else {
+            qrCell=`<div class="gap2"><span class="bdg bdg-ok"><i class="bi bi-check-circle-fill"></i> Verificado</span>${t.qr_metodo?`<span style="font-size:.72rem;color:var(--muted)">${mlM[t.qr_metodo]||t.qr_metodo}</span>`:""}<button class="btn btn-ghost btn-sm" onclick="verQrTrabajador(window.__trabMap['${t.id}'])"><i class="bi bi-eye"></i> Ver</button><button class="btn btn-ghost btn-sm" onclick="modalSubirQRTrabajador('${t.id}','${t.username}')"><i class="bi bi-arrow-repeat"></i> Cambiar</button></div>`;
+          }
+          return `<tr>
+            <td><strong>${t.username}</strong></td>
+            <td class="text-muted" style="font-size:.85rem">${t.email||"—"}</td>
+            <td>${badge(t.estado)}</td>
+            <td class="text-muted" style="font-size:.82rem">${fmtDateShort(t.created_at)}</td>
+            <td>${qrCell}</td>
+            <td><div class="gap2">
+              ${t.estado==="activo"?`<button class="btn btn-danger btn-sm" onclick="toggleTrab('${t.id}','suspendido','${t.username}')"><i class="bi bi-slash-circle"></i> Suspender</button>`:`<button class="btn btn-success btn-sm" onclick="toggleTrab('${t.id}','activo','${t.username}')"><i class="bi bi-check-circle"></i> Activar</button>`}
+              <button class="btn btn-danger btn-sm" onclick="deleteTrab('${t.id}','${t.username}')"><i class="bi bi-trash"></i> Eliminar</button>
+            </div></td>
+          </tr>`;
+        }).join("")}</tbody>
       </table>`}
     </div></div>`;
-  if(data?.length) initDT("tblTrab",{columnDefs:[{orderable:false,targets:4}]});
+  window.__trabMap={}; (data||[]).forEach(t=>{window.__trabMap[t.id]=t});
+  if(data?.length) initDT("tblTrab",{columnDefs:[{orderable:false,targets:[4,5]}]});
 }
 
 window.modalNuevoTrabajador=async()=>{
@@ -2138,11 +2158,77 @@ window.modalNuevoTrabajador=async()=>{
   toast(`Trabajador ${v.username} creado ✅`,"ok"); trabajadores();
 };
 
+window.modalSubirQRTrabajador=async(trabId,trabUsername)=>{
+  const METODOS=[{value:"tigo_money",label:"Tigo Money"},{value:"billetera_bcb",label:"Billetera BCB"},{value:"qr_simple",label:"QR Interbank"},{value:"efectivo_cuenta",label:"Cuenta bancaria"}];
+  const{data:curr}=await supabase.from("profiles").select("qr_metodo,qr_cobro_url").eq("id",trabId).single();
+
+  const{value:v}=await Swal.fire({
+    title:`QR de cobros — ${trabUsername}`,
+    html:`<div style="text-align:left">
+      <div style="background:rgba(212,160,23,.07);border:1px solid rgba(212,160,23,.2);border-radius:9px;padding:.7rem .9rem;margin-bottom:1rem;font-size:.82rem;color:var(--muted)">
+        <i class="bi bi-info-circle" style="color:var(--gold2)"></i> Este QR se usará para recibir pagos de ganadores cuando este trabajador gestione sorteos.
+      </div>
+      ${curr?.qr_cobro_url?`<div style="margin-bottom:.85rem;text-align:center"><img src="${curr.qr_cobro_url}" style="max-height:100px;border-radius:8px;border:1px solid rgba(212,160,23,.2)"><div style="font-size:.72rem;color:var(--muted);margin-top:.3rem">QR actual</div></div>`:""}
+      <div class="field" style="margin-bottom:.85rem"><label>Tipo de pago *</label>
+        <select id="qrMT" style="width:100%;background:#1b1610;border:1px solid rgba(139,26,26,.28);color:#e6dcc8;border-radius:8px;padding:.5rem .8rem">
+          ${METODOS.map(m=>`<option value="${m.value}"${m.value===(curr?.qr_metodo||"")?" selected":""}>${m.label}</option>`).join("")}
+        </select>
+      </div>
+      <div class="field"><label>Imagen del QR * <span style="font-weight:400;text-transform:none;font-size:.68rem;color:var(--muted)">(JPG/PNG, máx. 5MB)</span></label>
+        <input type="file" id="qrFileTrab" accept="image/jpeg,image/png,image/webp" style="width:100%;background:var(--ink3);border:1px solid var(--border);color:var(--cream);border-radius:7px;padding:.45rem .8rem">
+        <img id="qrPrevTrab" style="display:none;width:100%;max-height:140px;object-fit:contain;margin-top:.55rem;border-radius:8px;border:1px solid rgba(212,160,23,.2)">
+      </div>
+    </div>`,
+    showCancelButton:true,confirmButtonText:"<i class='bi bi-upload'></i> Guardar QR",cancelButtonText:"Cancelar",width:480,...swal$,
+    didOpen:()=>{document.getElementById("qrFileTrab").addEventListener("change",e=>{const f=e.target.files[0];if(f){const r2=new FileReader();r2.onload=ev=>{const i=document.getElementById("qrPrevTrab");i.src=ev.target.result;i.style.display="block"};r2.readAsDataURL(f)}});},
+    preConfirm:()=>{
+      const metodo=document.getElementById("qrMT").value;
+      const file=document.getElementById("qrFileTrab").files[0];
+      if(!file&&!curr?.qr_cobro_url){Swal.showValidationMessage("Sube la imagen del QR");return false;}
+      if(file&&file.size>5*1024*1024){Swal.showValidationMessage("Máx. 5 MB");return false;}
+      return{metodo,file};
+    }
+  });
+  if(!v) return;
+  loading$("Subiendo QR...");
+  let qr_url=curr?.qr_cobro_url||null;
+  if(v.file){try{qr_url=await uploadFile(v.file,"el-padrino/qr-cobros");}catch{Swal.close();ok$("Error al subir imagen","","error");return;}}
+  const{error}=await supabase.from("profiles").update({qr_cobro_url:qr_url,qr_metodo:v.metodo,qr_verificado:true,qr_subido_at:new Date().toISOString()}).eq("id",trabId);
+  Swal.close();
+  if(error){ok$("Error",error.message,"error");return;}
+  toast(`QR de ${trabUsername} actualizado ✅`,"ok");
+  trabajadores();
+};
+
+window.verQrTrabajador=(t)=>{
+  if(!t?.qr_cobro_url) return;
+  const mlM={tigo_money:"Tigo Money",billetera_bcb:"Billetera BCB",qr_simple:"QR Interbank",efectivo_cuenta:"Cuenta bancaria"};
+  Swal.fire({
+    title:`QR — ${t.username}`,
+    html:`<img src="${t.qr_cobro_url}" style="width:100%;max-height:300px;object-fit:contain;border-radius:10px;border:1px solid rgba(212,160,23,.2);margin-bottom:.85rem">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;text-align:left">
+      <div><div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.14em;margin-bottom:.15rem">Método</div><div>${mlM[t.qr_metodo]||t.qr_metodo||"—"}</div></div>
+      <div><div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.14em;margin-bottom:.15rem">Estado</div><div>${t.qr_verificado?'<span style="color:#22c55e">✅ Verificado</span>':'<span style="color:#f59e0b">⏳ Pendiente</span>'}</div></div>
+    </div>`,
+    showConfirmButton:false,showCloseButton:true,width:440,...swal$
+  });
+};
+
+window.verificarQrTrab=async(trabId,trabUsername)=>{
+  const r=await confirm$(`Verificar QR — ${trabUsername}`,"","✅ Verificar"); if(!r.isConfirmed) return;
+  loading$();
+  const{error}=await supabase.from("profiles").update({qr_verificado:true}).eq("id",trabId);
+  Swal.close();
+  if(error){ok$("Error",error.message,"error");return;}
+  toast(`QR de ${trabUsername} verificado ✅`,"ok"); trabajadores();
+};
+
 window.toggleTrab=async(id,estado,nombre)=>{
   const r=await confirm$(`${estado==="suspendido"?"Suspender":"Activar"} a ${nombre}`,"","Confirmar");if(!r.isConfirmed) return;
   loading$();await supabase.from("profiles").update({estado}).eq("id",id);Swal.close();
   toast(estado==="suspendido"?`${nombre} suspendido`:`${nombre} activado`,estado==="suspendido"?"err":"ok");trabajadores();
 };
+
 window.deleteTrab=async(id,nombre)=>{
   const r=await confirm$(`Eliminar a ${nombre}`,"<strong style='color:#f87171'>Esta acción no se puede deshacer.</strong>","Eliminar");if(!r.isConfirmed) return;
   loading$();await supabase.from("profiles").delete().eq("id",id);Swal.close();
@@ -2306,129 +2392,170 @@ window.modalCambiarPasswordAdmin=async()=>{
   const s = document.createElement('style');
   s.id = 'admin-extra-css';
   s.textContent = `
-    /* ── Sorteo Oculto ── */
-    .sorteo-oculto { opacity:.72; }
-    .sorteo-oculto .sorteo-card-head { background:repeating-linear-gradient(-45deg,transparent,transparent 8px,rgba(139,26,26,.04) 8px,rgba(139,26,26,.04) 16px); }
+    /* ══ Sorteo oculto ══ */
+    .sorteo-oculto { opacity:.7; filter:saturate(.6); }
     .scard-vis-ribbon {
-      display:flex!important;align-items:center;gap:.35rem;
-      font-family:'Oswald',sans-serif;font-size:.65rem;font-weight:700;letter-spacing:.1em;
-      background:rgba(139,26,26,.2);border-bottom:1px solid rgba(139,26,26,.3);color:#f87171;
-      padding:.28rem .85rem;text-transform:uppercase;
+      display:flex;align-items:center;gap:.35rem;
+      font-family:'Oswald',sans-serif;font-size:.64rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+      background:rgba(139,26,26,.22);border-bottom:1px solid rgba(139,26,26,.3);color:#f87171;
+      padding:.26rem .85rem;
     }
 
-    /* ── Menú 3 puntos ── */
-    .menu3-dropdown {
-      position:absolute;top:calc(100% + 4px);right:0;z-index:999;
-      background:#1b1610;border:1px solid rgba(139,26,26,.3);border-radius:10px;
-      min-width:200px;padding:.35rem;
-      box-shadow:0 8px 32px rgba(0,0,0,.55);
-      animation:menu3In .15s ease;
+    /* ══ Footer de acciones de la tarjeta ══ */
+    .scf-btn {
+      display:inline-flex;align-items:center;gap:.3rem;
+      font-family:'Oswald',sans-serif;font-size:.75rem;font-weight:600;letter-spacing:.06em;
+      border:none;border-radius:6px;cursor:pointer;padding:.35rem .72rem;transition:all .15s;
+      white-space:nowrap;position:relative;
     }
-    @keyframes menu3In { from{opacity:0;transform:translateY(-6px) scale(.97)} to{opacity:1;transform:translateY(0) scale(1)} }
-    .menu3-dropdown button {
-      display:flex;align-items:center;gap:.55rem;width:100%;
-      background:transparent;border:none;color:var(--cream);
-      font-family:'Source Sans 3',sans-serif;font-size:.87rem;
-      padding:.48rem .72rem;border-radius:7px;cursor:pointer;transition:background .14s;text-align:left;
-    }
-    .menu3-dropdown button:hover { background:rgba(212,160,23,.1); }
-    .menu3-dropdown button i { color:var(--gold);font-size:.82rem;width:15px;text-align:center; }
-    .menu3-dropdown .menu3-sep { height:1px;background:rgba(139,26,26,.2);margin:.25rem .35rem; }
-    .menu3-dropdown .menu3-danger { color:#f87171!important; }
-    .menu3-dropdown .menu3-danger:hover { background:rgba(139,26,26,.2)!important; }
-    .menu3-dropdown .menu3-danger i { color:#f87171!important; }
+    .scf-blue { background:rgba(99,102,241,.15);color:#818cf8;border:1px solid rgba(99,102,241,.28); }
+    .scf-blue:hover { background:rgba(99,102,241,.28); }
+    .scf-ghost { background:rgba(212,160,23,.09);color:var(--gold2);border:1px solid rgba(212,160,23,.22); }
+    .scf-ghost:hover { background:rgba(212,160,23,.2); }
+    .scf-gold { background:var(--gold2);color:#1a1209;font-weight:700; }
+    .scf-gold:hover { background:var(--gold3); }
+    .scf-muted { background:rgba(255,255,255,.06);color:var(--cream);border:1px solid rgba(255,255,255,.08); }
+    .scf-muted:hover { background:rgba(255,255,255,.12); }
+    .scf-red { background:rgba(139,26,26,.18);color:#f87171;border:1px solid rgba(139,26,26,.3); }
+    .scf-red:hover { background:rgba(139,26,26,.32); }
 
-    /* ── DRAWER EDITAR SORTEO ── */
+    /* ══ Fila de gestión (editar, visibilidad, historial, eliminar) ══ */
+    .sorteo-card-mgmt {
+      display:flex;align-items:center;gap:0;
+      border-top:1px solid var(--border);
+      background:rgba(0,0,0,.2);
+      overflow:hidden;border-radius:0 0 12px 12px;
+    }
+    .scm-btn {
+      flex:1;display:flex;align-items:center;justify-content:center;gap:.3rem;
+      font-family:'Oswald',sans-serif;font-size:.71rem;font-weight:600;letter-spacing:.05em;
+      border:none;border-right:1px solid rgba(255,255,255,.05);
+      cursor:pointer;padding:.5rem .3rem;transition:background .14s;
+      white-space:nowrap;
+    }
+    .scm-btn:last-child { border-right:none; }
+    .scm-primary { color:var(--gold2);background:transparent; }
+    .scm-primary:hover { background:rgba(212,160,23,.12); }
+    .scm-green { color:#22c55e;background:transparent; }
+    .scm-green:hover { background:rgba(34,197,94,.12); }
+    .scm-ghost { color:var(--muted);background:transparent; }
+    .scm-ghost:hover { background:rgba(255,255,255,.05);color:var(--cream); }
+    .scm-danger { color:#f87171;background:transparent; }
+    .scm-danger:hover { background:rgba(139,26,26,.2); }
+    .scm-btn i { font-size:.75rem; }
+
+    /* ══ DRAWER EDITAR SORTEO ══ */
     .sorteo-drawer { position:fixed;inset:0;z-index:900;pointer-events:none; }
     .sorteo-drawer.open { pointer-events:auto; }
-    .sorteo-drawer-overlay { position:absolute;inset:0;background:rgba(0,0,0,.62);opacity:0;transition:opacity .3s ease;backdrop-filter:blur(4px); }
+    .sorteo-drawer-overlay { position:absolute;inset:0;background:rgba(0,0,0,.6);opacity:0;transition:opacity .3s;backdrop-filter:blur(4px); }
     .sorteo-drawer.open .sorteo-drawer-overlay { opacity:1; }
     .sorteo-drawer-panel {
       position:absolute;top:0;right:0;bottom:0;
       width:100%;max-width:460px;
       background:var(--ink2);border-left:1px solid var(--border);
-      display:flex;flex-direction:column;overflow:hidden;
+      display:flex;flex-direction:column;
       transform:translateX(100%);transition:transform .32s cubic-bezier(.4,0,.2,1);
     }
     .sorteo-drawer.open .sorteo-drawer-panel { transform:translateX(0); }
-    .sorteo-drawer-header {
-      height:110px;position:relative;flex-shrink:0;overflow:hidden;
-    }
-    .sdh-overlay { position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.15) 0%,rgba(0,0,0,.7) 100%); }
-    .sdh-content { position:absolute;inset:0;padding:.85rem 1rem .7rem;display:flex;flex-direction:column;justify-content:flex-end; }
+    .sorteo-drawer-header { height:112px;position:relative;flex-shrink:0;overflow:hidden; }
+    .sdh-overlay { position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.1),rgba(0,0,0,.72)); }
+    .sdh-content { position:absolute;inset:0;padding:.85rem 1rem .75rem;display:flex;flex-direction:column;justify-content:flex-end; }
     .sorteo-drawer-close {
-      width:32px;height:32px;border-radius:50%;
-      background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.2);
-      color:#fff;display:flex;align-items:center;justify-content:center;
-      font-size:.85rem;cursor:pointer;transition:background .18s;flex-shrink:0;
+      width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.2);
+      color:#fff;display:flex;align-items:center;justify-content:center;font-size:.85rem;cursor:pointer;transition:background .18s;flex-shrink:0;
     }
     .sorteo-drawer-close:hover { background:rgba(139,26,26,.6); }
     .sorteo-drawer-body { flex:1;overflow-y:auto;padding:1rem 1.1rem;-webkit-overflow-scrolling:touch; }
     .sorteo-drawer-footer {
-      padding:.85rem 1.1rem;border-top:1px solid var(--border);
-      background:rgba(0,0,0,.15);display:flex;align-items:center;
-      justify-content:space-between;gap:.5rem;flex-shrink:0;
+      padding:.85rem 1.1rem;border-top:1px solid var(--border);background:rgba(0,0,0,.15);
+      display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-shrink:0;
     }
     .sdb-section { margin-bottom:1.1rem; }
     .sdb-section-title {
-      font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:600;
-      letter-spacing:.18em;text-transform:uppercase;color:var(--gold2);
-      margin-bottom:.5rem;display:flex;align-items:center;gap:.35rem;
+      font-family:'Oswald',sans-serif;font-size:.7rem;font-weight:600;letter-spacing:.18em;
+      text-transform:uppercase;color:var(--gold2);margin-bottom:.5rem;display:flex;align-items:center;gap:.35rem;
     }
     .sdb-label {
-      display:block;font-family:'Oswald',sans-serif;font-size:.68rem;
-      letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:.3rem;
+      display:block;font-family:'Oswald',sans-serif;font-size:.68rem;letter-spacing:.14em;
+      text-transform:uppercase;color:var(--muted);margin-bottom:.3rem;
     }
     .sdb-input {
-      width:100%;background:var(--ink3);border:1px solid var(--border);
-      color:var(--cream);border-radius:7px;padding:.5rem .82rem;font-size:.92rem;
-      outline:none;transition:border-color .18s;font-family:inherit;
+      width:100%;background:var(--ink3);border:1px solid var(--border);color:var(--cream);
+      border-radius:7px;padding:.5rem .82rem;font-size:.92rem;outline:none;transition:border-color .18s;font-family:inherit;
     }
     .sdb-input:focus { border-color:var(--gold2); }
     .sdb-select {
-      width:100%;background:var(--ink3);border:1px solid var(--border);
-      color:var(--cream);border-radius:7px;padding:.5rem .82rem;font-size:.92rem;
-      outline:none;cursor:pointer;
+      width:100%;background:var(--ink3);border:1px solid var(--border);color:var(--cream);
+      border-radius:7px;padding:.5rem .82rem;font-size:.92rem;outline:none;cursor:pointer;
     }
 
-    /* ── PREMIOS CARDS redesign ── */
-    .premios-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.1rem;margin-bottom:1rem; }
-    .premio-ronda-card { background:var(--ink2);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:box-shadow .2s; }
-    .premio-ronda-card:hover { box-shadow:0 6px 28px rgba(0,0,0,.4); }
-    .prc-pendiente { border-color:rgba(245,158,11,.25); }
-    .prc-completado { border-color:rgba(34,197,94,.18);opacity:.82; }
-    .prc-header { position:relative;height:96px;overflow:hidden; }
-    .prc-header-overlay { position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.1) 0%,rgba(0,0,0,.72) 100%); }
-    .prc-header-content { position:absolute;inset:0;padding:.7rem .9rem;display:flex;flex-direction:column;justify-content:flex-end; }
-    .prc-game-nombre { font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;color:#fff;line-height:1.1; }
-    .prc-game-sub { font-size:.72rem;color:rgba(255,255,255,.65);margin-top:.1rem; }
-    .prc-ganadores { padding:.8rem .9rem;display:flex;flex-direction:column;gap:.5rem; }
-    .premio-ganador-card { border-radius:9px;overflow:hidden;border:1px solid var(--border); }
-    .pgc-pendiente { background:var(--ink3);border-color:rgba(245,158,11,.2); }
-    .pgc-pagado { background:rgba(34,197,94,.04);border-color:rgba(34,197,94,.2); }
-    .pgc-header { display:flex;align-items:center;gap:.6rem;padding:.6rem .75rem; }
-    .pgc-emoji { font-size:1.3rem;flex-shrink:0;line-height:1; }
-    .pgc-info { flex:1;min-width:0; }
-    .pgc-lugar { font-family:'Oswald',sans-serif;font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.15rem; }
-    .pgc-avatar {
-      width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--gold2));
-      display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;
-      font-size:.65rem;font-weight:700;color:#fff;flex-shrink:0;
+    /* ══ ENVIAR PREMIOS — diseño limpio ══ */
+    .ep-section-title {
+      font-family:'Oswald',sans-serif;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;
+      color:var(--muted);margin-bottom:.75rem;
     }
-    .pgc-nombre { font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-    .pgc-estado { flex-shrink:0;text-align:right; }
-    .pgc-btn-pagar {
-      display:flex;align-items:center;justify-content:center;gap:.4rem;
-      width:100%;padding:.48rem .75rem;background:linear-gradient(135deg,var(--red),var(--red2));
+    .ep-grid {
+      display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+      gap:1.1rem;margin-bottom:.5rem;
+    }
+    .ep-ronda-card {
+      background:var(--ink2);border:1px solid var(--border);border-radius:13px;overflow:hidden;
+      transition:box-shadow .2s,border-color .2s;
+    }
+    .ep-ronda-card:hover { box-shadow:0 6px 24px rgba(0,0,0,.38); }
+    .ep-ronda-header {
+      height:88px;position:relative;overflow:hidden;
+    }
+    .ep-ronda-header-overlay {
+      position:absolute;inset:0;
+      background:linear-gradient(to bottom,rgba(0,0,0,.05) 0%,rgba(0,0,0,.72) 100%);
+    }
+    .ep-ronda-header-body {
+      position:absolute;inset:0;padding:.65rem .9rem;
+      display:flex;align-items:flex-end;justify-content:space-between;gap:.5rem;
+    }
+    .ep-ronda-nombre { font-family:'Oswald',sans-serif;font-size:.98rem;font-weight:700;color:#fff; }
+    .ep-ronda-sub { font-size:.7rem;color:rgba(255,255,255,.65);margin-top:.1rem; }
+    .ep-ganadores-list { padding:.7rem .85rem;display:flex;flex-direction:column;gap:.5rem; }
+    .ep-ganador {
+      border-radius:9px;overflow:hidden;border:1px solid var(--border);
+    }
+    .ep-g-pendiente { background:var(--ink3);border-color:rgba(245,158,11,.2); }
+    .ep-g-pagado { background:rgba(34,197,94,.04);border-color:rgba(34,197,94,.2); }
+    .ep-g-meta {
+      display:flex;align-items:center;gap:.55rem;padding:.6rem .75rem;
+    }
+    .ep-g-emoji { font-size:1.2rem;flex-shrink:0;line-height:1; }
+    .ep-g-av {
+      width:24px;height:24px;border-radius:50%;flex-shrink:0;
+      background:linear-gradient(135deg,var(--red),var(--gold2));
+      display:flex;align-items:center;justify-content:center;
+      font-family:'Oswald',sans-serif;font-size:.7rem;font-weight:700;color:#fff;
+    }
+    .ep-g-info { flex:1;min-width:0; }
+    .ep-g-nombre { font-family:'Oswald',sans-serif;font-size:.9rem;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .ep-g-lugar { font-size:.68rem;color:var(--muted);margin-top:.05rem; }
+    .ep-g-monto { text-align:right;flex-shrink:0; }
+    .ep-btn-pagar {
+      display:flex;align-items:center;justify-content:center;gap:.45rem;width:100%;
+      padding:.5rem .75rem;background:linear-gradient(135deg,#1a0d02,var(--red));
       border:none;color:#fff;font-family:'Oswald',sans-serif;font-size:.82rem;
       font-weight:700;letter-spacing:.08em;cursor:pointer;transition:opacity .18s;
+      border-top:1px solid rgba(139,26,26,.25);
     }
-    .pgc-btn-pagar:hover { opacity:.88; }
+    .ep-btn-pagar:hover { opacity:.88; }
+    .ep-btn-pagar i { font-size:.9rem;color:var(--gold2); }
 
-    @media(max-width:768px){
+    @media(max-width:768px) {
       .sorteo-drawer-panel { max-width:100%; }
-      .premios-grid { grid-template-columns:1fr; }
-      .menu3-dropdown { min-width:175px; }
+      .ep-grid { grid-template-columns:1fr; }
+      .scm-btn { font-size:.65rem;padding:.45rem .2rem; }
+      .scf-btn { font-size:.71rem;padding:.3rem .55rem; }
+    }
+    @media(max-width:480px) {
+      .sorteo-card-mgmt { flex-wrap:wrap; }
+      .scm-btn { flex:1 1 45%;border-right:none;border-top:1px solid rgba(255,255,255,.05); }
+      .scm-btn:nth-child(odd) { border-right:1px solid rgba(255,255,255,.05); }
     }
   `;
   document.head.appendChild(s);
