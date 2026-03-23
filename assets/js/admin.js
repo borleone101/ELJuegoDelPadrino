@@ -380,6 +380,7 @@ document.querySelectorAll("[data-view]").forEach(btn => {
 async function dashboard() {
   setActive("dashboard"); setCurrentView("dashboard"); loadingView(); updateSidebarBadges();
   try {
+  const [
     {count:totalUsuarios},{count:pagosPend},{count:rondasAbiertas},{count:totalSorteadas},
     {count:qrPendientes},{data:recientes},{data:rondasRecientes},{data:premiosHoy},{data:pagosHoy}
   ] = await Promise.all([
