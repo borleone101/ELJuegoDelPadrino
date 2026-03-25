@@ -620,7 +620,6 @@ async function loadSorteos(silencioso=false) {
   const sinMi=roundsData.filter(r=>r.misBoletos===0).sort((a,b)=>b.cupos-a.cupos);
   const ordenados=[...conMi,...sinMi];
 
-  // ── Inyectar CSS de urgencia y sorteo themes ──
   _inyectarCSSorteos();
 
   const ctrlHtml=`<div class="sorteos-ctrl">
@@ -677,12 +676,18 @@ async function loadSorteos(silencioso=false) {
       btnHtml=`<span class="bdg bdg-ok"><i class="bi bi-check-circle-fill"></i> ${r.misBoletos} boleto${r.misBoletos>1?"s":""}</span>
         <button class="btn btn-ghost btn-sm" onclick="abrirPanelCompra('${r.id}','${(r.game?.nombre||"").replace(/'/g,"\\'")}','${r.numero}',${r.game?.precio_boleto||0},${r.cupos},${capacidadMax})"><i class="bi bi-plus-circle"></i> Más</button>`;
     } else {
-      const gratisTag=boletosGratis>0&&!r.yoUseGratis?`<span class="bdg bdg-free" style="margin-left:.3rem"><i class="bi bi-gift-fill"></i> Gratis</span>`:"";
-      btnHtml=`<button class="btn btn-red btn-md" onclick="abrirPanelCompra('${r.id}','${(r.game?.nombre||"").replace(/'/g,"\\'")}','${r.numero}',${r.game?.precio_boleto||0},${r.cupos},${capacidadMax})"><i class="bi bi-ticket-perforated-fill"></i> Participar</button>${gratisTag}`;
+      // ── Botón con indicador de boletos gratis disponibles ──
+      const tieneGratis = boletosGratis > 0 && !r.yoUseGratis;
+      if(tieneGratis) {
+        btnHtml=`<button class="btn btn-red btn-md" onclick="abrirPanelCompra('${r.id}','${(r.game?.nombre||"").replace(/'/g,"\\'")}','${r.numero}',${r.game?.precio_boleto||0},${r.cupos},${capacidadMax})">
+          <i class="bi bi-ticket-perforated-fill"></i> Participar
+          <span class="btn-gratis-badge"><i class="bi bi-gift-fill"></i> ${boletosGratis} gratis</span>
+        </button>`;
+      } else {
+        btnHtml=`<button class="btn btn-red btn-md" onclick="abrirPanelCompra('${r.id}','${(r.game?.nombre||"").replace(/'/g,"\\'")}','${r.numero}',${r.game?.precio_boleto||0},${r.cupos},${capacidadMax})"><i class="bi bi-ticket-perforated-fill"></i> Participar</button>`;
+      }
     }
 
-    // ── IMAGEN / HEADER DEL SORTEO ──
-    // Si el admin subió imagen → foto real con overlay; si no → gradiente temático CSS
     const imgUrl = r.game?.imagen_url || null;
     const urgencyRibbon = !estoyDentro&&!lleno&&cuposLibres<=5
       ? `<div class="sih-urgency-ribbon">${cuposLibres===1?"¡ÚLTIMO CUPO!":"¡QUEDAN "+cuposLibres+"!"}</div>` : "";
@@ -691,8 +696,7 @@ async function loadSorteos(silencioso=false) {
     const badgesHtml = `<div class="sih-badges">${modoBadge}${r.game?.precio_boleto===0?`<span class="sih-free-badge">GRATIS</span>`:""}</div>`;
 
     const imgHeader = imgUrl
-      ? /* ── Imagen real de Cloudinary ── */ `
-        <div class="sorteo-img-header sih-photo" data-loaded="false">
+      ? `<div class="sorteo-img-header sih-photo" data-loaded="false">
           <img
             src="${imgUrl}"
             alt="${r.game?.nombre||""}"
@@ -707,8 +711,7 @@ async function loadSorteos(silencioso=false) {
           ${participatingBadge}
           ${urgencyRibbon}
         </div>`
-      : /* ── Fallback: gradiente temático ── */ `
-        <div class="sorteo-img-header ${theme.clase}" style="background:${theme.gradient};">
+      : `<div class="sorteo-img-header ${theme.clase}" style="background:${theme.gradient};">
           <div class="sih-overlay"></div>
           <div class="sih-icon">${theme.icon}</div>
           ${badgesHtml}
@@ -782,13 +785,61 @@ function _inyectarCSSorteos() {
     @keyframes sihImgFadeIn { from{opacity:0;transform:scale(1.04)} to{opacity:1;transform:scale(1)} }
     @keyframes sihShimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
 
+    /* ── Grid 3-4 columnas en desktop ── */
+    .sorteos-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .sorteos-grid .sorteo-card-grid {
+      flex: 1 1 calc(33.333% - .7rem);
+      min-width: 220px;
+      max-width: calc(25% - .75rem);
+      box-sizing: border-box;
+    }
+    @media (max-width: 1100px) {
+      .sorteos-grid .sorteo-card-grid {
+        flex: 1 1 calc(33.333% - .7rem);
+        max-width: calc(33.333% - .7rem);
+      }
+    }
+    @media (max-width: 720px) {
+      .sorteos-grid .sorteo-card-grid {
+        flex: 1 1 calc(50% - .5rem);
+        max-width: calc(50% - .5rem);
+      }
+    }
+    @media (max-width: 480px) {
+      .sorteos-grid .sorteo-card-grid {
+        flex: 1 1 100%;
+        max-width: 100%;
+      }
+    }
+
+    /* ── Badge gratis en botón participar ── */
+    .btn-gratis-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .2rem;
+      background: rgba(34,197,94,.25);
+      border: 1px solid rgba(34,197,94,.5);
+      color: #4ade80;
+      font-size: .62rem;
+      font-weight: 700;
+      letter-spacing: .05em;
+      border-radius: 20px;
+      padding: .08rem .4rem;
+      margin-left: .35rem;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
     .sorteo-img-header {
       position:relative; overflow:hidden; flex-shrink:0; height:92px;
     }
     .sorteo-item .sorteo-img-header { height:86px; border-radius:11px 11px 0 0; }
     .sorteo-card-grid .sorteo-img-header { height:88px; border-radius:11px 11px 0 0; }
 
-    /* ── Real image mode ── */
     .sih-photo { background:#1b1610; }
     .sih-photo:not([data-loaded="true"]) {
       background:linear-gradient(90deg,#1b1610 25%,#241c12 50%,#1b1610 75%);
@@ -808,7 +859,6 @@ function _inyectarCSSorteos() {
     }
     .sih-photo-overlay { position:absolute; inset:0; z-index:1; }
 
-    /* ── Gradient fallback mode ── */
     .sih-overlay {
       position:absolute; inset:0;
       background:linear-gradient(to bottom,rgba(0,0,0,0) 0%,rgba(0,0,0,.52) 100%);
@@ -865,14 +915,19 @@ function _inyectarCSSorteos() {
 }
 
 /* ═══════════════════════════════════════
-   PANEL COMPRA — con capacidad dinámica
+   PANEL COMPRA — LÓGICA CORREGIDA
+   REGLAS:
+   - Solo 1 boleto gratis por sorteo
+   - Si usas gratis y es sorteo gratis (precio=0): 1 boleto confirmado directo
+   - Si usas gratis en sorteo pago: descuenta 1 del total a pagar
+   - maxBoletos se calcula sobre cupos libres (máx 5), pero si SOLO usas gratis = máx 1
+   - La cantidad no puede exceder cupos libres nunca
 ═══════════════════════════════════════ */
 window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cuposActuales, capacidadMax=25) => {
   if(!puedeParticipar()){ modalSubirQR(); return; }
   const cap = Number(capacidadMax) || 25;
-  const cuposLibres = cap - cuposActuales;
-  const maxBoletos = Math.min(cuposLibres, 5);
-  if(maxBoletos<=0){ toast("Esta ronda ya está llena","error"); return; }
+  const cuposLibres = Math.max(0, cap - Number(cuposActuales));
+  if(cuposLibres<=0){ toast("Esta ronda ya está llena","error"); return; }
 
   const modo = getModoGanadores(cap);
   const modoLabel = modo === 1 ? "🥇 1 ganador" : "🏅 3 ganadores";
@@ -888,7 +943,11 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
   }
 
   const esAdicional=pagoExistente?.estado==="aprobado";
-  const puedoUsarGratis=boletosGratis>0&&!gratisStatus.yoUse;
+  // ── Solo puede usar gratis si tiene boletos y no lo usó en esta ronda ──
+  const puedoUsarGratis = boletosGratis > 0 && !gratisStatus.yoUse;
+
+  // ── maxBoletos: hasta 5, pero sin exceder cupos libres ──
+  const maxBoletosBase = Math.min(cuposLibres, 5);
 
   let adminQR=null, adminQRMetodo=null;
   if(precioBoleto>0){
@@ -930,17 +989,20 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
       <div class="compra-step" id="compraStep1">
         <div class="compra-step-label"><span class="step-num" style="background:${theme.accent};color:#000">1</span> Elige tus boletos</div>
 
-        ${puedoUsarGratis?`
+        ${puedoUsarGratis ? `
         <div class="compra-gratis-box">
           <div style="display:flex;align-items:center;gap:.75rem">
             <i class="bi bi-gift-fill" style="color:#22c55e;font-size:1.3rem;flex-shrink:0"></i>
-            <div><div style="font-family:'Oswald',sans-serif;font-size:.9rem;color:#22c55e">Tienes ${boletosGratis} boleto${boletosGratis>1?"s":""} gratis</div><div style="font-size:.75rem;color:var(--muted)">Solo 1 por sorteo</div></div>
+            <div>
+              <div style="font-family:'Oswald',sans-serif;font-size:.9rem;color:#22c55e">Tienes ${boletosGratis} boleto${boletosGratis>1?"s":""} gratis</div>
+              <div style="font-size:.75rem;color:var(--muted)">Solo 1 por sorteo · Vence en 24h</div>
+            </div>
           </div>
           <label class="compra-gratis-toggle">
             <input type="checkbox" id="drawerUsarGratis"><span class="gratis-toggle-label">Usar 1 gratis</span>
           </label>
-        </div>`:
-        gratisStatus.yoUse?`<div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.22);border-radius:8px;padding:.6rem .9rem;margin-bottom:.75rem;font-size:.82rem;color:#86efac;display:flex;align-items:center;gap:.5rem"><i class="bi bi-check-circle-fill"></i> Ya usaste tu boleto gratis en este sorteo.</div>`:""
+        </div>` :
+        gratisStatus.yoUse ? `<div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.22);border-radius:8px;padding:.6rem .9rem;margin-bottom:.75rem;font-size:.82rem;color:#86efac;display:flex;align-items:center;gap:.5rem"><i class="bi bi-check-circle-fill"></i> Ya usaste tu boleto gratis en este sorteo.</div>` : ""
         }
 
         ${!gratisStatus.yoUse&&gratisStatus.otrosConGratis>0&&boletosGratis>0?`<div class="compra-alert-warn"><i class="bi bi-lightning-charge-fill"></i>${gratisStatus.otrosConGratis} jugador${gratisStatus.otrosConGratis>1?"es":""} con boleto gratis aquí. <strong>¡Actúa rápido!</strong></div>`:""}
@@ -949,11 +1011,11 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
           <button class="cantidad-btn" id="drawerMenos" style="border-color:${theme.accent}44"><i class="bi bi-dash-lg"></i></button>
           <div class="cantidad-display">
             <span id="drawerNum" style="color:${theme.accent}">1</span>
-            <span style="font-size:.72rem;color:var(--muted)">boleto${1!==1?"s":""}</span>
+            <span id="drawerNumLabel" style="font-size:.72rem;color:var(--muted)">boleto</span>
           </div>
           <button class="cantidad-btn" id="drawerMas" style="border-color:${theme.accent}44"><i class="bi bi-plus-lg"></i></button>
         </div>
-        <div style="text-align:center;font-size:.75rem;color:var(--dim);margin-top:.4rem">Máximo ${maxBoletos} por compra</div>
+        <div id="drawerMaxHint" style="text-align:center;font-size:.75rem;color:var(--dim);margin-top:.4rem">Máximo ${maxBoletosBase} por compra</div>
 
         ${precioBoleto>0?`<div class="compra-monto-preview" style="border-color:${theme.accent}33">
           <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.25rem">Total a pagar</div>
@@ -1031,72 +1093,148 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
   document.body.appendChild(drawer);
   requestAnimationFrame(()=>{ drawer.classList.add("open"); document.body.style.overflow="hidden"; });
 
-  let boletos=1, usarGratis=false, archivoListo=false;
+  // ── Estado interno del drawer ──
+  let boletos = 1;
+  let usarGratis = false;
 
-  const actualizarMonto=()=>{
-    const bap=usarGratis?Math.max(0,boletos-1):boletos;
-    const mv=getEl("drawerMonto"); if(mv&&precioBoleto>0) mv.textContent=fmtMoney(precioBoleto*bap);
-    const gn=getEl("drawerGratisNota"); if(gn) gn.style.display=usarGratis?"block":"none";
-    const me=getEl("montoExacto"); if(me) me.textContent=fmtMoney(precioBoleto*bap);
-    const nEl=getEl("drawerNum"); if(nEl){ nEl.textContent=boletos; nEl.nextElementSibling.textContent=`boleto${boletos!==1?"s":""}`; }
-    const btnN=getEl("drawerBtnNext");
-    if(btnN&&precioBoleto>0){
-      if(bap===0) btnN.innerHTML=`<i class="bi bi-ticket-perforated-fill"></i> Confirmar participación gratis`;
-      else btnN.innerHTML=`Continuar al pago <i class="bi bi-arrow-right"></i>`;
+  // ── Calcula cuántos boletos pagados resultan ──
+  function boletosAPagar() {
+    if(!usarGratis) return boletos;
+    // Con gratis: el total de boletos es N, 1 es gratis => N-1 pagados
+    // Pero si solo es el gratis (boletos=1, usarGratis=true) => 0 pagados
+    return Math.max(0, boletos - 1);
+  }
+
+  // ── Actualiza límite máximo según si usa gratis ──
+  function getMaxBoletos() {
+    // Sin límite especial por gratis — puede pedir hasta 5 o cuposLibres
+    // El gratis solo descuenta 1 del precio, no cambia el máximo
+    return maxBoletosBase;
+  }
+
+  function actualizarUI() {
+    const bap = boletosAPagar();
+    const numEl = getEl("drawerNum");
+    const numLblEl = getEl("drawerNumLabel");
+    const montoEl = getEl("drawerMonto");
+    const gratisNotaEl = getEl("drawerGratisNota");
+    const maxHintEl = getEl("drawerMaxHint");
+    const btnNext = getEl("drawerBtnNext");
+    const menosBtn = getEl("drawerMenos");
+    const masBtn = getEl("drawerMas");
+    const maxAhora = getMaxBoletos();
+
+    if(numEl) numEl.textContent = boletos;
+    if(numLblEl) numLblEl.textContent = `boleto${boletos !== 1 ? "s" : ""}`;
+    if(montoEl && precioBoleto > 0) montoEl.textContent = fmtMoney(precioBoleto * bap);
+    if(gratisNotaEl) gratisNotaEl.style.display = usarGratis ? "block" : "none";
+    if(maxHintEl) maxHintEl.textContent = `Máximo ${maxAhora} por compra`;
+
+    // Deshabilitar botones de cantidad en los límites
+    if(menosBtn) menosBtn.disabled = boletos <= 1;
+    if(masBtn) masBtn.disabled = boletos >= maxAhora;
+
+    // Texto del botón next
+    if(btnNext) {
+      if(precioBoleto === 0 || bap === 0) {
+        btnNext.innerHTML = `<i class="bi bi-ticket-perforated-fill"></i> Confirmar participación gratis`;
+      } else {
+        btnNext.innerHTML = `Continuar al pago <i class="bi bi-arrow-right"></i>`;
+      }
     }
-  };
 
-  getEl("drawerMenos")?.addEventListener("click",()=>{ if(boletos>1){boletos--;actualizarMonto();} });
-  getEl("drawerMas")?.addEventListener("click",()=>{ if(boletos<maxBoletos){boletos++;actualizarMonto();} });
-  getEl("drawerUsarGratis")?.addEventListener("change",e=>{ usarGratis=e.target.checked; actualizarMonto(); });
+    // Actualizar monto exacto en paso 2 si está visible
+    const meEl = getEl("montoExacto");
+    if(meEl) meEl.textContent = fmtMoney(precioBoleto * bap);
+  }
 
-  let boletosSnap=1, usarGratisSnap=false, bapSnap=1;
+  actualizarUI();
 
-  getEl("drawerBtnNext")?.addEventListener("click",()=>{
-    const bap=usarGratis?Math.max(0,boletos-1):boletos;
-    if(precioBoleto===0||bap===0){ enviarParticipacion(); return; }
-    boletosSnap=boletos; usarGratisSnap=usarGratis; bapSnap=bap;
-    const rt=getEl("drawerResumenTxt");
-    const rm=getEl("drawerResumenMonto");
-    if(rt) rt.textContent=`${boletosSnap} boleto${boletosSnap!==1?"s":""}${usarGratisSnap?" (1 gratis)":""}`;
-    if(rm) rm.textContent=fmtMoney(precioBoleto*bapSnap);
-    const me=getEl("montoExacto"); if(me) me.textContent=fmtMoney(precioBoleto*bapSnap);
-    getEl("compraStep1").style.display="none";
-    getEl("compraStep2").style.display="block";
-    if(getEl("drawerMenos")) getEl("drawerMenos").disabled=true;
-    if(getEl("drawerMas")) getEl("drawerMas").disabled=true;
-    if(getEl("drawerUsarGratis")) getEl("drawerUsarGratis").disabled=true;
+  getEl("drawerMenos")?.addEventListener("click", () => {
+    if(boletos > 1) { boletos--; actualizarUI(); }
+  });
+  getEl("drawerMas")?.addEventListener("click", () => {
+    if(boletos < getMaxBoletos()) { boletos++; actualizarUI(); }
+  });
+  getEl("drawerUsarGratis")?.addEventListener("change", e => {
+    usarGratis = e.target.checked;
+    // Si activa gratis y el sorteo es de precio 0, solo puede ser 1 boleto
+    if(usarGratis && precioBoleto === 0) boletos = 1;
+    actualizarUI();
   });
 
-  getEl("drawerBack")?.addEventListener("click",()=>{
-    getEl("compraStep1").style.display="block";
-    getEl("compraStep2").style.display="none";
-    boletosSnap=boletos; usarGratisSnap=usarGratis;
-    const compInput=getEl("drawerComp");
-    if(compInput){ compInput.value=""; }
-    const prev=getEl("drawerPrev"); if(prev){prev.src="";prev.style.display="none";}
-    const ph=getEl("compraUploadPlaceholder"); if(ph) ph.style.display="flex";
-    if(getEl("drawerMenos")) getEl("drawerMenos").disabled=false;
-    if(getEl("drawerMas")) getEl("drawerMas").disabled=false;
-    if(getEl("drawerUsarGratis")) getEl("drawerUsarGratis").disabled=false;
+  // ── Snapshot al pasar al paso 2 ──
+  let boletosSnap = 1;
+  let usarGratisSnap = false;
+
+  getEl("drawerBtnNext")?.addEventListener("click", () => {
+    const bap = boletosAPagar();
+
+    // Si es gratis total, ir directo a enviar
+    if(precioBoleto === 0 || bap === 0) {
+      boletosSnap = boletos;
+      usarGratisSnap = usarGratis;
+      enviarParticipacion();
+      return;
+    }
+
+    // Congelar snapshot y pasar a paso 2
+    boletosSnap = boletos;
+    usarGratisSnap = usarGratis;
+
+    const rt = getEl("drawerResumenTxt");
+    const rm = getEl("drawerResumenMonto");
+    if(rt) rt.textContent = `${boletosSnap} boleto${boletosSnap!==1?"s":""}${usarGratisSnap?" (1 gratis)":""}`;
+    if(rm) rm.textContent = fmtMoney(precioBoleto * Math.max(0, boletosSnap - (usarGratisSnap?1:0)));
+    const meEl = getEl("montoExacto");
+    if(meEl) meEl.textContent = fmtMoney(precioBoleto * Math.max(0, boletosSnap - (usarGratisSnap?1:0)));
+
+    getEl("compraStep1").style.display = "none";
+    getEl("compraStep2").style.display = "block";
+    // Bloquear controles del paso 1
+    if(getEl("drawerMenos")) getEl("drawerMenos").disabled = true;
+    if(getEl("drawerMas"))   getEl("drawerMas").disabled   = true;
+    if(getEl("drawerUsarGratis")) getEl("drawerUsarGratis").disabled = true;
   });
 
-  getEl("drawerComp")?.addEventListener("change",e=>{
-    const f=e.target.files[0]; if(!f) return;
-    archivoListo=true;
-    const r2=new FileReader();
-    r2.onload=ev=>{
-      const prev=getEl("drawerPrev"); const ph=getEl("compraUploadPlaceholder");
-      if(prev){ prev.src=ev.target.result; prev.style.display="block"; }
-      if(ph) ph.style.display="none";
-      const backBtn=getEl("drawerBack");
-      if(backBtn){
-        backBtn.style.display="none";
-        const resumen=document.querySelector(".compra-resumen-fijo");
-        if(resumen&&!resumen.querySelector(".compra-lock-badge")){
-          const badge=document.createElement("span");
-          badge.className="compra-lock-badge";
-          badge.innerHTML='<i class="bi bi-lock-fill"></i> Fijo';
+  getEl("drawerBack")?.addEventListener("click", () => {
+    getEl("compraStep1").style.display = "block";
+    getEl("compraStep2").style.display = "none";
+    // Restaurar controles
+    if(getEl("drawerMenos")) getEl("drawerMenos").disabled = boletos <= 1;
+    if(getEl("drawerMas"))   getEl("drawerMas").disabled   = boletos >= getMaxBoletos();
+    if(getEl("drawerUsarGratis")) getEl("drawerUsarGratis").disabled = false;
+    // Limpiar comprobante
+    const compInput = getEl("drawerComp");
+    if(compInput) compInput.value = "";
+    const prev = getEl("drawerPrev");
+    if(prev) { prev.src = ""; prev.style.display = "none"; }
+    const ph = getEl("compraUploadPlaceholder");
+    if(ph) ph.style.display = "flex";
+    // Restaurar botón back si fue ocultado
+    const backBtn = getEl("drawerBack");
+    if(backBtn) backBtn.style.display = "";
+    const lockBadge = document.querySelector(".compra-lock-badge");
+    if(lockBadge) lockBadge.remove();
+  });
+
+  getEl("drawerComp")?.addEventListener("change", e => {
+    const f = e.target.files[0]; if(!f) return;
+    const r2 = new FileReader();
+    r2.onload = ev => {
+      const prev = getEl("drawerPrev");
+      const ph = getEl("compraUploadPlaceholder");
+      if(prev) { prev.src = ev.target.result; prev.style.display = "block"; }
+      if(ph) ph.style.display = "none";
+      // Ocultar back y mostrar badge de bloqueado
+      const backBtn = getEl("drawerBack");
+      if(backBtn) {
+        backBtn.style.display = "none";
+        const resumen = document.querySelector(".compra-resumen-fijo");
+        if(resumen && !resumen.querySelector(".compra-lock-badge")) {
+          const badge = document.createElement("span");
+          badge.className = "compra-lock-badge";
+          badge.innerHTML = '<i class="bi bi-lock-fill"></i> Fijo';
           resumen.appendChild(badge);
         }
       }
@@ -1104,77 +1242,202 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
     r2.readAsDataURL(f);
   });
 
-  getEl("drawerSubmit")?.addEventListener("click",()=>enviarParticipacion());
+  getEl("drawerSubmit")?.addEventListener("click", () => enviarParticipacion());
 
-  async function enviarParticipacion(){
-    const _boletos = (typeof boletosSnap!=="undefined" && getEl("compraStep2")?.style.display!=="none") ? boletosSnap : boletos;
-    const _usarGratis = (typeof usarGratisSnap!=="undefined" && getEl("compraStep2")?.style.display!=="none") ? usarGratisSnap : usarGratis;
-    const bap=_usarGratis?Math.max(0,_boletos-1):_boletos;
+  /* ══════════════════════════════════════
+     ENVIAR PARTICIPACIÓN — LÓGICA SEGURA
+  ══════════════════════════════════════ */
+  async function enviarParticipacion() {
+    // Usar siempre el snapshot si venimos del paso 2, si no usar estado actual
+    const enPaso2 = getEl("compraStep2")?.style.display !== "none";
+    const _boletos = enPaso2 ? boletosSnap : boletos;
+    const _usarGratis = enPaso2 ? usarGratisSnap : usarGratis;
 
-    if(precioBoleto>0&&bap>0){
-      const metodo=getEl("drawerMetodo")?.value;
-      const file=getEl("drawerComp")?.files[0];
-      if(!metodo){ toast("Selecciona el método de pago","error"); return; }
-      if(!file){ toast("Sube la foto del comprobante","error"); return; }
-      if(file.size>5*1024*1024){ toast("Imagen muy grande (máx. 5 MB)","error"); return; }
+    // ── VALIDACIONES DE SEGURIDAD ──
+
+    // 1. Validar que el gratis aún está disponible si lo marcó
+    if(_usarGratis && !puedoUsarGratis) {
+      toast("El boleto gratis ya no está disponible","error"); return;
+    }
+
+    // 2. Validar que boletos sea al menos 1
+    if(_boletos < 1) {
+      toast("Debes seleccionar al menos 1 boleto","error"); return;
+    }
+
+    // 3. Validar límite máximo (nunca más de 5 o cuposLibres)
+    if(_boletos > maxBoletosBase) {
+      toast(`Máximo ${maxBoletosBase} boletos por compra`,"error"); return;
+    }
+
+    // 4. Calcular boletos a pagar
+    const bap = _usarGratis ? Math.max(0, _boletos - 1) : _boletos;
+
+    // 5. Si hay boletos pagados, validar comprobante y método
+    if(precioBoleto > 0 && bap > 0) {
+      const metodo = getEl("drawerMetodo")?.value;
+      const file = getEl("drawerComp")?.files[0];
+      if(!metodo) { toast("Selecciona el método de pago","error"); return; }
+      if(!file)   { toast("Sube la foto del comprobante","error"); return; }
+      if(file.size > 5*1024*1024) { toast("Imagen muy grande (máx. 5 MB)","error"); return; }
+    }
+
+    // ── Verificar en tiempo real que el gratis sigue disponible en BD ──
+    if(_usarGratis) {
+      const { data:bgVerif } = await supabase.from("boletos_gratis")
+        .select("id")
+        .eq("user_id", MY_USER_ID)
+        .eq("usado", false)
+        .limit(1);
+      if(!bgVerif?.length) {
+        toast("Tu boleto gratis ya fue utilizado","error");
+        await refreshProfile(); initUserUI(currentProfile);
+        return;
+      }
+      // Verificar que no usó en esta ronda (doble check)
+      const { count: yaUso } = await supabase.from("participations")
+        .select("id",{count:"exact",head:true})
+        .eq("round_id", roundId)
+        .eq("user_id", MY_USER_ID)
+        .eq("es_gratis", true);
+      if((yaUso||0) > 0) {
+        toast("Ya usaste tu boleto gratis en este sorteo","error");
+        return;
+      }
+    }
+
+    // ── Verificar que aún hay cupos ──
+    const { count: cuposOcupados } = await supabase.from("participations")
+      .select("id",{count:"exact",head:true})
+      .eq("round_id", roundId);
+    const cuposRestantes = Math.max(0, cap - (cuposOcupados||0));
+    if(cuposRestantes < _boletos) {
+      toast(`Solo quedan ${cuposRestantes} cupo${cuposRestantes!==1?"s":""}. Ajusta tu selección.`,"error");
+      return;
     }
 
     cerrarCompraDrawer();
     loading$("Enviando comprobante…");
 
-    if(_usarGratis&&bap===0){
-      const{data:bgDisp}=await supabase.from("boletos_gratis").select("id").eq("user_id",MY_USER_ID).eq("usado",false).limit(1);
-      if(!bgDisp?.length){ Swal.close(); ok$("Error","No se encontró boleto gratis. Recarga la página.","error"); return; }
-      const{error:bgErr}=await supabase.from("boletos_gratis").update({usado:true,usado_en_round:roundId,usado_at:new Date().toISOString()}).eq("id",bgDisp[0].id).eq("user_id",MY_USER_ID).eq("usado",false);
-      if(bgErr){ Swal.close(); ok$("Error","No se pudo usar el boleto gratis.","error"); return; }
-      const{error:partErr}=await supabase.from("participations").insert({round_id:roundId,user_id:MY_USER_ID,resultado:"pendiente",boletos:1,es_gratis:true});
-      await supabase.from("payments").insert({user_id:MY_USER_ID,round_id:roundId,metodo:"gratis",monto:0,estado:"aprobado",referencia:`BG-${bgDisp[0].id.slice(0,8)}`,boletos_solicitados:1});
+    // ═══ CASO: Solo boleto gratis (0 pagados) ═══
+    if(_usarGratis && bap === 0) {
+      const { data:bgDisp } = await supabase.from("boletos_gratis")
+        .select("id")
+        .eq("user_id", MY_USER_ID)
+        .eq("usado", false)
+        .limit(1);
+      if(!bgDisp?.length) {
+        Swal.close();
+        ok$("Error","No se encontró boleto gratis. Recarga la página.","error");
+        return;
+      }
+      // Marcar boleto gratis como usado
+      const { error:bgErr } = await supabase.from("boletos_gratis")
+        .update({ usado:true, usado_en_round:roundId, usado_at:new Date().toISOString() })
+        .eq("id", bgDisp[0].id)
+        .eq("user_id", MY_USER_ID)
+        .eq("usado", false);
+      if(bgErr) {
+        Swal.close();
+        ok$("Error","No se pudo usar el boleto gratis. Intenta de nuevo.","error");
+        return;
+      }
+      // Registrar participación
+      const { error:partErr } = await supabase.from("participations")
+        .insert({ round_id:roundId, user_id:MY_USER_ID, resultado:"pendiente", boletos:1, es_gratis:true });
+      // Registrar pago gratis
+      await supabase.from("payments").insert({
+        user_id:MY_USER_ID, round_id:roundId,
+        metodo:"gratis", monto:0, estado:"aprobado",
+        referencia:`BG-${bgDisp[0].id.slice(0,8)}`, boletos_solicitados:1,
+      });
       await refreshProfile(); initUserUI(currentProfile);
       Swal.close();
-      if(partErr){ ok$("⚠️ Atención",`Boleto marcado pero error al registrar. Contacta admin: BG-${bgDisp[0].id.slice(0,8)}`,"warning"); }
-      else { await Swal.fire({title:"🎟️ ¡Participas con boleto gratis!",html:`Inscrito en Ronda #${numRonda} de ${gameNombre}.`,icon:"success",confirmButtonText:"¡Listo!",...swal$}); }
+      if(partErr) {
+        ok$("⚠️ Atención",`Boleto marcado pero error al registrar participación. Contacta al admin. Ref: BG-${bgDisp[0].id.slice(0,8)}`,"warning");
+      } else {
+        await Swal.fire({
+          title:"🎟️ ¡Participas con boleto gratis!",
+          html:`Inscrito en <strong>${gameNombre}</strong> · Ronda #${numRonda}.`,
+          icon:"success", confirmButtonText:"¡Listo!", ...swal$
+        });
+      }
       loadSorteos();
       return;
     }
 
-    if(_usarGratis){
-      const{data:bgDisp}=await supabase.from("boletos_gratis").select("id").eq("user_id",MY_USER_ID).eq("usado",false).limit(1);
-      if(bgDisp?.length) await supabase.from("boletos_gratis").update({usado:true,usado_en_round:roundId,usado_at:new Date().toISOString()}).eq("id",bgDisp[0].id).eq("user_id",MY_USER_ID);
+    // ═══ CASO: Hay boletos pagados (con o sin gratis) ═══
+
+    // Marcar gratis si lo está usando
+    if(_usarGratis && bap > 0) {
+      const { data:bgDisp } = await supabase.from("boletos_gratis")
+        .select("id")
+        .eq("user_id", MY_USER_ID)
+        .eq("usado", false)
+        .limit(1);
+      if(bgDisp?.length) {
+        await supabase.from("boletos_gratis")
+          .update({ usado:true, usado_en_round:roundId, usado_at:new Date().toISOString() })
+          .eq("id", bgDisp[0].id)
+          .eq("user_id", MY_USER_ID);
+      }
     }
 
-    let comprobante_url=null;
-    if(bap>0){
-      const file=getEl("drawerComp")?.files[0];
-      if(file) try{ comprobante_url=await uploadFile(file,"el-padrino/comprobantes"); }
-               catch{ Swal.close(); ok$("Error al subir imagen","","error"); return; }
+    // Subir comprobante
+    let comprobante_url = null;
+    if(bap > 0 && precioBoleto > 0) {
+      const file = getEl("drawerComp")?.files[0];
+      if(file) {
+        try {
+          comprobante_url = await uploadFile(file, "el-padrino/comprobantes");
+        } catch {
+          Swal.close();
+          ok$("Error al subir imagen","Intenta de nuevo.","error");
+          return;
+        }
+      }
     }
 
-    const metodo=getEl("drawerMetodo")?.value||"manual";
-    const ref=getEl("drawerRef")?.value?.trim()||null;
-    const{error:payError}=await supabase.from("payments").insert({
-      user_id:MY_USER_ID,round_id:roundId,
-      metodo:bap===0?"gratis":metodo,
-      monto:precioBoleto*bap||0,
-      estado:"pendiente",comprobante_url,referencia:ref,
-      boletos_solicitados:_boletos,
+    const metodo = getEl("drawerMetodo")?.value || "manual";
+    const ref = getEl("drawerRef")?.value?.trim() || null;
+
+    const { error:payError } = await supabase.from("payments").insert({
+      user_id:MY_USER_ID, round_id:roundId,
+      metodo: bap === 0 ? "gratis" : metodo,
+      monto: precioBoleto * bap,
+      estado: "pendiente",
+      comprobante_url,
+      referencia: ref,
+      boletos_solicitados: _boletos,
     });
-    if(payError){ Swal.close(); ok$("Error al registrar pago",payError.message,"error"); return; }
+
+    if(payError) {
+      Swal.close();
+      ok$("Error al registrar pago", payError.message, "error");
+      return;
+    }
+
     await refreshProfile(); initUserUI(currentProfile);
     Swal.close();
-    await Swal.fire({title:"✅ Comprobante enviado",html:`El admin revisará tus <strong style="color:var(--gold2)">${_boletos} boleto${_boletos>1?"s":""}${_usarGratis?" (incluye 1 gratis)":""}</strong>.<br><small style="color:var(--muted)">Recibirás notificación cuando sea aprobado.</small>`,icon:"success",confirmButtonText:"OK",...swal$});
+    await Swal.fire({
+      title:"✅ Comprobante enviado",
+      html:`El admin revisará tus <strong style="color:var(--gold2)">${_boletos} boleto${_boletos>1?"s":""}${_usarGratis?" (incluye 1 gratis)":""}</strong>.<br><small style="color:var(--muted)">Recibirás notificación cuando sea aprobado.</small>`,
+      icon:"success", confirmButtonText:"OK", ...swal$
+    });
     loadSorteos();
   }
 };
 
-window.cerrarCompraDrawer=()=>{
-  const d=document.getElementById("compraDrawer");
+window.cerrarCompraDrawer = () => {
+  const d = document.getElementById("compraDrawer");
   if(!d) return;
   d.classList.remove("open");
-  document.body.style.overflow="";
-  setTimeout(()=>d.remove(),350);
+  document.body.style.overflow = "";
+  setTimeout(() => d.remove(), 350);
 };
 
-window.modalComprarBoleto=(roundId,gameNombre,numRonda,precioBoleto,cuposActuales,capacidadMax=25)=>window.abrirPanelCompra(roundId,gameNombre,numRonda,precioBoleto,cuposActuales,capacidadMax);
+window.modalComprarBoleto = (roundId,gameNombre,numRonda,precioBoleto,cuposActuales,capacidadMax=25) =>
+  window.abrirPanelCompra(roundId,gameNombre,numRonda,precioBoleto,cuposActuales,capacidadMax);
 
 /* ═══════════════════════════════════════
    GANADORES — PANTALLA COMPLETA
@@ -1505,6 +1768,10 @@ async function loadPremios() {
 
 /* ═══════════════════════════════════════
    MIS REFERIDOS
+   EASTER EGG: La info detallada del sistema de referidos
+   está en la sección Fidelidad > Stats (boletos ganados)
+   y en el panel de referidos bajo la lista — oculta,
+   el usuario la descubre explorando.
 ═══════════════════════════════════════ */
 async function loadReferidos() {
   const el=getEl("referidosList"); if(!el) return;
@@ -1516,6 +1783,8 @@ async function loadReferidos() {
   const totalRefs=allRefs.length;
   const refsActivos=allRefs.filter(r=>r.estado==="completado").length;
   const boletosGanados=allRefs.filter(r=>r.boleto_otorgado).length;
+  // Pendientes: tienen boletos pagados pero aún no completaron los 3
+  const pendientesDetalle=allRefs.filter(r=>r.estado==="pendiente"&&(r.boletos_pagados||0)>0);
 
   const esBadge=r=>{
     if(r.estado==="completado") return`<span class="bdg bdg-ok"><i class="bi bi-check-circle-fill"></i> Activo</span>`;
@@ -1528,16 +1797,31 @@ async function loadReferidos() {
     <div class="li-right">${esBadge(r)}</div>
   </div>`;
 
+  // ── Easter egg: contador sutil de progreso hacia el próximo boleto ──
+  // Solo se muestra si hay pendientes con al menos 1 boleto pagado
+  const easterEggHtml = pendientesDetalle.length > 0 ? (() => {
+    const mejorPendiente = pendientesDetalle.sort((a,b)=>(b.boletos_pagados||0)-(a.boletos_pagados||0))[0];
+    const prog = mejorPendiente.boletos_pagados || 0;
+    const falta = Math.max(0, 3 - prog);
+    if(falta <= 0) return "";
+    return `<div style="margin-top:.5rem;padding:.55rem .8rem;background:rgba(212,160,23,.04);border:1px solid rgba(212,160,23,.1);border-radius:8px;cursor:default" title="Tu amigo ${mejorPendiente.profiles?.username||'invitado'} está avanzando">
+      <div style="display:flex;align-items:center;gap:.5rem;font-size:.72rem;color:var(--dim)">
+        <i class="bi bi-hourglass-split" style="color:var(--gold2)"></i>
+        <div style="flex:1;height:3px;background:rgba(212,160,23,.12);border-radius:3px;overflow:hidden">
+          <div style="width:${Math.round((prog/3)*100)}%;height:100%;background:var(--gold2);border-radius:3px;transition:width .4s"></div>
+        </div>
+        <span style="color:var(--gold2);font-weight:700">${prog}/3</span>
+      </div>
+    </div>`;
+  })() : "";
+
   el.innerHTML=`
   <div class="panel"><div class="panel-head"><div class="panel-title"><i class="bi bi-share-fill"></i>Tu código de invitación</div></div><div class="panel-body">
     <div class="ref-code-box">
       <div><div class="ref-code">${codigoRef}</div><div class="ref-code-hint">Comparte este código con tus amigos</div></div>
       <button class="btn btn-gold btn-md" onclick="copiarCodigo('${codigoRef}')"><i class="bi bi-copy"></i> Copiar código</button>
     </div>
-    <div style="background:rgba(212,160,23,.05);border:1px solid rgba(212,160,23,.15);border-radius:9px;padding:.75rem 1rem;font-size:.82rem;color:var(--muted)">
-      <strong style="color:var(--cream);display:block;margin-bottom:.3rem"><i class="bi bi-info-circle" style="color:var(--gold2)"></i> ¿Cómo funciona?</strong>
-      <ul style="padding-left:1rem;line-height:1.8"><li>Tu amigo se registra con tu código</li><li>Cuando compre <strong style="color:var(--cream)">3 boletos pagados</strong>, recibes <strong style="color:#22c55e">1 boleto gratis</strong></li><li>Solo 1 boleto gratis por sorteo</li></ul>
-    </div>
+    ${easterEggHtml}
   </div></div>
   <div class="ref-stats-row">
     <div class="ref-stat"><div class="ref-stat-val">${totalRefs}</div><div class="ref-stat-lbl">Invitados</div></div>
