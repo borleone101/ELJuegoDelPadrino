@@ -1851,10 +1851,15 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
   }
 
   function getMaxBoletos() {
-    return maxBoletosBase;
+    // Si el usuario usa gratis, el máximo seleccionable se limita a los boletos gratis disponibles y cupos libres.
+    // Si no usa gratis, se usa el máximo base (<=5) también respetando cupos libres.
+    if (usarGratis) return Math.min(boletosGratis, cuposLibres);
+    return Math.min(maxBoletosBase, cuposLibres);
   }
 
   function actualizarUI() {
+    const maxAhora = getMaxBoletos();
+    if (boletos > maxAhora) boletos = maxAhora;
     const bap = boletosAPagar();
     const numEl = getEl("drawerNum");
     const numLblEl = getEl("drawerNumLabel");
@@ -1864,13 +1869,14 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
     const btnNext = getEl("drawerBtnNext");
     const menosBtn = getEl("drawerMenos");
     const masBtn = getEl("drawerMas");
-    const maxAhora = getMaxBoletos();
 
     if(numEl) numEl.textContent = boletos;
     if(numLblEl) numLblEl.textContent = `boleto${boletos !== 1 ? "s" : ""}`;
     if(montoEl && precioBoleto > 0) montoEl.textContent = fmtMoney(precioBoleto * bap);
     if(gratisNotaEl) gratisNotaEl.style.display = usarGratis ? "block" : "none";
-    if(maxHintEl) maxHintEl.textContent = `Máximo ${maxAhora} por compra`;
+    if(maxHintEl) maxHintEl.textContent = usarGratis
+      ? `Máximo ${maxAhora} bolet${maxAhora===1?"o":"os"} gratis` 
+      : `Máximo ${maxAhora} por compra`;
 
     if(menosBtn) menosBtn.disabled = boletos <= 1;
     if(masBtn) masBtn.disabled = boletos >= maxAhora;
@@ -1897,7 +1903,12 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
   });
   getEl("drawerUsarGratis")?.addEventListener("change", e => {
     usarGratis = e.target.checked;
-    if(usarGratis && precioBoleto === 0) boletos = 1;
+    if (usarGratis) {
+      if (boletos > boletosGratis) boletos = boletosGratis;
+      if (precioBoleto === 0) boletos = 1;
+    } else {
+      if (boletos < 1) boletos = 1;
+    }
     actualizarUI();
   });
 
