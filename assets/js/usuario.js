@@ -853,6 +853,7 @@ async function loadSorteos(silencioso=false) {
     const pct=Math.round((r.cupos/capacidadMax)*100);
     const lleno=r.cupos>=capacidadMax;
     const cuposLibres=capacidadMax-r.cupos;
+    const urgColor = cuposLibres <= 3 ? "#ef4444" : cuposLibres <= 5 ? "#fbbf24" : null;
     const tieneCompPend=r.miPago?.estado==="pendiente";
     const tieneCompAprobado=r.miPago?.estado==="aprobado";
     const chances=r.misBoletos>0?calcularChances(r.misBoletos,r.cupos-r.misBoletos,capacidadMax):null;
@@ -1009,7 +1010,7 @@ async function loadSorteos(silencioso=false) {
             <span style="font-size:.78rem" class="${lleno?"text-green":""}">
               <strong>${r.cupos}</strong>/${capacidadMax}
               ${lleno ? " 🔒" : ""}
-              ${urgColor && !lleno ? `<span style="color:${cuposLibres<=3?"#ef4444":"#fbbf24"};margin-left:.2rem">(${cuposLibres} libre${cuposLibres!==1?"s":""})</span>` : ""}
+              ${urgColor && !lleno ? `<span style="color:${urgColor};margin-left:.2rem">(${cuposLibres} libre${cuposLibres!==1?"s":""})</span>` : ""}
             </span>
           </div>
           <div class="prog-bg" style="height:5px">
