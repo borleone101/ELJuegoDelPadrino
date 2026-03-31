@@ -788,6 +788,8 @@ async function loadSorteos(silencioso=false) {
   const container=getEl("sorteosList"); if(!container) return;
   if(!silencioso) container.innerHTML=`<div class="spin-wrap"><div class="spinner"></div></div>`;
 
+  try {
+
   const bannerEl=getEl("qrGateBanner");
   if(bannerEl){
     bannerEl.innerHTML=qrBanner();
@@ -1052,7 +1054,7 @@ async function loadSorteos(silencioso=false) {
 
   container.innerHTML=ctrlHtml+`<div id="sorteosCards" class="${vistaGrid?"sorteos-grid":"sorteos-lista"}"></div>`;
 
-  const cardsEl=getEl("sorteosCards");
+  const cardsEl=container.querySelector("#sorteosCards");
   cardsEl.innerHTML=ordenados.map(r=>renderCard(r,vistaGrid)).join("");
 
   // ── Double-tap para móvil (grid y lista) ──
@@ -1072,6 +1074,10 @@ async function loadSorteos(silencioso=false) {
     _initDoubleTap(cardsEl);
     document.querySelectorAll(".vt-btn").forEach((b,i)=>b.classList.toggle("active",i===1));
   });
+  } catch (error) {
+    console.error("Error en loadSorteos:", error);
+    container.innerHTML = `<div class="empty"><i class="bi bi-exclamation-triangle"></i><p>Error al cargar sorteos.<br><small style="color:var(--dim)">Intenta recargar la página.</small></p></div>`;
+  }
 }
 
 /* ── Double-tap para móvil ──
@@ -1112,6 +1118,18 @@ function _inyectarCSSorteos() {
   const s = document.createElement('style');
   s.id = 'sorteo-themes-css';
   s.textContent = `
+    :root {
+      --ink2: #1b1610;
+      --ink3: #221c14;
+      --border: rgba(139,26,26,.22);
+      --cream: #e6dcc8;
+      --muted: #8a7a62;
+      --dim: #5a4a3a;
+      --gold2: #d4a017;
+      --red2: #8b1a1a;
+      --green2: #22c55e;
+    }
+
     @keyframes urgencyPulse2 { 0%,100%{opacity:1} 50%{opacity:.55} }
     @keyframes sihIconFloat { 0%,100%{transform:translateY(-50%) scale(1)} 50%{transform:translateY(calc(-50% - 4px)) scale(1.07)} }
     @keyframes ribbonShine { 0%,100%{opacity:.85} 50%{opacity:1} }
