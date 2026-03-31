@@ -240,6 +240,8 @@ let boletosGratisDetalle = [];
 async function refreshProfile() {
   const { data } = await supabase.from("profiles").select("*").eq("id", MY_USER_ID).single();
   if (data) currentProfile = { ...data };
+  const { data: premiosSum } = await supabase.from('prize_payments').select('monto').eq('user_id', MY_USER_ID);
+  currentProfile.realTotalGanado = (premiosSum || []).reduce((s, p) => s + Number(p.monto || 0), 0);
   const { data:bgs } = await supabase.from("boletos_gratis").select("id,origen,created_at").eq("user_id", MY_USER_ID).eq("usado", false).order("created_at",{ascending:true});
   boletosGratisDetalle = bgs || [];
   boletosGratis = boletosGratisDetalle.length;
@@ -253,8 +255,8 @@ function initUserUI(prof) {
   if(getEl("tbAvatar"))getEl("tbAvatar").textContent= ini;
   if(getEl("sbName"))  getEl("sbName").textContent  = prof.username;
   if(getEl("sbAvatar"))getEl("sbAvatar").textContent= ini;
-  if(getEl("sbSaldo")) getEl("sbSaldo").textContent = Number(prof.total_ganado||0).toFixed(2);
-  if(getEl("heroSaldo"))getEl("heroSaldo").textContent = Number(prof.total_ganado||0).toFixed(2);
+  if(getEl("sbSaldo")) getEl("sbSaldo").textContent = Number(prof.realTotalGanado||0).toFixed(2);
+  if(getEl("heroSaldo"))getEl("heroSaldo").textContent = Number(prof.realTotalGanado||0).toFixed(2);
   const hBF = getEl("heroBoletosFree");
   if(hBF) hBF.textContent = boletosGratis>0 ? `${boletosGratis} gratis 🎁` : "0 disponibles";
 }
