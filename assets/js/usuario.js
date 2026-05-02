@@ -352,13 +352,11 @@ function setupRealtime() {
       else if(active==="sorteos") loadSorteos(true);
       const estado = payload.new?.estado;
 
-      // ── CAMBIO: Alert de aprobación detallado con info de boletos ──
       if(estado==="aprobado") {
         const boletos = payload.new?.boletos_solicitados || 1;
         const monto   = payload.new?.monto || 0;
         const roundId = payload.new?.round_id;
 
-        // Buscar el nombre del sorteo
         let gameNombre = "el sorteo";
         let numRonda   = "—";
         if(roundId){
@@ -448,7 +446,6 @@ function setupRealtime() {
   supabase.channel("my-prizes-watch")
     .on("postgres_changes",{event:"INSERT",schema:"public",table:"prize_payments",filter:`user_id=eq.${MY_USER_ID}`}, async(payload)=>{
       await refreshProfile(); initUserUI(currentProfile);
-      // ── CAMBIO: Mostrar exactamente el monto registrado por el admin ──
       const monto = payload.new?.monto;
       Swal.fire({
         title:"💰 ¡Premio enviado!",
@@ -637,9 +634,7 @@ async function estadoBoletoGratisEnRonda(roundId) {
 }
 
 /* ═══════════════════════════════════════
-   MODAL DETALLE SORTEO (MÓVIL — DOBLE TAP)
-   Muestra descripción completa, estadísticas y
-   botón de participar en un drawer elegante
+   MODAL DETALLE SORTEO
 ═══════════════════════════════════════ */
 window.abrirDetalleSorteo = (roundId, gameNombre, numRonda, precioBoleto, cuposActuales, capacidadMax, descripcion, imagenUrl, gameId) => {
   const cap      = Number(capacidadMax) || 25;
@@ -650,12 +645,12 @@ window.abrirDetalleSorteo = (roundId, gameNombre, numRonda, precioBoleto, cuposA
   const modo     = getModoGanadores(cap);
   const theme    = getSorteoTheme(gameNombre);
 
-  const totalRecaudado = cupos * (precioBoleto || 0);
-  const premioPool     = totalRecaudado * 0.70;
-  const premioEst      = precioBoleto > 0 && cupos > 0
+  // ── Premio completo: basado en capacidad máxima, no cupos actuales ──
+  const premioPoolCompleto = precioBoleto * cap * 0.70;
+  const premioEst = precioBoleto > 0
     ? (modo === 1
-        ? `${fmtMoneyRedondo(Math.round(premioPool/5)*5)}`
-        : `hasta ${fmtMoneyRedondo(Math.round(premioPool*0.5/5)*5)}`)
+        ? `${fmtMoneyRedondo(Math.round(premioPoolCompleto/5)*5)}`
+        : `hasta ${fmtMoneyRedondo(Math.round(premioPoolCompleto*0.5/5)*5)}`)
     : null;
 
   const modoLabel = modo === 1 ? "🥇 1 ganador" : "🏅 3 ganadores";
@@ -669,7 +664,6 @@ window.abrirDetalleSorteo = (roundId, gameNombre, numRonda, precioBoleto, cuposA
   detailDrawer.innerHTML = `
   <div class="detail-drawer-overlay" onclick="cerrarDetalleSorteo()"></div>
   <div class="detail-drawer-panel">
-    <!-- Cabecera con imagen o gradiente -->
     <div class="detail-drawer-hero" style="${imagenUrl ? '' : `background:${theme.gradient}`}">
       ${imagenUrl
         ? `<img src="${imagenUrl}" class="detail-hero-img" alt="${gameNombre}" onerror="this.style.display='none'">`
@@ -693,10 +687,7 @@ window.abrirDetalleSorteo = (roundId, gameNombre, numRonda, precioBoleto, cuposA
       </div>
     </div>
 
-    <!-- Cuerpo -->
     <div class="detail-drawer-body">
-
-      <!-- Precio y modo -->
       <div class="detail-precio-row">
         <div class="detail-precio-box">
           <div class="detail-precio-lbl">Precio por boleto</div>
@@ -706,7 +697,7 @@ window.abrirDetalleSorteo = (roundId, gameNombre, numRonda, precioBoleto, cuposA
         </div>
         ${premioEst ? `
         <div class="detail-precio-box">
-          <div class="detail-precio-lbl">Premio estimado</div>
+          <div class="detail-precio-lbl">Premio del sorteo</div>
           <div class="detail-precio-val" style="color:#22c55e">${premioEst}</div>
         </div>` : ""}
         <div class="detail-precio-box">
@@ -715,7 +706,6 @@ window.abrirDetalleSorteo = (roundId, gameNombre, numRonda, precioBoleto, cuposA
         </div>
       </div>
 
-      <!-- Barra de progreso -->
       <div class="detail-prog-section">
         <div class="detail-prog-header">
           <span>Participantes</span>
@@ -731,23 +721,19 @@ window.abrirDetalleSorteo = (roundId, gameNombre, numRonda, precioBoleto, cuposA
         <div class="detail-prog-pct" style="color:${theme.accent}">${pct}% ocupado</div>
       </div>
 
-      <!-- Descripción del juego -->
       ${descripcion ? `
       <div class="detail-desc-section">
         <div class="detail-section-title"><i class="bi bi-info-circle-fill"></i> Descripción</div>
         <div class="detail-desc-text">${descripcion}</div>
       </div>` : ""}
 
-      <!-- Boleto gratis disponible -->
       ${boletosGratis > 0 && puedeParticipar() ? `
       <div class="detail-gratis-hint">
         <i class="bi bi-gift-fill"></i>
         <span>Tienes <strong>${boletosGratis}</strong> boleto${boletosGratis>1?"s":""} gratis disponible${boletosGratis>1?"s":""} · Solo 1 por sorteo</span>
       </div>` : ""}
-
     </div>
 
-    <!-- Footer con botón de acción -->
     <div class="detail-drawer-footer">
       ${!puedeParticipar()
         ? (!qrState.subido
@@ -780,7 +766,7 @@ window.cerrarDetalleSorteo = () => {
 };
 
 /* ═══════════════════════════════════════
-   SORTEOS ACTIVOS — Vista lista/grid con imágenes
+   SORTEOS ACTIVOS
 ═══════════════════════════════════════ */
 let vistaGrid = localStorage.getItem("vistaGrid")==="true";
 
@@ -845,8 +831,7 @@ async function loadSorteos(silencioso=false) {
   </div>`;
 
   /* ──────────────────────────────────────────────────
-     renderCard — vista lista rediseñada para escritorio
-     y soporte de doble tap / click para móvil
+     renderCard
   ────────────────────────────────────────────────── */
   const renderCard=(r,grid=false)=>{
     const capacidadMax = r.capacidadMax || r.game?.capacidad_max || 25;
@@ -866,13 +851,12 @@ async function loadSorteos(silencioso=false) {
     // ── Args del detalle para double-tap ──
     const detailArgs = `'${r.id}','${(r.game?.nombre||"").replace(/'/g,"\\'")}','${r.numero}',${r.game?.precio_boleto||0},${r.cupos},${capacidadMax},'${desc.replace(/'/g,"\\'")}','${imgUrl||""}'`;
 
-    // ── Premio potencial ──
-    const totalRecaudado=(r.cupos)*(r.game?.precio_boleto||0);
-    const premioPool=totalRecaudado*0.70;
-    const premioLabel=r.game?.precio_boleto>0&&r.cupos>0
-      ? (modo===1
-          ? `<span class="sorteo-premio-hint">🏆 Premio: <strong style="color:#22c55e">${fmtMoneyRedondo(Math.round(premioPool/5)*5)}</strong></span>`
-          : `<span class="sorteo-premio-hint">🏆 Hasta: <strong style="color:#22c55e">${fmtMoneyRedondo(Math.round(premioPool*0.5/5)*5)}</strong></span>`)
+    // ── Premio completo: basado en capacidad máxima total del sorteo ──
+    const premioPoolCompleto = (r.game?.precio_boleto||0) * capacidadMax * 0.70;
+    const premioLabel = r.game?.precio_boleto > 0
+      ? (modo === 1
+          ? `<span class="sorteo-premio-hint">🏆 <strong style="color:#22c55e">${fmtMoneyRedondo(Math.round(premioPoolCompleto/5)*5)}</strong></span>`
+          : `<span class="sorteo-premio-hint">🏆 hasta <strong style="color:#22c55e">${fmtMoneyRedondo(Math.round(premioPoolCompleto*0.5/5)*5)}</strong></span>`)
       : "";
 
     // ── Badge modo ganadores ──
@@ -941,7 +925,7 @@ async function loadSorteos(silencioso=false) {
           ${urgencyRibbon}
         </div>`;
 
-    // ════ VISTA GRID (sin cambios) ════
+    // ════ VISTA GRID ════
     if(grid) return `<div class="sorteo-card-grid${estoyDentro?" si-participando":""}"
       style="${!estoyDentro&&!lleno&&cuposLibres<=3?"border-color:rgba(239,68,68,.35);":""}"
       data-doubletap="${detailArgs}"
@@ -965,89 +949,81 @@ async function loadSorteos(silencioso=false) {
       <div class="si-foot" style="padding:.55rem .9rem">${r.misBoletos>0?`<div class="mi-boletos"><i class="bi bi-ticket-perforated-fill"></i><strong>${r.misBoletos}</strong></div>`:"<div></div>"}<div>${btnHtml}</div></div>
     </div>`;
 
-    // ════ VISTA LISTA — rediseñada para escritorio ════
-    // Layout horizontal de 3 columnas: [imagen | info central | acciones]
-    return `<div class="sorteo-item-desktop${estoyDentro?" si-participando":""}"
-      style="${!estoyDentro&&!lleno&&cuposLibres<=3?"border-color:rgba(239,68,68,.35);":""}"
-      ondblclick="abrirDetalleSorteo(${detailArgs})">
+    // ════ VISTA LISTA — limpia, sin imagen, profesional ════
+    // Truncar nombre y descripción
+    const nombreCompleto = r.game?.nombre ?? "—";
+    const nombreCorto = nombreCompleto.length > 28 ? nombreCompleto.slice(0,28) + "…" : nombreCompleto;
+    const descCorta = desc.length > 70 ? desc.slice(0,70) + "…" : desc;
 
-      <!-- Columna izquierda: imagen/thumb cuadrado -->
-      <div class="sid-thumb">
-        ${imgUrl
-          ? `<img src="${imgUrl}" class="sid-thumb-img" alt="${r.game?.nombre||""}"
-               onload="this.closest('.sid-thumb').classList.add('sid-thumb-loaded')"
-               onerror="this.style.display='none'">`
-          : `<div class="sid-thumb-fallback" style="background:${theme.gradient}">
-               <span style="font-size:2rem">${theme.icon}</span>
-             </div>`
-        }
-        ${urgencyRibbon}
-        ${estoyDentro ? `<div class="sid-thumb-in"><i class="bi bi-person-fill-check"></i></div>` : ""}
+    return `<div class="sorteo-row${estoyDentro?" sr-dentro":""}"
+      style="${!estoyDentro&&!lleno&&cuposLibres<=3?"border-color:rgba(239,68,68,.35);":""}"
+      ondblclick="abrirDetalleSorteo(${detailArgs})"
+      data-doubletap="${detailArgs}">
+
+      <!-- Indicador lateral de color / estado -->
+      <div class="sr-accent-bar" style="background:${estoyDentro?"#22c55e":lleno?"#555":theme.accent}"></div>
+
+      <!-- Icono temático compacto -->
+      <div class="sr-icon-col" style="background:${theme.gradient}">
+        <span class="sr-icon-emoji">${theme.icon}</span>
+        ${estoyDentro ? `<div class="sr-in-badge"><i class="bi bi-check-lg"></i></div>` : ""}
       </div>
 
-      <!-- Columna central: info del sorteo -->
-      <div class="sid-body">
-        <div class="sid-header">
-          <div>
-            <div class="sid-nombre">${r.game?.nombre??"—"}</div>
-            <div class="sid-meta">
-              Ronda #${r.numero}
-              ${r.game?.descripcion
-                ? `<span class="sid-desc-preview"> · ${r.game.descripcion.length > 60 ? r.game.descripcion.slice(0,60)+"…" : r.game.descripcion}</span>`
-                : ""}
-            </div>
+      <!-- Info central -->
+      <div class="sr-body">
+        <div class="sr-top-row">
+          <div class="sr-name-group">
+            <span class="sr-nombre" title="${nombreCompleto}">${nombreCorto}</span>
+            <span class="sr-ronda">Ronda #${r.numero}</span>
           </div>
-          <div class="sid-badges-col">
+          <div class="sr-badges-right">
             ${modoBadge}
             ${r.game?.precio_boleto===0?`<span class="sih-free-badge">GRATIS</span>`:""}
           </div>
         </div>
 
-        <!-- Barra de progreso -->
-        <div class="sid-prog">
-          <div class="prog-label" style="margin-bottom:.3rem">
-            <span style="font-size:.73rem;color:var(--muted)">Participantes</span>
-            <span style="font-size:.78rem" class="${lleno?"text-green":""}">
-              <strong>${r.cupos}</strong>/${capacidadMax}
+        ${descCorta ? `<div class="sr-desc" title="${desc}">${descCorta}</div>` : ""}
+
+        <div class="sr-bottom-row">
+          <!-- Barra de progreso compacta -->
+          <div class="sr-prog-wrap">
+            <div class="sr-prog-bg">
+              <div class="sr-prog-fill" style="width:${Math.min(pct,100)}%;background:linear-gradient(90deg,${theme.accent}88,${theme.accent})"></div>
+            </div>
+            <span class="sr-prog-txt ${lleno?"sr-prog-lleno":""}">
+              ${r.cupos}/${capacidadMax}
               ${lleno ? " 🔒" : ""}
-              ${urgColor && !lleno ? `<span style="color:${urgColor};margin-left:.2rem">(${cuposLibres} libre${cuposLibres!==1?"s":""})</span>` : ""}
+              ${!lleno && urgColor ? `<span style="color:${urgColor}"> · ${cuposLibres} libre${cuposLibres!==1?"s":""}</span>` : ""}
             </span>
           </div>
-          <div class="prog-bg" style="height:5px">
-            <div class="prog-fill${lleno?" full":""}" style="width:${Math.min(pct,100)}%;background:linear-gradient(90deg,${theme.accent}88,${theme.accent})"></div>
+
+          <!-- Chips de info: precio boleto + premio -->
+          <div class="sr-chips">
+            ${r.game?.precio_boleto > 0
+              ? `<span class="sr-chip sr-chip-gold"><i class="bi bi-ticket-perforated"></i> ${fmtMoney(r.game.precio_boleto)}</span>`
+              : `<span class="sr-chip sr-chip-green"><i class="bi bi-ticket-perforated"></i> Gratis</span>`
+            }
+            ${premioLabel
+              ? `<span class="sr-chip sr-chip-prize">${premioLabel}</span>`
+              : ""
+            }
+            ${estoyDentro
+              ? `<span class="sr-chip sr-chip-check"><i class="bi bi-check-circle-fill"></i> ${r.misBoletos} boleto${r.misBoletos>1?"s":""}</span>`
+              : ""
+            }
+            ${!estoyDentro && !lleno && cuposLibres <= 5
+              ? `<span class="sr-chip" style="color:${cuposLibres<=3?"#ef4444":"#fbbf24"};border-color:${cuposLibres<=3?"rgba(239,68,68,.3)":"rgba(245,158,11,.25)"};${cuposLibres<=3?"animation:urgencyPulse2 1.2s ease-in-out infinite":""}"><i class="bi bi-exclamation-circle-fill"></i> ${cuposLibres} cupo${cuposLibres!==1?"s":""}</span>`
+              : ""
+            }
           </div>
         </div>
-
-        <!-- Estadísticas inline -->
-        <div class="sid-stats">
-          ${r.game?.precio_boleto>0
-            ? `<span class="sid-stat-pill" style="color:var(--gold2)"><i class="bi bi-ticket-perforated"></i> ${fmtMoney(r.game.precio_boleto)}/boleto</span>`
-            : `<span class="sid-stat-pill" style="color:#22c55e"><i class="bi bi-ticket-perforated"></i> Gratis</span>`}
-          ${premioLabel
-            ? `<span class="sid-stat-pill">${premioLabel}</span>`
-            : ""}
-          ${chances
-            ? `<span class="sid-stat-pill" style="color:${theme.accent}"><i class="bi bi-graph-up"></i> ${chances.chance}% prob.</span>`
-            : ""}
-          ${estoyDentro
-            ? `<span class="sid-stat-pill" style="color:#22c55e;background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.25)"><i class="bi bi-check-circle-fill"></i> ${r.misBoletos} boleto${r.misBoletos>1?"s":""} míos</span>`
-            : ""}
-          ${r.boletosGratis > 0 && boletosGratis > 0 && !r.yoUseGratis
-            ? `<span class="sid-stat-pill" style="color:#a78bfa;font-size:.65rem"><i class="bi bi-lightning-charge-fill"></i> ${r.otrosConGratis} gratis en esta ronda</span>`
-            : ""}
-        </div>
-        ${fondoWarn}
       </div>
 
-      <!-- Columna derecha: precio grande + botón -->
-      <div class="sid-actions">
-        <div class="sid-precio-main" style="color:${r.game?.precio_boleto===0?"#22c55e":"var(--gold2)"}">
-          ${r.game?.precio_boleto>0 ? fmtMoney(r.game.precio_boleto) : "Gratis"}
-        </div>
-        ${r.game?.precio_boleto>0 ? `<div class="sid-precio-sub">por boleto</div>` : ""}
-        <div class="sid-btn-wrap">${btnHtml}</div>
-        <button class="sid-detail-btn" onclick="event.stopPropagation();abrirDetalleSorteo(${detailArgs})" title="Ver detalles">
-          <i class="bi bi-info-circle"></i> Detalles
+      <!-- Acción derecha -->
+      <div class="sr-action">
+        ${btnHtml}
+        <button class="sr-detail-link" onclick="event.stopPropagation();abrirDetalleSorteo(${detailArgs})" title="Ver detalles">
+          <i class="bi bi-chevron-right"></i>
         </button>
       </div>
     </div>`;
@@ -1058,7 +1034,6 @@ async function loadSorteos(silencioso=false) {
   const cardsEl=container.querySelector("#sorteosCards");
   cardsEl.innerHTML=ordenados.map(r=>renderCard(r,vistaGrid)).join("");
 
-  // ── Double-tap para móvil (grid y lista) ──
   _initDoubleTap(cardsEl);
 
   getEl("btnVistaLista")?.addEventListener("click",()=>{
@@ -1081,13 +1056,9 @@ async function loadSorteos(silencioso=false) {
   }
 }
 
-/* ── Double-tap para móvil ──
-   En móvil, el primer tap selecciona/hace focus visual.
-   El segundo tap (< 400ms) abre el detalle.
-   En desktop usa ondblclick nativo.
-*/
+/* ── Double-tap para móvil ── */
 function _initDoubleTap(container) {
-  if(window.innerWidth >= 769) return; // desktop usa dblclick nativo
+  if(window.innerWidth >= 769) return;
   let lastTap = 0;
   let lastTarget = null;
   container.addEventListener("touchend", (e) => {
@@ -1097,8 +1068,6 @@ function _initDoubleTap(container) {
     if(lastTarget === card && now - lastTap < 400) {
       e.preventDefault();
       const args = card.getAttribute("data-doubletap");
-      // Parsear y llamar abrirDetalleSorteo
-      // Los args están como string separado por comas — llamar vía eval controlado
       try {
         const fn = new Function(`abrirDetalleSorteo(${args})`);
         fn();
@@ -1107,7 +1076,6 @@ function _initDoubleTap(container) {
     } else {
       lastTap = now;
       lastTarget = card;
-      // Feedback visual: resaltar card por 300ms
       card.classList.add("si-tap-highlight");
       setTimeout(() => card.classList.remove("si-tap-highlight"), 300);
     }
@@ -1140,218 +1108,235 @@ function _inyectarCSSorteos() {
     @keyframes detailFadeIn { from{opacity:0} to{opacity:1} }
 
     /* ════════════════════════════════
-       VISTA LISTA DESKTOP — Nueva
+       VISTA LISTA — Rediseño limpio
+       Sin imagen, datos precisos,
+       textos truncados con ellipsis
     ════════════════════════════════ */
     .sorteos-lista {
       display: flex;
       flex-direction: column;
-      gap: .65rem;
+      gap: .45rem;
     }
 
-    .sorteo-item-desktop {
+    .sorteo-row {
       display: grid;
-      grid-template-columns: 100px 1fr 160px;
-      gap: 0;
+      grid-template-columns: 4px 56px 1fr auto;
+      align-items: stretch;
       background: var(--ink2, #1b1610);
-      border: 1px solid var(--border, rgba(139,26,26,.22));
-      border-radius: 14px;
+      border: 1px solid var(--border, rgba(139,26,26,.18));
+      border-radius: 12px;
       overflow: hidden;
-      transition: border-color .2s, box-shadow .2s, transform .15s;
+      transition: border-color .18s, box-shadow .18s, transform .12s;
       cursor: default;
+      min-height: 80px;
     }
-    .sorteo-item-desktop:hover {
-      border-color: rgba(212,160,23,.35);
-      box-shadow: 0 4px 24px rgba(0,0,0,.35), 0 0 0 1px rgba(212,160,23,.1);
+    .sorteo-row:hover {
+      border-color: rgba(212,160,23,.3);
+      box-shadow: 0 3px 16px rgba(0,0,0,.3);
       transform: translateY(-1px);
     }
-    .sorteo-item-desktop.si-participando {
-      border-color: rgba(34,197,94,.3);
-      background: linear-gradient(135deg, rgba(34,197,94,.04), var(--ink2,#1b1610));
+    .sorteo-row.sr-dentro {
+      border-color: rgba(34,197,94,.25);
+      background: linear-gradient(135deg,rgba(34,197,94,.03) 0%,var(--ink2,#1b1610) 60%);
     }
-    .sorteo-item-desktop.si-tap-highlight {
-      border-color: rgba(212,160,23,.6) !important;
-      background: rgba(212,160,23,.04) !important;
+    .sorteo-row.si-tap-highlight {
+      border-color: rgba(212,160,23,.55) !important;
     }
 
-    /* Columna izquierda: thumbnail cuadrado */
-    .sid-thumb {
-      position: relative;
-      width: 100px;
-      height: 100%;
-      min-height: 110px;
+    /* Barra lateral de color */
+    .sr-accent-bar {
+      width: 4px;
       flex-shrink: 0;
-      overflow: hidden;
-      background: #0f0c07;
+      border-radius: 0;
     }
-    .sid-thumb-img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      object-position: center;
-      opacity: 0;
-      transition: opacity .3s;
-    }
-    .sid-thumb-loaded .sid-thumb-img { opacity: 1; }
-    .sid-thumb-fallback {
-      width: 100%;
-      height: 100%;
+
+    /* Icono temático cuadrado */
+    .sr-icon-col {
+      position: relative;
+      width: 56px;
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
+      border-right: 1px solid rgba(255,255,255,.04);
     }
-    .sid-thumb-in {
+    .sr-icon-emoji {
+      font-size: 1.6rem;
+      line-height: 1;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,.5));
+    }
+    .sr-in-badge {
       position: absolute;
-      bottom: .35rem;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: .6rem;
-      font-weight: 700;
+      bottom: .3rem;
+      right: .3rem;
+      width: 16px;
+      height: 16px;
+      background: #22c55e;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .55rem;
       color: #fff;
-      background: rgba(34,197,94,.5);
-      border: 1px solid rgba(34,197,94,.6);
-      border-radius: 20px;
-      padding: .1rem .42rem;
-      white-space: nowrap;
-      backdrop-filter: blur(4px);
+      font-weight: 700;
     }
 
-    /* Columna central */
-    .sid-body {
-      padding: .85rem 1rem .8rem;
+    /* Cuerpo central */
+    .sr-body {
+      padding: .65rem .8rem .6rem;
       display: flex;
       flex-direction: column;
-      gap: .45rem;
-      border-left: 1px solid rgba(255,255,255,.05);
-      border-right: 1px solid rgba(255,255,255,.05);
+      gap: .3rem;
       min-width: 0;
+      flex: 1;
     }
-    .sid-header {
+    .sr-top-row {
       display: flex;
-      justify-content: space-between;
       align-items: flex-start;
+      justify-content: space-between;
       gap: .5rem;
     }
-    .sid-nombre {
+    .sr-name-group {
+      display: flex;
+      align-items: baseline;
+      gap: .45rem;
+      min-width: 0;
+      flex: 1;
+    }
+    .sr-nombre {
       font-family: 'Oswald', sans-serif;
-      font-size: 1rem;
+      font-size: .97rem;
       font-weight: 700;
       color: #fff;
-      letter-spacing: .02em;
+      letter-spacing: .015em;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 260px;
+      max-width: 200px;
     }
-    .sid-meta {
-      font-size: .73rem;
-      color: var(--muted, #8a7a62);
-      margin-top: .12rem;
-      line-height: 1.4;
-    }
-    .sid-desc-preview {
+    .sr-ronda {
+      font-size: .68rem;
       color: var(--dim, #5a4a3a);
-      font-style: italic;
-    }
-    .sid-badges-col {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: .22rem;
-      flex-shrink: 0;
-    }
-    .sid-prog {
-      margin-top: .1rem;
-    }
-    .sid-stats {
-      display: flex;
-      flex-wrap: wrap;
-      gap: .3rem;
-      margin-top: .1rem;
-    }
-    .sid-stat-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: .22rem;
-      font-size: .68rem;
-      color: var(--muted, #8a7a62);
-      background: rgba(255,255,255,.03);
-      border: 1px solid rgba(255,255,255,.07);
-      border-radius: 20px;
-      padding: .12rem .5rem;
       white-space: nowrap;
-    }
-
-    /* Columna derecha: precio + botón */
-    .sid-actions {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: .4rem;
-      padding: .85rem .9rem;
-      background: rgba(0,0,0,.12);
       flex-shrink: 0;
     }
-    .sid-precio-main {
-      font-family: 'Oswald', sans-serif;
-      font-size: 1.25rem;
-      font-weight: 700;
-      letter-spacing: .02em;
-      text-align: center;
-    }
-    .sid-precio-sub {
-      font-size: .67rem;
-      color: var(--muted, #8a7a62);
-      margin-top: -.3rem;
-      text-align: center;
-    }
-    .sid-btn-wrap {
-      width: 100%;
-      display: flex;
-      justify-content: center;
-    }
-    .sid-btn-wrap .btn { width: 100%; justify-content: center; font-size: .8rem; padding: .45rem .6rem; }
-    .sid-detail-btn {
-      background: none;
-      border: 1px solid rgba(255,255,255,.1);
-      color: var(--muted, #8a7a62);
-      font-size: .68rem;
-      border-radius: 6px;
-      padding: .22rem .6rem;
-      cursor: pointer;
+    .sr-badges-right {
       display: flex;
       align-items: center;
       gap: .25rem;
-      transition: color .15s, border-color .15s;
+      flex-shrink: 0;
+    }
+    .sr-desc {
+      font-size: .72rem;
+      color: var(--dim, #5a4a3a);
+      line-height: 1.4;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-style: italic;
+    }
+    .sr-bottom-row {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      flex-wrap: wrap;
+    }
+    .sr-prog-wrap {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      flex-shrink: 0;
+    }
+    .sr-prog-bg {
+      width: 64px;
+      height: 4px;
+      background: rgba(255,255,255,.07);
+      border-radius: 2px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .sr-prog-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width .4s ease;
+    }
+    .sr-prog-txt {
+      font-size: .67rem;
+      color: var(--muted, #8a7a62);
       white-space: nowrap;
     }
-    .sid-detail-btn:hover { color: var(--gold2, #d4a017); border-color: rgba(212,160,23,.35); }
+    .sr-prog-lleno { color: #22c55e; }
 
-    /* Responsive: tablet/móvil vuelve a diseño compacto */
-    @media (max-width: 768px) {
-      .sorteo-item-desktop {
-        grid-template-columns: 80px 1fr;
-        grid-template-rows: auto auto;
+    /* Chips de información inline */
+    .sr-chips {
+      display: flex;
+      align-items: center;
+      gap: .25rem;
+      flex-wrap: wrap;
+    }
+    .sr-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: .18rem;
+      font-size: .65rem;
+      border-radius: 20px;
+      padding: .1rem .42rem;
+      border: 1px solid rgba(255,255,255,.08);
+      color: var(--muted, #8a7a62);
+      white-space: nowrap;
+    }
+    .sr-chip-gold { color: var(--gold2, #d4a017); border-color: rgba(212,160,23,.25); background: rgba(212,160,23,.05); }
+    .sr-chip-green { color: #22c55e; border-color: rgba(34,197,94,.25); background: rgba(34,197,94,.05); }
+    .sr-chip-check { color: #22c55e; border-color: rgba(34,197,94,.25); background: rgba(34,197,94,.06); }
+    .sr-chip-prize { color: #22c55e; border-color: rgba(34,197,94,.18); background: transparent; }
+    .sr-chip-prize .sorteo-premio-hint { font-size: .65rem; }
+
+    /* Columna de acción derecha */
+    .sr-action {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: .3rem;
+      padding: .6rem .7rem;
+      background: rgba(0,0,0,.1);
+      border-left: 1px solid rgba(255,255,255,.04);
+      flex-shrink: 0;
+      min-width: 90px;
+    }
+    .sr-action .btn { width: 100%; justify-content: center; font-size: .78rem; padding: .38rem .5rem; }
+    .sr-detail-link {
+      background: none;
+      border: none;
+      color: var(--dim, #5a4a3a);
+      font-size: .75rem;
+      cursor: pointer;
+      padding: .15rem .3rem;
+      border-radius: 4px;
+      transition: color .15s;
+      display: flex;
+      align-items: center;
+    }
+    .sr-detail-link:hover { color: var(--gold2, #d4a017); }
+
+    /* Responsive móvil */
+    @media (max-width: 640px) {
+      .sorteo-row {
+        grid-template-columns: 4px 48px 1fr auto;
+        min-height: 72px;
       }
-      .sid-thumb { min-height: 80px; grid-row: 1 / 3; }
-      .sid-body { padding: .65rem .75rem .5rem; border-right: none; }
-      .sid-actions {
-        grid-column: 2;
-        grid-row: 2;
-        flex-direction: row;
-        justify-content: space-between;
-        padding: .4rem .75rem .65rem;
-        background: transparent;
-        gap: .5rem;
-      }
-      .sid-precio-main { font-size: 1rem; }
-      .sid-btn-wrap { width: auto; }
-      .sid-btn-wrap .btn { width: auto; }
-      .sid-detail-btn { display: none; } /* en móvil se usa doble tap */
+      .sr-icon-col { width: 48px; }
+      .sr-icon-emoji { font-size: 1.35rem; }
+      .sr-nombre { max-width: 140px; font-size: .88rem; }
+      .sr-action { min-width: 76px; padding: .5rem .5rem; }
+      .sr-action .btn { font-size: .72rem; padding: .32rem .4rem; }
+      .sr-prog-bg { width: 48px; }
+      .sr-ronda { display: none; }
+      .sr-badges-right { display: none; }
     }
 
     /* ════════════════════════════════
-       GRID — sin cambios estructurales
+       GRID — sin cambios
     ════════════════════════════════ */
     .sorteos-grid {
       display: flex;
@@ -1479,7 +1464,7 @@ function _inyectarCSSorteos() {
     .sorteo-premio-hint strong { font-family:'Oswald',sans-serif; }
 
     /* ════════════════════════════════
-       DRAWER DETALLE SORTEO (móvil/desktop)
+       DRAWER DETALLE SORTEO
     ════════════════════════════════ */
     #detailDrawer {
       position: fixed; inset: 0; z-index: 9000;
@@ -1672,13 +1657,7 @@ function _inyectarCSSorteos() {
 }
 
 /* ═══════════════════════════════════════
-   PANEL COMPRA — LÓGICA CORREGIDA
-   REGLAS:
-   - Solo 1 boleto gratis por sorteo
-   - Si usas gratis y es sorteo gratis (precio=0): 1 boleto confirmado directo
-   - Si usas gratis en sorteo pago: descuenta 1 del total a pagar
-   - maxBoletos se calcula sobre cupos libres (máx 5)
-   - La cantidad no puede exceder cupos libres nunca
+   PANEL COMPRA
 ═══════════════════════════════════════ */
 window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cuposActuales, capacidadMax=25) => {
   if(!puedeParticipar()){ modalSubirQR(); return; }
@@ -1700,20 +1679,7 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
   }
 
   const esAdicional=pagoExistente?.estado==="aprobado";
-
-  // ── CAMBIO: Verificar si el usuario cumplió el requisito pero no tiene boleto disponible ──
-  // Esto puede pasar si el boleto gratis venció o fue usado en otra ronda entre el tiempo
-  // que se marcó el requisito y ahora
   const puedoUsarGratis = boletosGratis > 0 && !gratisStatus.yoUse;
-
-  // Caso especial: usuario intentó acceder esperando boleto gratis pero no tiene
-  // Mostrar mensaje informativo si tiene 0 boletos gratis disponibles pero ya usó en otra ronda
-  // o si el requisito estaba pendiente
-  if(boletosGratis === 0 && !gratisStatus.yoUse && precioBoleto > 0) {
-    // Solo informar si venía de un flujo que sugería boleto gratis — no bloquear
-    // El flujo continúa normalmente, solo no habrá opción de gratis
-  }
-
   const maxBoletosBase = Math.min(cuposLibres, 5);
 
   let adminQR=null, adminQRMetodo=null;
@@ -1769,9 +1735,7 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
             <input type="checkbox" id="drawerUsarGratis"><span class="gratis-toggle-label">Usar 1 gratis</span>
           </label>
         </div>` :
-        gratisStatus.yoUse ? `<div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.22);border-radius:8px;padding:.6rem .9rem;margin-bottom:.75rem;font-size:.82rem;color:#86efac;display:flex;align-items:center;gap:.5rem"><i class="bi bi-check-circle-fill"></i> Ya usaste tu boleto gratis en este sorteo.</div>` :
-        /* ── CAMBIO: Mensaje cuando se cumplió requisito pero no hay boleto disponible ── */
-        boletosGratis === 0 ? "" : ""
+        gratisStatus.yoUse ? `<div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.22);border-radius:8px;padding:.6rem .9rem;margin-bottom:.75rem;font-size:.82rem;color:#86efac;display:flex;align-items:center;gap:.5rem"><i class="bi bi-check-circle-fill"></i> Ya usaste tu boleto gratis en este sorteo.</div>` : ""
         }
 
         ${!gratisStatus.yoUse&&gratisStatus.otrosConGratis>0&&boletosGratis>0?`<div class="compra-alert-warn"><i class="bi bi-lightning-charge-fill"></i>${gratisStatus.otrosConGratis} jugador${gratisStatus.otrosConGratis>1?"es":""} con boleto gratis aquí. <strong>¡Actúa rápido!</strong></div>`:""}
@@ -1862,7 +1826,6 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
   document.body.appendChild(drawer);
   requestAnimationFrame(()=>{ drawer.classList.add("open"); document.body.style.overflow="hidden"; });
 
-  // ── Estado interno del drawer ──
   let boletos = 1;
   let usarGratis = false;
 
@@ -1872,8 +1835,6 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
   }
 
   function getMaxBoletos() {
-    // Si el usuario usa gratis, el máximo seleccionable se limita a los boletos gratis disponibles y cupos libres.
-    // Si no usa gratis, se usa el máximo base (<=5) también respetando cupos libres.
     if (usarGratis) return Math.min(boletosGratis, cuposLibres);
     return Math.min(maxBoletosBase, cuposLibres);
   }
@@ -1896,7 +1857,7 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
     if(montoEl && precioBoleto > 0) montoEl.textContent = fmtMoney(precioBoleto * bap);
     if(gratisNotaEl) gratisNotaEl.style.display = usarGratis ? "block" : "none";
     if(maxHintEl) maxHintEl.textContent = usarGratis
-      ? `Máximo ${maxAhora} bolet${maxAhora===1?"o":"os"} gratis` 
+      ? `Máximo ${maxAhora} bolet${maxAhora===1?"o":"os"} gratis`
       : `Máximo ${maxAhora} por compra`;
 
     if(menosBtn) menosBtn.disabled = boletos <= 1;
@@ -2006,19 +1967,12 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
 
   getEl("drawerSubmit")?.addEventListener("click", () => enviarParticipacion());
 
-  /* ══════════════════════════════════════
-     ENVIAR PARTICIPACIÓN — LÓGICA SEGURA
-  ══════════════════════════════════════ */
   async function enviarParticipacion() {
     const enPaso2 = getEl("compraStep2")?.style.display !== "none";
     const _boletos = enPaso2 ? boletosSnap : boletos;
     const _usarGratis = enPaso2 ? usarGratisSnap : usarGratis;
 
-    // ── VALIDACIONES DE SEGURIDAD ──
-
-    // 1. Verificar boleto gratis disponible
     if(_usarGratis && !puedoUsarGratis) {
-      // ── CAMBIO: Error detallado cuando el requisito se cumplió pero no hay boleto ──
       cerrarCompraDrawer();
       await Swal.fire({
         title: "🎁 Boleto gratis no disponible",
@@ -2046,27 +2000,21 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
         ...swal$
       }).then(r => {
         if(r.isConfirmed) {
-          // Reabrir el panel sin la opción de gratis
           setTimeout(() => window.abrirPanelCompra(roundId, gameNombre, numRonda, precioBoleto, cuposActuales, cap), 200);
         }
       });
       return;
     }
 
-    // 2. Boletos mínimo
     if(_boletos < 1) {
       toast("Debes seleccionar al menos 1 boleto","error"); return;
     }
-
-    // 3. Límite máximo
     if(_boletos > maxBoletosBase) {
       toast(`Máximo ${maxBoletosBase} boletos por compra`,"error"); return;
     }
 
-    // 4. Boletos a pagar
     const bap = _usarGratis ? Math.max(0, _boletos - 1) : _boletos;
 
-    // 5. Validar comprobante y método si hay boletos pagados
     if(precioBoleto > 0 && bap > 0) {
       const metodo = getEl("drawerMetodo")?.value;
       const file = getEl("drawerComp")?.files[0];
@@ -2075,7 +2023,6 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
       if(file.size > 5*1024*1024) { toast("Imagen muy grande (máx. 5 MB)","error"); return; }
     }
 
-    // ── Verificar en tiempo real que el gratis sigue disponible ──
     if(_usarGratis) {
       const { data:bgVerif } = await supabase.from("boletos_gratis")
         .select("id")
@@ -2098,7 +2045,6 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
       }
     }
 
-    // ── Verificar cupos disponibles ──
     const { count: cuposOcupados } = await supabase.from("participations")
       .select("id",{count:"exact",head:true})
       .eq("round_id", roundId);
@@ -2111,7 +2057,7 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
     cerrarCompraDrawer();
     loading$("Enviando comprobante…");
 
-    // ═══ CASO: Solo boleto gratis (0 pagados) ═══
+    // ═══ CASO: Solo boleto gratis ═══
     if(_usarGratis && bap === 0) {
       const { data:bgDisp } = await supabase.from("boletos_gratis")
         .select("id")
@@ -2155,8 +2101,7 @@ window.abrirPanelCompra = async (roundId, gameNombre, numRonda, precioBoleto, cu
       return;
     }
 
-    // ═══ CASO: Hay boletos pagados (con o sin gratis) ═══
-
+    // ═══ CASO: Hay boletos pagados ═══
     if(_usarGratis && bap > 0) {
       const { data:bgDisp } = await supabase.from("boletos_gratis")
         .select("id")
@@ -2502,8 +2447,6 @@ async function loadPagos() {
 
 /* ═══════════════════════════════════════
    MIS PREMIOS
-   CAMBIO: Mostrar exactamente el monto registrado
-   por el admin en prize_payments, no el calculado
 ═══════════════════════════════════════ */
 async function loadPremios() {
   const el=getEl("premiosList"); if(!el) return;
@@ -2520,7 +2463,6 @@ async function loadPremios() {
     (rd||[]).forEach(r=>{roundsMap[r.id]={...r,game:gm[r.game_id]};});
   }
 
-  // ── El total ganado es estrictamente la suma de lo registrado en prize_payments ──
   const totalGanado=premiosData.reduce((s,p)=>s+Number(p.monto||0),0);
   const ll=l=>l===1?'🥇':l===2?'🥈':'🥉';
   const enriched=premiosData.map(p=>({...p,gameName:roundsMap[p.round_id]?.game?.nombre||"Sorteo",roundNum:roundsMap[p.round_id]?.numero||"—"}));
@@ -2687,7 +2629,6 @@ async function loadFidelidad() {
   const totalRefs      = (refs||[]).length;
   const refsActivos    = (refs||[]).filter(r=>r.estado==="completado").length;
   const totalGanadas   = (parts||[]).filter(p=>p.resultado==="ganada").length;
-  // ── Premio: solo lo registrado en prize_payments ──
   const totalGanado    = (premios||[]).reduce((s,p)=>s+Number(p.monto||0),0);
   const primerLugar    = (premios||[]).filter(p=>p.lugar===1).length;
   const bgsTotal       = bgsDisp?.length||0;
@@ -2848,7 +2789,6 @@ async function loadPerfil() {
   const totalBoltGratis=(parts||[]).filter(p=>p.es_gratis===true).reduce((s,p)=>s+(p.boletos||0),0);
   const totalGanados=(parts||[]).filter(p=>p.resultado==="ganada").length;
   const totalGastado=(pays||[]).filter(p=>p.estado==="aprobado"&&p.monto>0).reduce((s,p)=>s+Number(p.monto||0),0);
-  // ── Premio: solo lo registrado en prize_payments ──
   const totalGanado=(premios||[]).reduce((s,p)=>s+Number(p.monto||0),0);
   const totalPremios=(premios||[]).length;
   const totalRefs=(refs||[]).length;
